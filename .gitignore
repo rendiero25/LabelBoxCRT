@@ -1,0 +1,31 @@
+# dependencies
+/node_modules
+/.npm-cache/
+
+# next.js
+/.next/
+/out/
+
+# testing
+/coverage/
+/playwright-report/
+/test-results/
+
+# local env files
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# system/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# local Supabase runtime
+/supabase/.branches/
+/supabase/.temp/

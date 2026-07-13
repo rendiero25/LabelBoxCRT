@@ -1,0 +1,6 @@
+sample_id,captured_at,source,raw_payload,supplier_code,size_raw,dimension_1,dimension_2,length,label_quantity,lot_no,production_date,part_no_present,label_uid_status,expected_result,notes
+QR-001,2026-07-13,"docs/qr code.jpeg","10015|VO-B D5.5X6.3 Pt L=205|100|M-CRT-004A-778-131225-B002/P001|13-DEC-2025",10015,"VO-B D5.5X6.3 Pt L=205",5.5,6.3,205,100,"M-CRT-004A-778-131225-B002/P001",2025-12-13,false,IGNORED,PASS,"Part No belongs to active Master Item/box label; lot/reference field is ignored"
+QR-002,,,,,,,,,,,,,,PENDING,
+QR-003,,,,,,,,,,,,,,PENDING,
+QR-004,,,,,,,,,,,,,,PENDING,
+QR-005,,,,,,,,,,,,,,PENDING,
