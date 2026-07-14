@@ -2,41 +2,68 @@
 
 ## Tooling
 
-- CLI is pinned in `devDependencies`; run it with `npx supabase`.
-- Docker Desktop is required to start the local stack but was not installed on
-  the Phase 1 workstation.
+- CLI is pinned in `devDependencies`; on Windows run it with `npx.cmd supabase`.
+- Database development and verification use the hosted Supabase development
+  project approved for LabelBoxCRT. Docker is not required for this repository.
 - Browser code receives only `NEXT_PUBLIC_SUPABASE_URL` and
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Never expose service-role, secret, or QZ private keys through `NEXT_PUBLIC_`.
 
-## Local setup
+## Hosted development setup
 
 ```powershell
 npm install
 Copy-Item .env.example .env.local
-npx supabase start
+npx.cmd supabase --version
+npx.cmd supabase link --help
+npx.cmd supabase link --project-ref <APPROVED_DEVELOPMENT_PROJECT_REF>
 ```
 
-After Phase 2 migrations exist:
+Never run `supabase db reset` against a hosted project. Use a disposable
+development project or Supabase branch for destructive reset/replay work. The
+production project is outside Phase 2 scope.
+
+Before applying any migration, inspect both histories:
 
 ```powershell
-npx supabase db reset
-npx supabase gen types typescript --local > src/types/database.ts
-npx supabase migration list --local
+npx.cmd supabase migration list --help
+npx.cmd supabase migration list
+npx.cmd supabase db push --help
 ```
 
-The generated types command is intentionally not run in Phase 1 because no
-application schema exists yet. Replace the placeholder type only after a clean
-database reset successfully applies all migrations.
+Connector access may be used for read-only inspection, iterative SQL, tests,
+advisors, and type generation. Only the explicitly approved LabelBoxCRT project
+may be changed. Project references and credentials stay outside version control.
 
 ## Migration workflow
 
-1. Discover current CLI flags with `npx supabase <command> --help`.
-2. Create migrations using `npx supabase migration new <descriptive_name>`.
-3. Apply from a clean local database with `npx supabase db reset`.
-4. Run database tests and advisors.
-5. Generate `src/types/database.ts` from the verified schema.
-6. Commit migrations, database tests, generated types, and lockfile together.
+1. Discover current CLI flags with `npx.cmd supabase <command> --help`.
+2. Inspect hosted tables, functions, advisors, and migration history.
+3. Write pgTAP contract tests and observe the expected failure.
+4. Create migrations using `npx.cmd supabase migration new <descriptive_name>`.
+5. Iterate on the approved development target; keep migration history linear.
+6. Run pgTAP tests, database lint, and security/performance advisors.
+7. Generate `src/types/database.ts` from the verified hosted schema.
+8. Run application typecheck, lint, unit tests, and build.
+9. Commit migrations, database tests, generated types, and documentation.
+
+Hosted Auth users are created through a protected administration path. Their
+passwords never enter `seed.sql`. Phase 2 seed resolves the approved development
+emails and fails clearly if either account is absent.
+
+## Current Phase 2 target
+
+- Project name: `Label Box`
+- PostgreSQL: 17
+- Initial application migrations: none
+- Initial public application tables: none
+- Existing platform event trigger: `ensure_rls`
+- Existing security finding: `public.rls_auto_enable()` is executable by
+  `PUBLIC`, `anon`, and `authenticated`; Phase 2 migration must revoke those
+  execute privileges.
+
+Do not remove the `ensure_rls` event trigger. It enables RLS defensively on new
+public tables. Explicit migration statements and tests remain mandatory.
 
 Do not hand-invent migration timestamps or use direct client-side mutations for
 operations that require transactional RPC invariants.
