@@ -26,6 +26,9 @@
 Thumbs.db
 .vscode/
 
+# agent worktrees
+/.worktrees/
+
 # local Supabase runtime
 /supabase/.branches/
 /supabase/.temp/
