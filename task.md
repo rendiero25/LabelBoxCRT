@@ -210,16 +210,16 @@
 
 ## 2.6 Seed
 
-- [ ] Supplier code `10015`.
-- [ ] Product `tube-0001`.
-- [ ] Master item `dm-0001`.
-- [ ] Part No `3210A-K1Z-NA01-DL`.
-- [ ] Product mapping.
-- [ ] Box `B101`.
-- [ ] Layer 1 qty 3.
-- [ ] Layer 2 qty 5.
-- [ ] Delivery Number sample.
-- [ ] Dev users.
+- [x] Supplier code `10015`.
+- [x] Product `tube-0001`.
+- [x] Master item `dm-0001`.
+- [x] Part No `3210A-K1Z-NA01-DL`.
+- [x] Product mapping.
+- [x] Box `B101`.
+- [x] Layer 1 qty 3.
+- [x] Layer 2 qty 5.
+- [x] Delivery Number sample.
+- [x] Dev users.
 
 ## 2.7 Verification
 

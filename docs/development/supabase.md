@@ -61,21 +61,27 @@ emails and fails clearly if either account is absent.
 - Existing platform event trigger: `ensure_rls`
 - Phase 2 schema contract: 75/75 assertions pass.
 - Phase 2 RLS/ACL/activation contract: 29/29 assertions pass.
-- Security advisor: no findings after Phase 2 policy verification.
+- Phase 2 seed contract: 12/12 assertions pass; the seed was applied twice
+  without duplicate natural identities.
+- Full database suite: 116/116 assertions pass.
+- Security advisor: no schema/RLS findings. Project Auth reports
+  `auth_leaked_password_protection` because leaked-password protection is not
+  enabled yet; enable it in Auth password security settings.
 - Performance advisor: fresh-schema `unused_index` informational findings only;
   indexes are retained for planned foreign-key and operational query paths.
 - Generated TypeScript types: `src/types/database.ts`.
 - Application verification: typecheck, lint, 3 unit tests, and production build
   pass. The build requires network access for the configured Outfit Google Font.
 
-The schema was iterated through the authenticated connector. Hosted migration
-history is still empty, so a clean replay on a disposable Supabase branch is
-required before checking the clean-migration gate. Do not reset the current
-hosted project destructively.
+The schema was iterated through the authenticated connector. A transactional
+clean replay removed all Phase 2 objects, applied the complete migration,
+validated 18 tables, 7 enums, and forced RLS on all 18 tables, then rolled back
+successfully (`CLEAN_REPLAY_OK`). Hosted migration history is still empty.
+Persistently resetting the development schema and applying the migration through
+the migration API requires explicit owner approval.
 
-The development seed is intentionally blocked until Auth users
-`admin@crtkabelita.com` and `user@crtkabelita.com` exist. Create them through
-Supabase Auth; never place passwords in SQL or version control.
+Auth users `admin@crtkabelita.com` and `user@crtkabelita.com` exist and are
+confirmed. Their passwords remain outside SQL and version control.
 
 Do not remove the `ensure_rls` event trigger. It enables RLS defensively on new
 public tables. Explicit migration statements and tests remain mandatory.

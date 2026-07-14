@@ -94,7 +94,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
 set local role authenticated;
 select results_eq(
-  $$ select supplier_code from public.suppliers order by supplier_code $$,
+  $$ select supplier_code from public.suppliers where supplier_code like 'RLS-%' order by supplier_code $$,
   array['RLS-ACTIVE'::text],
   'active operator reads active suppliers only'
 );
@@ -150,12 +150,12 @@ reset role;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 set local role authenticated;
 select results_eq(
-  $$ select count(*)::bigint from public.profiles $$,
+  $$ select count(*)::bigint from public.profiles where id in ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004') $$,
   array[4::bigint],
   'admin reads all profiles'
 );
 select results_eq(
-  $$ select count(*)::bigint from public.suppliers $$,
+  $$ select count(*)::bigint from public.suppliers where supplier_code like 'RLS-%' $$,
   array[2::bigint],
   'admin reads active and inactive master rows'
 );

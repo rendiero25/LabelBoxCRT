@@ -46,9 +46,9 @@ select results_eq(
   'B101 version 1 is active'
 );
 
-select results_eq(
-  $$ select array_agg(requirement.expected_qty order by layer.layer_no) from public.box_layer_requirements requirement join public.box_layers layer on layer.id = requirement.box_layer_id join public.box_definitions definition on definition.id = layer.box_definition_id join public.master_items item on item.id = definition.master_item_id where item.item_code = 'dm-0001' and definition.box_code = 'B101' and definition.version = 1 $$,
-  array[array[3, 5]],
+select is(
+  (select array_agg(requirement.expected_qty order by layer.layer_no) from public.box_layer_requirements requirement join public.box_layers layer on layer.id = requirement.box_layer_id join public.box_definitions definition on definition.id = layer.box_definition_id join public.master_items item on item.id = definition.master_item_id where item.item_code = 'dm-0001' and definition.box_code = 'B101' and definition.version = 1),
+  array[3, 5],
   'B101 development layers require 3 and 5 units'
 );
 
