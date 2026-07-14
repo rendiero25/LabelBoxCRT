@@ -159,54 +159,54 @@
 
 ## 2.1 Enums
 
-- [ ] User role.
-- [ ] Delivery status.
-- [ ] Packing session status.
-- [ ] Scan result.
-- [ ] Print job status.
-- [ ] Reprint status.
+- [x] User role.
+- [x] Delivery status.
+- [x] Packing session status.
+- [x] Scan result.
+- [x] Print job status.
+- [x] Reprint status.
 
 ## 2.2 Master Tables
 
-- [ ] `profiles`.
-- [ ] `suppliers`.
-- [ ] `delivery_numbers`.
-- [ ] `products`.
-- [ ] `master_items`.
-- [ ] `master_item_products`.
-- [ ] Index dan unique constraints.
+- [x] `profiles`.
+- [x] `suppliers`.
+- [x] `delivery_numbers`.
+- [x] `products`.
+- [x] `master_items`.
+- [x] `master_item_products`.
+- [x] Index dan unique constraints.
 
 ## 2.3 Box Tables
 
-- [ ] `box_definitions`.
-- [ ] Box versioning.
-- [ ] `box_layers`.
-- [ ] `box_layer_requirements`.
-- [ ] expected_qty check.
-- [ ] Validation function untuk publish/activate.
+- [x] `box_definitions`.
+- [x] Box versioning.
+- [x] `box_layers`.
+- [x] `box_layer_requirements`.
+- [x] expected_qty check.
+- [x] Validation function untuk publish/activate.
 
 ## 2.4 Operational Tables
 
-- [ ] `workstations`.
-- [ ] `packing_sessions`.
-- [ ] `packing_session_scans`.
-- [ ] `sequence_counters` atau PostgreSQL sequence.
-- [ ] `print_jobs`.
-- [ ] `print_attempts`.
-- [ ] `reprint_requests`.
-- [ ] `audit_logs`.
+- [x] `workstations`.
+- [x] `packing_sessions`.
+- [x] `packing_session_scans`.
+- [x] `sequence_counters` atau PostgreSQL sequence.
+- [x] `print_jobs`.
+- [x] `print_attempts`.
+- [x] `reprint_requests`.
+- [x] `audit_logs`.
 
 ## 2.5 RLS
 
-- [ ] Enable RLS pada semua exposed tables.
-- [ ] Admin policies.
-- [ ] Supervisor policies.
-- [ ] Operator policies.
-- [ ] Session/workstation ownership.
-- [ ] Block direct mutation yang wajib lewat RPC.
-- [ ] Secure views.
-- [ ] Review function execute privileges.
-- [ ] Verify UPDATE policies punya USING + WITH CHECK.
+- [x] Enable RLS pada semua exposed tables.
+- [x] Admin policies.
+- [x] Supervisor tidak digunakan; approval/reprint menjadi tanggung jawab admin.
+- [x] Operator policies.
+- [x] Session/workstation ownership.
+- [x] Block direct mutation yang wajib lewat RPC.
+- [x] Tidak ada exposed view pada Phase 2.
+- [x] Review function execute privileges.
+- [x] Verify UPDATE policies punya USING + WITH CHECK.
 
 ## 2.6 Seed
 
@@ -224,13 +224,13 @@
 ## 2.7 Verification
 
 - [ ] Apply migrations dari clean DB.
-- [ ] Generate types.
-- [ ] Run database advisors.
-- [ ] Test anon.
-- [ ] Test operator.
-- [ ] Test supervisor.
-- [ ] Test admin.
-- [ ] Unauthorized mutation gagal.
+- [x] Generate types.
+- [x] Run database advisors.
+- [x] Test anon.
+- [x] Test operator.
+- [x] Supervisor tidak digunakan pada model role yang disetujui.
+- [x] Test admin.
+- [x] Unauthorized mutation gagal.
 
 **Gate Phase 2:** schema, migration, constraints, seed, dan RLS reproducible.
 

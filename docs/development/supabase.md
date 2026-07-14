@@ -54,13 +54,28 @@ emails and fails clearly if either account is absent.
 ## Current Phase 2 target
 
 - Project name: `Label Box`
+- Project ref: `yxyunstzvlltxwqookzs`
 - PostgreSQL: 17
 - Initial application migrations: none
 - Initial public application tables: none
 - Existing platform event trigger: `ensure_rls`
-- Existing security finding: `public.rls_auto_enable()` is executable by
-  `PUBLIC`, `anon`, and `authenticated`; Phase 2 migration must revoke those
-  execute privileges.
+- Phase 2 schema contract: 75/75 assertions pass.
+- Phase 2 RLS/ACL/activation contract: 29/29 assertions pass.
+- Security advisor: no findings after Phase 2 policy verification.
+- Performance advisor: fresh-schema `unused_index` informational findings only;
+  indexes are retained for planned foreign-key and operational query paths.
+- Generated TypeScript types: `src/types/database.ts`.
+- Application verification: typecheck, lint, 3 unit tests, and production build
+  pass. The build requires network access for the configured Outfit Google Font.
+
+The schema was iterated through the authenticated connector. Hosted migration
+history is still empty, so a clean replay on a disposable Supabase branch is
+required before checking the clean-migration gate. Do not reset the current
+hosted project destructively.
+
+The development seed is intentionally blocked until Auth users
+`admin@crtkabelita.com` and `user@crtkabelita.com` exist. Create them through
+Supabase Auth; never place passwords in SQL or version control.
 
 Do not remove the `ensure_rls` event trigger. It enables RLS defensively on new
 public tables. Explicit migration statements and tests remain mandatory.
