@@ -223,7 +223,7 @@
 
 ## 2.7 Verification
 
-- [ ] Apply migrations dari clean DB.
+- [x] Apply migrations dari clean DB.
 - [x] Generate types.
 - [x] Run database advisors.
 - [x] Test anon.

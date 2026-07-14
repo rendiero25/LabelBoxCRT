@@ -66,19 +66,18 @@ emails and fails clearly if either account is absent.
 - Full database suite: 116/116 assertions pass.
 - Security advisor: no schema/RLS findings. Project Auth reports
   `auth_leaked_password_protection` because leaked-password protection is not
-  enabled yet; enable it in Auth password security settings.
+  enabled. Supabase documents this protection as a Pro Plan feature.
 - Performance advisor: fresh-schema `unused_index` informational findings only;
   indexes are retained for planned foreign-key and operational query paths.
 - Generated TypeScript types: `src/types/database.ts`.
 - Application verification: typecheck, lint, 3 unit tests, and production build
   pass. The build requires network access for the configured Outfit Google Font.
 
-The schema was iterated through the authenticated connector. A transactional
-clean replay removed all Phase 2 objects, applied the complete migration,
-validated 18 tables, 7 enums, and forced RLS on all 18 tables, then rolled back
-successfully (`CLEAN_REPLAY_OK`). Hosted migration history is still empty.
-Persistently resetting the development schema and applying the migration through
-the migration API requires explicit owner approval.
+After owner approval, the development Phase 2 schema was reset and the complete
+migration was applied persistently through the migration API. Hosted migration
+history contains `20260714065242_phase_2_schema`, matching the local filename.
+The seed was then reapplied twice and all 116 database assertions passed against
+the recreated schema.
 
 Auth users `admin@crtkabelita.com` and `user@crtkabelita.com` exist and are
 confirmed. Their passwords remain outside SQL and version control.
