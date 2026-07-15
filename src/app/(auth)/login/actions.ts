@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 
 import { getAuthNotice, parseCredentials } from "@/features/auth/credentials"
 import type { LoginActionState } from "@/features/auth/form-state"
+import { getRoleHomePath } from "@/features/auth/permissions"
 import { getVerifiedAuthContext } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -39,7 +40,7 @@ export async function signInAction(
     }
   }
 
-  redirect("/scan")
+  redirect(getRoleHomePath(context.profile.role))
 }
 
 export async function signOutAction() {

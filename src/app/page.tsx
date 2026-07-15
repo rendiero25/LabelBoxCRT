@@ -15,15 +15,12 @@ export default function HomePage() {
           Fondasi aplikasi siap dikembangkan
         </h1>
         <p className="text-muted-foreground">
-          Pilih area kerja untuk melihat shell aplikasi Phase 1.
+          Masuk untuk membuka area kerja sesuai role akun Anda.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-3">
         <Button asChild>
-          <Link href="/scan">Buka halaman operator</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/admin">Buka halaman admin</Link>
+          <Link href="/login">Masuk aplikasi</Link>
         </Button>
       </div>
     </main>

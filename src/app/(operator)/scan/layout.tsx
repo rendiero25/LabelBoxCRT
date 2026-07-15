@@ -1,13 +1,14 @@
 import Image from "next/image"
 
 import { AppStatus } from "@/components/shared/app-status"
+import { Badge } from "@/components/ui/badge"
 import { SignOutButton } from "@/features/auth/components/sign-out-button"
-import { requireActiveUser } from "@/features/auth/server"
+import { requireOperator } from "@/features/auth/server"
 
 export default async function OperatorLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  await requireActiveUser()
+  const auth = await requireOperator()
 
   return (
     <div className="bg-muted/20 min-h-svh">
@@ -22,6 +23,7 @@ export default async function OperatorLayout({
           />
           <div className="flex items-center gap-3">
             <AppStatus />
+            <Badge variant="secondary">{auth.profile.display_name}</Badge>
             <SignOutButton />
           </div>
         </div>

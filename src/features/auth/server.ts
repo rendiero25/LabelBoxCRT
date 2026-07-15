@@ -4,6 +4,7 @@ import {
   getLoginReasonForAuthStatus,
   type AuthStatus,
 } from "@/features/auth/credentials"
+import { hasRequiredRole, type AppRole } from "@/features/auth/permissions"
 import { createClient } from "@/lib/supabase/server"
 import type { Database } from "@/types/database"
 
@@ -65,4 +66,24 @@ export async function requireActiveUser(): Promise<ActiveAuthContext> {
   }
 
   return context
+}
+
+export async function requireRole(
+  requiredRole: AppRole,
+): Promise<ActiveAuthContext> {
+  const context = await requireActiveUser()
+
+  if (!hasRequiredRole(context.profile.role, requiredRole)) {
+    redirect("/unauthorized")
+  }
+
+  return context
+}
+
+export function requireAdmin(): Promise<ActiveAuthContext> {
+  return requireRole("admin")
+}
+
+export function requireOperator(): Promise<ActiveAuthContext> {
+  return requireRole("operator")
 }

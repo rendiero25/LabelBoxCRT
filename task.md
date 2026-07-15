@@ -249,11 +249,11 @@
 
 ## 3.2 Role
 
-- [ ] Admin guard.
-- [ ] Supervisor guard.
-- [ ] Operator guard.
-- [ ] Server permission helpers.
-- [ ] UI navigation per permission.
+- [x] Admin guard.
+- [x] Supervisor tidak digunakan; approval/reprint tetap pada admin.
+- [x] Operator guard.
+- [x] Server permission helpers.
+- [x] UI navigation per permission.
 
 ## 3.3 Workstation
 
