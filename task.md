@@ -240,12 +240,12 @@
 
 ## 3.1 Auth
 
-- [ ] Login.
-- [ ] Logout.
-- [ ] Protected routes.
-- [ ] Verify identity server-side.
-- [ ] Inactive user handling.
-- [ ] Session expiry handling.
+- [x] Login.
+- [x] Logout.
+- [x] Protected routes.
+- [x] Verify identity server-side.
+- [x] Inactive user handling.
+- [x] Session expiry handling.
 
 ## 3.2 Role
 

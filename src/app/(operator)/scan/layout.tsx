@@ -1,10 +1,14 @@
 import Image from "next/image"
 
 import { AppStatus } from "@/components/shared/app-status"
+import { SignOutButton } from "@/features/auth/components/sign-out-button"
+import { requireActiveUser } from "@/features/auth/server"
 
-export default function OperatorLayout({
+export default async function OperatorLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  await requireActiveUser()
+
   return (
     <div className="bg-muted/20 min-h-svh">
       <header className="bg-background border-b">
@@ -16,7 +20,10 @@ export default function OperatorLayout({
             height={42}
             priority
           />
-          <AppStatus />
+          <div className="flex items-center gap-3">
+            <AppStatus />
+            <SignOutButton />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl p-6">{children}</main>

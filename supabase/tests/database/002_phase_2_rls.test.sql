@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(29);
+select plan(30);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data,
@@ -144,6 +144,11 @@ set local role authenticated;
 select is_empty(
   $$ select id from public.suppliers $$,
   'inactive operator cannot read master data'
+);
+select results_eq(
+  $$ select is_active from public.profiles $$,
+  array[false],
+  'inactive operator can read only their own profile status'
 );
 reset role;
 

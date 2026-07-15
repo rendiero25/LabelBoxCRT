@@ -16,10 +16,14 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { SignOutButton } from "@/features/auth/components/sign-out-button"
+import { requireActiveUser } from "@/features/auth/server"
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  await requireActiveUser()
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -62,6 +66,9 @@ export default function AdminLayout({
         <header className="bg-background flex h-14 items-center gap-3 border-b px-4">
           <SidebarTrigger />
           <p className="font-medium">Admin Label Box</p>
+          <div className="ml-auto">
+            <SignOutButton />
+          </div>
         </header>
         <main className="p-6">{children}</main>
       </SidebarInset>
