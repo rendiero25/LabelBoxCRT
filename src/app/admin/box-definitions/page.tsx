@@ -2,6 +2,12 @@ import { BoxesIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { requireAdmin } from "@/features/auth/server"
+import {
+  BoxDefinitionDirectory,
+  type BoxDefinition,
+  type BoxDefinitionMasterItem,
+  type BoxDefinitionProduct,
+} from "@/features/box-definitions/components/box-definition-directory"
 import { createClient } from "@/lib/supabase/server"
 
 type ProductRow = {
@@ -9,7 +15,7 @@ type ProductRow = {
   is_active: boolean
   product_code: string
   part_name: string
-  normalized_dimensions: string
+  normalized_dimensions: string | null
 }
 
 type RequirementRow = {
@@ -22,7 +28,6 @@ type RequirementRow = {
 
 type LayerRow = {
   id: string
-  is_active: boolean
   layer_name: string
   layer_no: number
   sort_order: number
@@ -34,7 +39,6 @@ type MasterItemRow = {
   item_code: string
   part_no: string
   part_name: string
-  is_active: boolean
 }
 
 type BoxDefinitionRow = {
@@ -63,12 +67,12 @@ export default async function BoxDefinitionsPage() {
       supabase
         .from("box_definitions")
         .select(
-          "id, box_code, box_name, version, is_active, master_item_id, master_items(id, item_code, part_no, part_name, is_active), box_layers(id, is_active, layer_name, layer_no, sort_order, box_layer_requirements(id, product_id, expected_qty, sort_order, products(id, is_active, product_code, part_name, normalized_dimensions)))",
+          "id, box_code, box_name, version, is_active, master_item_id, master_items(id, item_code, part_no, part_name), box_layers(id, layer_name, layer_no, sort_order, box_layer_requirements(id, product_id, expected_qty, sort_order, products(id, is_active, product_code, part_name, normalized_dimensions)))",
         )
         .order("updated_at", { ascending: false }),
       supabase
         .from("master_items")
-        .select("id, item_code, part_no, part_name, is_active")
+        .select("id, item_code, part_no, part_name")
         .eq("is_active", true)
         .order("part_no"),
       supabase
@@ -94,6 +98,68 @@ export default async function BoxDefinitionsPage() {
     Boolean(masterItemsResult.error) ||
     Boolean(mappingsResult.error) ||
     Boolean(sessionsResult.error)
+  const mappedProducts = mappings.reduce<Record<string, BoxDefinitionProduct[]>>(
+    (result, mapping) => {
+      if (!mapping.products?.is_active) return result
+
+      const products = result[mapping.master_item_id] ?? []
+      products.push({
+        id: mapping.products.id,
+        productCode: mapping.products.product_code,
+        partName: mapping.products.part_name,
+        normalizedDimensions: mapping.products.normalized_dimensions,
+      })
+      result[mapping.master_item_id] = products
+      return result
+    },
+    {},
+  )
+  const directoryMasterItems: BoxDefinitionMasterItem[] = masterItems.map(
+    (masterItem) => ({
+      id: masterItem.id,
+      itemCode: masterItem.item_code,
+      partNo: masterItem.part_no,
+      partName: masterItem.part_name,
+    }),
+  )
+  const directoryDefinitions: BoxDefinition[] = boxDefinitions.map(
+    (definition) => ({
+      id: definition.id,
+      masterItemId: definition.master_item_id,
+      boxCode: definition.box_code,
+      boxName: definition.box_name,
+      version: definition.version,
+      isActive: definition.is_active,
+      masterItem: definition.master_items
+        ? {
+            id: definition.master_items.id,
+            itemCode: definition.master_items.item_code,
+            partNo: definition.master_items.part_no,
+            partName: definition.master_items.part_name,
+          }
+        : null,
+      layers: definition.box_layers.map((layer) => ({
+        id: layer.id,
+        layerNo: layer.layer_no,
+        name: layer.layer_name,
+        sortOrder: layer.sort_order,
+        requirements: layer.box_layer_requirements.map((requirement) => ({
+          id: requirement.id,
+          productId: requirement.product_id,
+          expectedQty: requirement.expected_qty,
+          product: requirement.products
+            ? {
+                id: requirement.products.id,
+                productCode: requirement.products.product_code,
+                partName: requirement.products.part_name,
+                normalizedDimensions: requirement.products.normalized_dimensions,
+              }
+            : null,
+        })),
+      })),
+      isUsed: usedBoxDefinitionIds.has(definition.id),
+    }),
+  )
 
   return (
     <div className="flex max-w-6xl flex-col gap-8">
@@ -101,8 +167,7 @@ export default async function BoxDefinitionsPage() {
         <p className="text-muted-foreground text-sm font-medium">Phase 4.6</p>
         <h1 className="text-2xl font-semibold">Box Definition</h1>
         <p className="text-muted-foreground text-sm">
-          Kelola versi box, layer, dan requirement produk untuk setiap Master
-          Item.
+          Kelola versi box, layer, dan requirement produk untuk setiap Master Item.
         </p>
       </div>
 
@@ -116,30 +181,11 @@ export default async function BoxDefinitionsPage() {
         </Alert>
       ) : null}
 
-      <section
-        className="rounded-lg border p-4 text-sm"
-        aria-label="Ringkasan Box Definition"
-      >
-        <p className="font-medium">{boxDefinitions.length} definisi box</p>
-        <p className="text-muted-foreground mt-1">
-          {masterItems.length} Master Item aktif dan {mappings.length} mapping
-          produk aktif siap dipakai.
-        </p>
-        <ul className="mt-4 space-y-2">
-          {boxDefinitions.map((boxDefinition) => (
-            <li key={boxDefinition.id} className="text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {boxDefinition.box_code} v{boxDefinition.version}
-              </span>{" "}
-              — {boxDefinition.master_items?.part_no ?? "Master Item tidak ditemukan"},{" "}
-              {boxDefinition.box_layers.length} layer
-              {usedBoxDefinitionIds.has(boxDefinition.id)
-                ? " · sudah digunakan"
-                : " · belum digunakan"}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <BoxDefinitionDirectory
+        definitions={directoryDefinitions}
+        mappedProducts={mappedProducts}
+        masterItems={directoryMasterItems}
+      />
     </div>
   )
 }
