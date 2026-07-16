@@ -931,7 +931,22 @@ export type Database = {
           updated_at?: string
           workstation_code?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workstations_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workstations_disabled_by_fkey"
+            columns: ["disabled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -942,14 +957,41 @@ export type Database = {
         Args: { p_workstation_id: string }
         Returns: undefined
       }
-      create_supplier: {
-        Args: { p_supplier_code: string; p_supplier_name: string }
+      clone_box_definition_version: {
+        Args: { p_box_definition_id: string }
+        Returns: string
+      }
+      close_or_cancel_delivery_number: {
+        Args: {
+          p_delivery_number_id: string
+          p_status: Database["public"]["Enums"]["delivery_status"]
+        }
+        Returns: undefined
+      }
+      create_box_definition: {
+        Args: {
+          p_box_code: string
+          p_box_name: string
+          p_layers: Json
+          p_master_item_id: string
+        }
+        Returns: string
+      }
+      create_delivery_number: {
+        Args: {
+          p_delivery_date: string
+          p_delivery_number: string
+          p_status?: Database["public"]["Enums"]["delivery_status"]
+          p_supplier_id: string
+        }
         Returns: {
           created_at: string
+          created_by: string
+          delivery_date: string
+          delivery_number: string
           id: string
-          is_active: boolean
-          supplier_code: string
-          supplier_name: string
+          status: Database["public"]["Enums"]["delivery_status"]
+          supplier_id: string
           updated_at: string
         }[]
       }
@@ -957,7 +999,7 @@ export type Database = {
         Args: {
           p_default_label_qty: number
           p_item_code: string
-          p_item_sequence_code?: string | null
+          p_item_sequence_code?: string
           p_part_name: string
           p_part_no: string
           p_unit: string
@@ -968,7 +1010,7 @@ export type Database = {
           id: string
           is_active: boolean
           item_code: string
-          item_sequence_code: string | null
+          item_sequence_code: string
           part_name: string
           part_no: string
           unit: string
@@ -1000,30 +1042,16 @@ export type Database = {
           updated_at: string
         }[]
       }
-      create_delivery_number: {
-        Args: {
-          p_delivery_date: string
-          p_delivery_number: string
-          p_status?: Database["public"]["Enums"]["delivery_status"]
-          p_supplier_id: string
-        }
+      create_supplier: {
+        Args: { p_supplier_code: string; p_supplier_name: string }
         Returns: {
           created_at: string
-          created_by: string
-          delivery_date: string
-          delivery_number: string
           id: string
-          status: Database["public"]["Enums"]["delivery_status"]
-          supplier_id: string
+          is_active: boolean
+          supplier_code: string
+          supplier_name: string
           updated_at: string
         }[]
-      }
-      close_or_cancel_delivery_number: {
-        Args: {
-          p_delivery_number_id: string
-          p_status: Database["public"]["Enums"]["delivery_status"]
-        }
-        Returns: undefined
       }
       disable_workstation: {
         Args: { p_reason: string; p_workstation_id: string }
@@ -1031,23 +1059,30 @@ export type Database = {
       }
       enroll_workstation: {
         Args: { p_enrollment_code: string }
-        Returns: { device_token: string; workstation_id: string }[]
+        Returns: {
+          device_token: string
+          workstation_id: string
+        }[]
       }
       list_workstations_for_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           approval_status: Database["public"]["Enums"]["workstation_approval_status"]
-          assigned_operator_id: string | null
+          assigned_operator_id: string
           has_active_device: boolean
           id: string
           is_active: boolean
-          last_seen_at: string | null
+          last_seen_at: string
           name: string
           printer_model: string
           printer_name: string
           scanner_model: string
           workstation_code: string
         }[]
+      }
+      publish_box_definition: {
+        Args: { p_box_definition_id: string }
+        Returns: string
       }
       register_workstation: {
         Args: {
@@ -1064,6 +1099,18 @@ export type Database = {
           workstation_id: string
         }[]
       }
+      set_master_item_active: {
+        Args: { p_is_active: boolean; p_master_item_id: string }
+        Returns: undefined
+      }
+      set_master_item_product_active: {
+        Args: { p_is_active: boolean; p_mapping_id: string }
+        Returns: undefined
+      }
+      set_product_active: {
+        Args: { p_is_active: boolean; p_product_id: string }
+        Returns: undefined
+      }
       set_supplier_active: {
         Args: { p_is_active: boolean; p_supplier_id: string }
         Returns: {
@@ -1075,32 +1122,55 @@ export type Database = {
           updated_at: string
         }[]
       }
-      update_supplier: {
+      update_box_definition: {
         Args: {
-          p_supplier_code: string
+          p_box_code: string
+          p_box_definition_id: string
+          p_box_name: string
+          p_layers: Json
+        }
+        Returns: string
+      }
+      update_delivery_number: {
+        Args: {
+          p_delivery_date: string
+          p_delivery_number: string
+          p_delivery_number_id: string
           p_supplier_id: string
-          p_supplier_name: string
         }
         Returns: {
           created_at: string
+          created_by: string
+          delivery_date: string
+          delivery_number: string
           id: string
-          is_active: boolean
-          supplier_code: string
-          supplier_name: string
+          status: Database["public"]["Enums"]["delivery_status"]
+          supplier_id: string
           updated_at: string
         }[]
       }
-      set_product_active: {
-        Args: { p_is_active: boolean; p_product_id: string }
-        Returns: undefined
-      }
-      set_master_item_active: {
-        Args: { p_is_active: boolean; p_master_item_id: string }
-        Returns: undefined
-      }
-      set_master_item_product_active: {
-        Args: { p_is_active: boolean; p_mapping_id: string }
-        Returns: undefined
+      update_master_item: {
+        Args: {
+          p_default_label_qty: number
+          p_item_code: string
+          p_item_sequence_code?: string
+          p_master_item_id: string
+          p_part_name: string
+          p_part_no: string
+          p_unit: string
+        }
+        Returns: {
+          created_at: string
+          default_label_qty: number
+          id: string
+          is_active: boolean
+          item_code: string
+          item_sequence_code: string
+          part_name: string
+          part_no: string
+          unit: string
+          updated_at: string
+        }[]
       }
       update_product: {
         Args: {
@@ -1124,44 +1194,18 @@ export type Database = {
           updated_at: string
         }[]
       }
-      update_master_item: {
+      update_supplier: {
         Args: {
-          p_default_label_qty: number
-          p_item_code: string
-          p_item_sequence_code?: string | null
-          p_master_item_id: string
-          p_part_name: string
-          p_part_no: string
-          p_unit: string
+          p_supplier_code: string
+          p_supplier_id: string
+          p_supplier_name: string
         }
         Returns: {
           created_at: string
-          default_label_qty: number
           id: string
           is_active: boolean
-          item_code: string
-          item_sequence_code: string | null
-          part_name: string
-          part_no: string
-          unit: string
-          updated_at: string
-        }[]
-      }
-      update_delivery_number: {
-        Args: {
-          p_delivery_date: string
-          p_delivery_number: string
-          p_delivery_number_id: string
-          p_supplier_id: string
-        }
-        Returns: {
-          created_at: string
-          created_by: string
-          delivery_date: string
-          delivery_number: string
-          id: string
-          status: Database["public"]["Enums"]["delivery_status"]
-          supplier_id: string
+          supplier_code: string
+          supplier_name: string
           updated_at: string
         }[]
       }
@@ -1192,7 +1236,12 @@ export type Database = {
         | "expired"
       print_attempt_result: "sent" | "failed"
       print_job_status:
-        "pending" | "printing" | "sent" | "confirmed" | "failed" | "cancelled"
+        | "pending"
+        | "printing"
+        | "sent"
+        | "confirmed"
+        | "failed"
+        | "cancelled"
       reprint_status: "requested" | "approved" | "rejected" | "executed"
       scan_result: "accepted" | "invalid" | "duplicate" | "over_qty"
       user_role: "admin" | "operator"
@@ -1212,12 +1261,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1239,12 +1288,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1263,12 +1313,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1287,12 +1338,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1305,11 +1357,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

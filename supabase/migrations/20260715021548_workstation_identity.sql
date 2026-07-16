@@ -17,7 +17,9 @@ alter table public.workstations
 -- Existing active rows predate enrollment. Keep them operable while requiring
 -- every new workstation to complete registration, enrollment, then approval.
 update public.workstations
-set approval_status = case when is_active then 'approved' else 'disabled' end
+set approval_status = (
+  case when is_active then 'approved' else 'disabled' end
+)::public.workstation_approval_status
 where approval_status = 'pending';
 
 alter table public.workstations
