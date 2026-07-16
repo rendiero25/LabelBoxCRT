@@ -116,6 +116,14 @@ export function masterItemBoxRequirementsRpcErrorMessage(
   const messages: Record<string, string> = {
     MASTER_ITEM_BOX_DEFINITION_MISMATCH:
       "Box Definition tidak sesuai dengan Master Item ini.",
+    MASTER_ITEM_BOX_DEFINITION_IN_USE:
+      "Definisi box sudah digunakan dan tidak dapat diubah.",
+    MASTER_ITEM_BOX_REQUIREMENTS_INPUT_INVALID:
+      "Data kebutuhan Box dan Layer tidak valid.",
+    MASTER_ITEM_BOX_REQUIREMENTS_PRODUCT_INVALID:
+      "Produk requirement tidak aktif atau tidak valid.",
+    MASTER_ITEM_BOX_REQUIREMENTS_ADMIN_REQUIRED:
+      "Aksi ini hanya tersedia untuk admin aktif.",
   }
 
   return (

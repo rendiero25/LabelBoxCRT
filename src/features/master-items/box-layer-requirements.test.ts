@@ -132,12 +132,29 @@ describe("parseMasterItemBoxRequirementsInput", () => {
 })
 
 describe("masterItemBoxRequirementsRpcErrorMessage", () => {
-  it("maps a mismatched box definition to a safe Indonesian message", () => {
-    expect(
-      masterItemBoxRequirementsRpcErrorMessage(
-        "MASTER_ITEM_BOX_DEFINITION_MISMATCH",
-      ),
-    ).toBe("Box Definition tidak sesuai dengan Master Item ini.")
+  it.each([
+    [
+      "MASTER_ITEM_BOX_DEFINITION_MISMATCH",
+      "Box Definition tidak sesuai dengan Master Item ini.",
+    ],
+    [
+      "MASTER_ITEM_BOX_DEFINITION_IN_USE",
+      "Definisi box sudah digunakan dan tidak dapat diubah.",
+    ],
+    [
+      "MASTER_ITEM_BOX_REQUIREMENTS_INPUT_INVALID",
+      "Data kebutuhan Box dan Layer tidak valid.",
+    ],
+    [
+      "MASTER_ITEM_BOX_REQUIREMENTS_PRODUCT_INVALID",
+      "Produk requirement tidak aktif atau tidak valid.",
+    ],
+    [
+      "MASTER_ITEM_BOX_REQUIREMENTS_ADMIN_REQUIRED",
+      "Aksi ini hanya tersedia untuk admin aktif.",
+    ],
+  ])("maps %s to a safe Indonesian message", (code, message) => {
+    expect(masterItemBoxRequirementsRpcErrorMessage(code)).toBe(message)
   })
 
   it("hides unexpected RPC errors", () => {
