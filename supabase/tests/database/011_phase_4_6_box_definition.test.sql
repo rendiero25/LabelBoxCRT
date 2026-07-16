@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(14);
+select plan(20);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -301,6 +301,44 @@ select is(
   'clone creates inactive version two with the ordered source content'
 );
 
+select set_config(
+  'request.jwt.claim.sub',
+  '91100000-0000-0000-0000-000000000002',
+  true
+);
+
+select throws_ok(
+  $$
+    select public.update_box_definition(
+      '92100000-0000-0000-0000-000000000001',
+      'B101',
+      'B101',
+      '[]'::jsonb
+    )
+  $$,
+  'P0001',
+  'BOX_DEFINITION_ADMIN_REQUIRED',
+  'authenticated non-admin cannot update a Box Definition'
+);
+
+select throws_ok(
+  $$
+    select public.publish_box_definition('92100000-0000-0000-0000-000000000001')
+  $$,
+  'P0001',
+  'BOX_DEFINITION_ADMIN_REQUIRED',
+  'authenticated non-admin cannot publish a Box Definition'
+);
+
+select throws_ok(
+  $$
+    select public.clone_box_definition_version('92100000-0000-0000-0000-000000000001')
+  $$,
+  'P0001',
+  'BOX_DEFINITION_ADMIN_REQUIRED',
+  'authenticated non-admin cannot clone a Box Definition'
+);
+
 reset role;
 set local role anon;
 
@@ -316,6 +354,38 @@ select throws_ok(
   '42501',
   'permission denied for function create_box_definition',
   'anon has no execute privilege on the create RPC'
+);
+
+select throws_ok(
+  $$
+    select public.update_box_definition(
+      '92100000-0000-0000-0000-000000000001',
+      'B101',
+      'B101',
+      '[]'::jsonb
+    )
+  $$,
+  '42501',
+  'permission denied for function update_box_definition',
+  'anon has no execute privilege on the update RPC'
+);
+
+select throws_ok(
+  $$
+    select public.publish_box_definition('92100000-0000-0000-0000-000000000001')
+  $$,
+  '42501',
+  'permission denied for function publish_box_definition',
+  'anon has no execute privilege on the publish RPC'
+);
+
+select throws_ok(
+  $$
+    select public.clone_box_definition_version('92100000-0000-0000-0000-000000000001')
+  $$,
+  '42501',
+  'permission denied for function clone_box_definition_version',
+  'anon has no execute privilege on the clone RPC'
 );
 
 reset role;

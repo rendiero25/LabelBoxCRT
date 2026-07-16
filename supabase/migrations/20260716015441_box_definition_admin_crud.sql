@@ -351,17 +351,29 @@ begin
 
   select * into source_definition
   from public.box_definitions definition
-  where definition.id = p_box_definition_id
-  for update;
+  where definition.id = p_box_definition_id;
 
   if not found then
     raise exception using errcode = 'P0001', message = 'BOX_DEFINITION_NOT_FOUND';
   end if;
 
+  -- All versions of a master-item/normalized-box-code family contend on this
+  -- transaction-scoped key before any row locks are acquired.  This prevents
+  -- sibling clones from taking source and family row locks in inverse order.
+  perform pg_advisory_xact_lock(
+    hashtextextended(
+      source_definition.master_item_id::text
+        || ':'
+        || lower(btrim(source_definition.box_code)),
+      0
+    )
+  );
+
   perform 1
   from public.box_definitions definition
   where definition.master_item_id = source_definition.master_item_id
     and lower(btrim(definition.box_code)) = lower(btrim(source_definition.box_code))
+  order by definition.id
   for update;
 
   select coalesce(max(definition.version), 0) + 1 into target_version
