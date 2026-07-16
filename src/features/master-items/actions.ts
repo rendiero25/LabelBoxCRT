@@ -30,7 +30,7 @@ export async function createMasterItemAction(
     p_part_name: parsed.data.partName,
     p_unit: parsed.data.unit,
     p_default_label_qty: parsed.data.defaultLabelQty,
-    p_item_sequence_code: parsed.data.itemSequenceCode,
+    p_item_sequence_code: parsed.data.itemSequenceCode ?? undefined,
   })
 
   if (error) return { error: masterItemRpcErrorMessage(error.message) }
@@ -57,7 +57,7 @@ export async function updateMasterItemAction(
     p_part_name: parsed.data.partName,
     p_unit: parsed.data.unit,
     p_default_label_qty: parsed.data.defaultLabelQty,
-    p_item_sequence_code: parsed.data.itemSequenceCode,
+    p_item_sequence_code: parsed.data.itemSequenceCode ?? undefined,
   })
 
   if (error) return { error: masterItemRpcErrorMessage(error.message) }
