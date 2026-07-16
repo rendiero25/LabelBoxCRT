@@ -17,7 +17,10 @@ import {
 } from "@/features/products/actions"
 import { initialProductActionState } from "@/features/products/form-state"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
-import { normalizeDimensions } from "@/features/products/validation"
+import {
+  formatProductPreview,
+  normalizeDimensions,
+} from "@/features/products/validation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -172,7 +175,12 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                     </div>
                   </TableCell>
                   <TableCell className="font-sans text-xs">
-                    {product.normalized_dimensions ?? "—"}
+                    {formatProductPreview(
+                      product.part_name,
+                      product.outer_diameter,
+                      product.inner_diameter,
+                      product.length,
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -295,6 +303,7 @@ function ProductForm({
   submitLabel: string
 }) {
   const [productCode, setProductCode] = useState(product?.product_code ?? "")
+  const [partName, setPartName] = useState(product?.part_name ?? "")
   const [outerDiameter, setOuterDiameter] = useState(
     product?.outer_diameter.toString() ?? "",
   )
@@ -302,17 +311,30 @@ function ProductForm({
     product?.inner_diameter.toString() ?? "",
   )
   const [length, setLength] = useState(product?.length.toString() ?? "")
-  const preview = dimensionPreview(outerDiameter, innerDiameter, length)
+  const normalizedDimensions = dimensionPreview(
+    outerDiameter,
+    innerDiameter,
+    length,
+  )
+  const preview =
+    normalizedDimensions && partName.trim()
+      ? formatProductPreview(
+          partName.trim(),
+          Number(outerDiameter),
+          Number(innerDiameter),
+          Number(length),
+        )
+      : null
   const duplicateCode = products.find(
     (candidate) =>
       candidate.id !== product?.id &&
       candidate.product_code === productCode.trim().toLowerCase(),
   )
-  const duplicateDimensions = preview
+  const duplicateDimensions = normalizedDimensions
     ? products.find(
         (candidate) =>
           candidate.id !== product?.id &&
-          candidate.normalized_dimensions === preview,
+          candidate.normalized_dimensions === normalizedDimensions,
       )
     : undefined
 
@@ -339,23 +361,25 @@ function ProductForm({
         </Alert>
       ) : null}
       <FieldGroup>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field>
-            <FieldLabel
-              htmlFor={product ? `productCode-${product.id}` : "productCode"}
-            >
-              Kode produk
-            </FieldLabel>
-            <Input
-              id={product ? `productCode-${product.id}` : "productCode"}
-              maxLength={64}
-              name="productCode"
-              onChange={(event) => setProductCode(event.target.value)}
-              placeholder="tube-0001"
-              required
-              value={productCode}
-            />
-          </Field>
+        <div className={product ? "grid gap-5 sm:grid-cols-2" : undefined}>
+          {product ? (
+            <Field>
+              <FieldLabel
+                htmlFor={product ? `productCode-${product.id}` : "productCode"}
+              >
+                Kode produk
+              </FieldLabel>
+              <Input
+                id={product ? `productCode-${product.id}` : "productCode"}
+                maxLength={64}
+                name="productCode"
+                onChange={(event) => setProductCode(event.target.value)}
+                placeholder="tube-0001"
+                required
+                value={productCode}
+              />
+            </Field>
+          ) : null}
           <Field>
             <FieldLabel
               htmlFor={product ? `partName-${product.id}` : "partName"}
@@ -363,15 +387,21 @@ function ProductForm({
               Nama part
             </FieldLabel>
             <Input
-              defaultValue={product?.part_name}
+              value={partName}
               id={product ? `partName-${product.id}` : "partName"}
               maxLength={200}
               name="partName"
+              onChange={(event) => setPartName(event.target.value)}
               placeholder="Tube"
               required
             />
           </Field>
         </div>
+        {!product ? (
+          <FieldDescription>
+            Kode produk dibuat otomatis oleh sistem saat data disimpan.
+          </FieldDescription>
+        ) : null}
         <div className="grid gap-5 sm:grid-cols-3">
           <DimensionField
             id={product ? `outerDiameter-${product.id}` : "outerDiameter"}

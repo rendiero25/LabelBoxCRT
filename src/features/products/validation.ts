@@ -1,12 +1,15 @@
 const productCodePattern = /^[a-z0-9][a-z0-9_-]{1,63}$/
 const decimalPattern = /^\d+(?:\.\d+)?$/
 
-type ProductInput = {
-  productCode: string
+type ProductDetails = {
   partName: string
   outerDiameter: number
   innerDiameter: number
   length: number
+}
+
+type ProductInput = ProductDetails & {
+  productCode: string
 }
 
 function parsePositiveDimension(
@@ -29,23 +32,23 @@ export function normalizeDimensions(
   return `${outerDiameter}x${innerDiameter}x${length}`
 }
 
-export function parseProductInput(
+export function formatProductPreview(
+  partName: string,
+  outerDiameter: number,
+  innerDiameter: number,
+  length: number,
+): string {
+  return `${partName} D${outerDiameter}X${innerDiameter} Pt.L=${length}`
+}
+
+function parseProductDetails(
   formData: FormData,
-): { data: ProductInput } | { error: string } {
-  const productCode = String(formData.get("productCode") ?? "")
-    .trim()
-    .toLowerCase()
+): { data: ProductDetails } | { error: string } {
   const partName = String(formData.get("partName") ?? "").trim()
   const outerDiameter = parsePositiveDimension(formData.get("outerDiameter"))
   const innerDiameter = parsePositiveDimension(formData.get("innerDiameter"))
   const length = parsePositiveDimension(formData.get("length"))
 
-  if (!productCodePattern.test(productCode)) {
-    return {
-      error:
-        "Kode produk harus 2–64 karakter huruf kecil, angka, garis bawah, atau tanda minus.",
-    }
-  }
   if (!partName) return { error: "Nama part wajib diisi." }
   if (partName.length > 200) {
     return { error: "Nama part maksimal 200 karakter." }
@@ -55,8 +58,33 @@ export function parseProductInput(
   }
 
   return {
-    data: { productCode, partName, outerDiameter, innerDiameter, length },
+    data: { partName, outerDiameter, innerDiameter, length },
   }
+}
+
+export function parseProductCreateInput(
+  formData: FormData,
+): { data: ProductDetails } | { error: string } {
+  return parseProductDetails(formData)
+}
+
+export function parseProductInput(
+  formData: FormData,
+): { data: ProductInput } | { error: string } {
+  const productCode = String(formData.get("productCode") ?? "")
+    .trim()
+    .toLowerCase()
+  if (!productCodePattern.test(productCode)) {
+    return {
+      error:
+        "Kode produk harus 2–64 karakter huruf kecil, angka, garis bawah, atau tanda minus.",
+    }
+  }
+
+  const parsed = parseProductDetails(formData)
+  if ("error" in parsed) return parsed
+
+  return { data: { ...parsed.data, productCode } }
 }
 
 export function productRpcErrorMessage(message: string): string {

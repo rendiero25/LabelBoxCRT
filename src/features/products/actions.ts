@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/features/auth/server"
 import type { ProductActionState } from "@/features/products/form-state"
 import {
+  parseProductCreateInput,
   parseProductInput,
   productRpcErrorMessage,
 } from "@/features/products/validation"
@@ -20,12 +21,11 @@ export async function createProductAction(
   formData: FormData,
 ): Promise<ProductActionState> {
   await requireAdmin()
-  const parsed = parseProductInput(formData)
+  const parsed = parseProductCreateInput(formData)
   if ("error" in parsed) return { error: parsed.error }
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("create_product", {
-    p_product_code: parsed.data.productCode,
     p_part_name: parsed.data.partName,
     p_outer_diameter: parsed.data.outerDiameter,
     p_inner_diameter: parsed.data.innerDiameter,

@@ -1027,7 +1027,6 @@ export type Database = {
           p_length: number
           p_outer_diameter: number
           p_part_name: string
-          p_product_code: string
         }
         Returns: {
           created_at: string

@@ -21,8 +21,8 @@ export default async function ProductsPage() {
         <p className="text-muted-foreground text-sm font-medium">Phase 4.3</p>
         <h1 className="text-2xl font-semibold">Produk</h1>
         <p className="text-muted-foreground text-sm">
-          Ukuran disimpan sebagai OD × ID × Length; preview normalisasi sama
-          dengan key database.
+          Preview ukuran mengikuti format label; key database tetap memakai OD ×
+          ID × Length untuk pencarian dan validasi.
         </p>
       </div>
 
