@@ -3,6 +3,7 @@ import Link from "next/link"
 import {
   Building2Icon,
   BoxesIcon,
+  ContainerIcon,
   LayoutDashboardIcon,
   Link2Icon,
   MonitorCogIcon,
@@ -103,6 +104,14 @@ export default async function AdminLayout({
                     <Link href="/admin/product-mappings">
                       <Link2Icon />
                       <span>Product Mapping</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/box-definitions">
+                      <ContainerIcon />
+                      <span>Box Definition</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
