@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(20);
+select plan(21);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -305,6 +305,20 @@ select set_config(
   'request.jwt.claim.sub',
   '91100000-0000-0000-0000-000000000002',
   true
+);
+
+select throws_ok(
+  $$
+    select public.create_box_definition(
+      '92100000-0000-0000-0000-000000000001',
+      'B102',
+      'B102',
+      '[]'::jsonb
+    )
+  $$,
+  'P0001',
+  'BOX_DEFINITION_ADMIN_REQUIRED',
+  'authenticated non-admin cannot create a Box Definition'
 );
 
 select throws_ok(
