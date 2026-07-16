@@ -1098,6 +1098,14 @@ export type Database = {
           workstation_id: string
         }[]
       }
+      save_master_item_box_requirements: {
+        Args: {
+          p_box_definition_id: string
+          p_layers: Json
+          p_master_item_id: string
+        }
+        Returns: string
+      }
       set_master_item_active: {
         Args: { p_is_active: boolean; p_master_item_id: string }
         Returns: undefined
