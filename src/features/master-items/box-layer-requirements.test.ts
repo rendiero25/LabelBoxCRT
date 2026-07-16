@@ -114,6 +114,15 @@ describe("parseMasterItemBoxRequirementsInput", () => {
       ],
       "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
     ],
+    [
+      [
+        {
+          name: "Layer 1",
+          requirements: [{ productId: "product-id", expectedQty: [3] }],
+        },
+      ],
+      "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
+    ],
   ])("rejects an invalid layer", (layers, error) => {
     const formData = validFormData()
     formData.set("layers", JSON.stringify(layers))

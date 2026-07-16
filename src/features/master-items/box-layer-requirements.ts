@@ -56,7 +56,10 @@ function parseLayers(
       }
       const normalizedProductId =
         typeof productId === "string" ? productId.trim() : ""
-      const rawExpectedQty = String(expectedQty ?? "").trim()
+      const rawExpectedQty =
+        typeof expectedQty === "string" || typeof expectedQty === "number"
+          ? String(expectedQty).trim()
+          : ""
 
       if (!normalizedProductId) {
         return { error: "Produk requirement wajib dipilih." }
