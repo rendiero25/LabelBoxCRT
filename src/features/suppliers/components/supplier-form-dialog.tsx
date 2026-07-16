@@ -8,6 +8,7 @@ import {
   updateSupplierAction,
 } from "@/features/suppliers/actions"
 import { initialSupplierActionState } from "@/features/suppliers/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -34,6 +35,7 @@ export function CreateSupplierDialog() {
     createSupplierAction,
     initialSupplierActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -66,6 +68,7 @@ export function EditSupplierDialog({ supplier }: { supplier: Supplier }) {
     updateSupplierAction,
     initialSupplierActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>

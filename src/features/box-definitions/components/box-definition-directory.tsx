@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useMemo, useState } from "react"
+import { useActionState, useMemo, useState } from "react"
 import {
   BoxesIcon,
   CircleAlertIcon,
@@ -11,7 +11,6 @@ import {
   SendIcon,
   Trash2Icon,
 } from "lucide-react"
-import { toast } from "sonner"
 
 import {
   cloneBoxDefinitionVersionAction,
@@ -20,6 +19,7 @@ import {
   updateBoxDefinitionAction,
 } from "@/features/box-definitions/actions"
 import { initialBoxDefinitionActionState } from "@/features/box-definitions/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -257,13 +257,6 @@ function definitionTotal(definition: BoxDefinition) {
   )
 }
 
-function useActionToast(state: { error?: string; success?: string }) {
-  useEffect(() => {
-    if (state.error) toast.error(state.error)
-    if (state.success) toast.success(state.success)
-  }, [state.error, state.success])
-}
-
 export function BoxDefinitionDirectory({
   definitions,
   masterItems,
@@ -395,7 +388,7 @@ function BoxDefinitionEditorDialog({
   const availableProducts = mappedProducts[masterItemId] ?? []
   const grandTotal = editorGrandTotal(layers)
 
-  useActionToast(state)
+  useActionStateToast(state)
 
   function resetForm() {
     setMasterItemId(definition?.masterItemId ?? "")
@@ -739,7 +732,7 @@ function PublishDefinitionAction({ definition }: { definition: BoxDefinition }) 
     initialBoxDefinitionActionState,
   )
 
-  useActionToast(state)
+  useActionStateToast(state)
 
   return (
     <AlertDialog>
@@ -785,7 +778,7 @@ function CloneDefinitionAction({ definition }: { definition: BoxDefinition }) {
     initialBoxDefinitionActionState,
   )
 
-  useActionToast(state)
+  useActionStateToast(state)
 
   return (
     <AlertDialog>

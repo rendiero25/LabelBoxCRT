@@ -8,6 +8,7 @@ import {
   disableWorkstationAction,
 } from "@/features/workstations/actions"
 import { initialWorkstationActionState } from "@/features/workstations/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -41,6 +42,8 @@ export function WorkstationRowActions({
     disableWorkstationAction,
     initialWorkstationActionState,
   )
+  useActionStateToast(approveState)
+  useActionStateToast(disableState)
 
   if (approvalStatus === "disabled") return null
 

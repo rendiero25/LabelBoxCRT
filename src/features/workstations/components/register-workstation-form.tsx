@@ -5,6 +5,7 @@ import { CircleAlertIcon, CopyIcon, PlusIcon } from "lucide-react"
 
 import { registerWorkstationAction } from "@/features/workstations/actions"
 import { initialWorkstationActionState } from "@/features/workstations/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -34,6 +35,7 @@ export function RegisterWorkstationForm({
     registerWorkstationAction,
     initialWorkstationActionState,
   )
+  useActionStateToast(state)
 
   return (
     <form

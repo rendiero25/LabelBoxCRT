@@ -16,6 +16,7 @@ import {
   updateMasterItemAction,
 } from "@/features/master-items/actions"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -212,6 +213,7 @@ function CreateMasterItemDialog() {
     createMasterItemAction,
     initialMasterItemActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -245,6 +247,7 @@ function EditMasterItemDialog({ masterItem }: { masterItem: MasterItem }) {
     updateMasterItemAction,
     initialMasterItemActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -431,6 +434,7 @@ function MasterItemActiveAction({
     setMasterItemActiveAction,
     initialMasterItemActionState,
   )
+  useActionStateToast(state)
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (

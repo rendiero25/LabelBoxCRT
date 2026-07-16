@@ -10,7 +10,7 @@ export function Providers({
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       {children}
-      <Toaster closeButton richColors />
+      <Toaster closeButton position="top-center" richColors />
     </ThemeProvider>
   )
 }

@@ -5,6 +5,7 @@ import { BanIcon, CheckIcon, CircleAlertIcon } from "lucide-react"
 
 import { setSupplierActiveAction } from "@/features/suppliers/actions"
 import { initialSupplierActionState } from "@/features/suppliers/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -30,6 +31,7 @@ export function SupplierRowActions({
     setSupplierActiveAction,
     initialSupplierActionState,
   )
+  useActionStateToast(state)
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (

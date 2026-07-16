@@ -17,6 +17,7 @@ import {
   updateDeliveryNumberAction,
 } from "@/features/delivery-numbers/actions"
 import { initialDeliveryNumberActionState } from "@/features/delivery-numbers/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -271,6 +272,7 @@ function CreateDeliveryNumberDialog({ suppliers }: { suppliers: Supplier[] }) {
     createDeliveryNumberAction,
     initialDeliveryNumberActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -311,6 +313,7 @@ function EditDeliveryNumberDialog({
     updateDeliveryNumberAction,
     initialDeliveryNumberActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -485,6 +488,7 @@ function TerminalDeliveryNumberActions({
     closeOrCancelDeliveryNumberAction,
     initialDeliveryNumberActionState,
   )
+  useActionStateToast(state)
 
   return (
     <div className="flex flex-col items-start gap-2">

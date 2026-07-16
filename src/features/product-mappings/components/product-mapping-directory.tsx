@@ -14,6 +14,7 @@ import {
   setProductMappingActiveAction,
 } from "@/features/product-mappings/actions"
 import { initialProductMappingActionState } from "@/features/product-mappings/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -251,6 +252,7 @@ function CreateProductMappingDialog({
     createProductMappingAction,
     initialProductMappingActionState,
   )
+  useActionStateToast(state)
   const [masterItemId, setMasterItemId] = useState("")
   const [productId, setProductId] = useState("")
   const existingMapping = mappings.find(
@@ -358,6 +360,7 @@ function ProductMappingActiveAction({
     setProductMappingActiveAction,
     initialProductMappingActionState,
   )
+  useActionStateToast(state)
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (

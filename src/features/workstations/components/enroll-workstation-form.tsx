@@ -5,6 +5,7 @@ import { CircleAlertIcon, KeyRoundIcon } from "lucide-react"
 
 import { enrollWorkstationAction } from "@/features/workstations/actions"
 import { initialWorkstationActionState } from "@/features/workstations/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,7 @@ export function EnrollWorkstationForm() {
     enrollWorkstationAction,
     initialWorkstationActionState,
   )
+  useActionStateToast(state)
 
   return (
     <form action={formAction} className="flex flex-col gap-5" noValidate>

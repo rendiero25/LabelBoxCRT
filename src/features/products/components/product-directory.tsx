@@ -16,6 +16,7 @@ import {
   updateProductAction,
 } from "@/features/products/actions"
 import { initialProductActionState } from "@/features/products/form-state"
+import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { normalizeDimensions } from "@/features/products/validation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -207,6 +208,7 @@ function CreateProductDialog({ products }: { products: Product[] }) {
     createProductAction,
     initialProductActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -246,6 +248,7 @@ function EditProductDialog({
     updateProductAction,
     initialProductActionState,
   )
+  useActionStateToast(state)
 
   return (
     <Dialog>
@@ -452,6 +455,7 @@ function ProductActiveAction({
     setProductActiveAction,
     initialProductActionState,
   )
+  useActionStateToast(state)
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (
