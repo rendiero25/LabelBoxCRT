@@ -1,21 +1,16 @@
-export type BoxLayerInput = {
-  name: string
-  requirements: {
-    productId: string
-    expectedQty: number
+export type MasterItemBoxRequirementsInput = {
+  boxDefinitionId: string
+  layers: {
+    name: string
+    requirements: { productId: string; expectedQty: number }[]
   }[]
 }
 
-export type BoxDefinitionInput = {
-  masterItemId: string
-  boxCode: string
-  boxName: string
-  layers: BoxLayerInput[]
-}
+type ParseResult = { data: MasterItemBoxRequirementsInput } | { error: string }
 
-type ParseResult = { data: BoxDefinitionInput } | { error: string }
-
-function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
+function parseLayers(
+  rawLayers: string,
+): MasterItemBoxRequirementsInput["layers"] | { error: string } {
   let layers: unknown
 
   try {
@@ -28,7 +23,7 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
   if (layers.length === 0) return { error: "Minimal satu layer wajib diisi." }
   if (layers.length > 10) return { error: "Maksimal 10 layer per box." }
 
-  const parsedLayers: BoxLayerInput[] = []
+  const parsedLayers: MasterItemBoxRequirementsInput["layers"] = []
 
   for (const layer of layers) {
     if (!layer || typeof layer !== "object") {
@@ -46,7 +41,9 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
       return { error: "Minimal satu requirement wajib diisi." }
     }
 
-    const parsedRequirements: BoxLayerInput["requirements"] = []
+    const parsedRequirements: MasterItemBoxRequirementsInput["layers"][number]["requirements"] =
+      []
+    const productIds = new Set<string>()
 
     for (const requirement of requirements) {
       if (!requirement || typeof requirement !== "object") {
@@ -64,6 +61,11 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
       if (!normalizedProductId) {
         return { error: "Produk requirement wajib dipilih." }
       }
+      if (productIds.has(normalizedProductId)) {
+        return {
+          error: "Produk requirement tidak boleh duplikat dalam satu layer.",
+        }
+      }
       if (
         !/^\d+$/.test(rawExpectedQty) ||
         Number(rawExpectedQty) < 1 ||
@@ -75,52 +77,46 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
         }
       }
 
+      productIds.add(normalizedProductId)
       parsedRequirements.push({
         productId: normalizedProductId,
         expectedQty: Number(rawExpectedQty),
       })
     }
 
-    parsedLayers.push({ name: normalizedName, requirements: parsedRequirements })
+    parsedLayers.push({
+      name: normalizedName,
+      requirements: parsedRequirements,
+    })
   }
 
   return parsedLayers
 }
 
-export function parseBoxDefinitionInput(formData: FormData): ParseResult {
-  const masterItemId = String(formData.get("masterItemId") ?? "").trim()
-  const boxCode = String(formData.get("boxCode") ?? "")
-    .trim()
-    .toUpperCase()
-  const boxName = String(formData.get("boxName") ?? "").trim()
+export function parseMasterItemBoxRequirementsInput(
+  formData: FormData,
+): ParseResult {
+  const boxDefinitionId = String(formData.get("boxDefinitionId") ?? "").trim()
   const rawLayers = String(formData.get("layers") ?? "")
 
-  if (!masterItemId) return { error: "Master Item wajib dipilih." }
-  if (!boxCode) return { error: "Kode box wajib diisi." }
-  if (boxCode.length > 64) return { error: "Kode box maksimal 64 karakter." }
-  if (!boxName) return { error: "Nama box wajib diisi." }
-  if (boxName.length > 200) return { error: "Nama box maksimal 200 karakter." }
+  if (!boxDefinitionId) return { error: "Box Definition wajib dipilih." }
 
   const layers = parseLayers(rawLayers)
   if ("error" in layers) return layers
 
-  return { data: { masterItemId, boxCode, boxName, layers } }
+  return { data: { boxDefinitionId, layers } }
 }
 
-export function boxDefinitionRpcErrorMessage(message: string): string {
+export function masterItemBoxRequirementsRpcErrorMessage(
+  message: string,
+): string {
   const messages: Record<string, string> = {
-    BOX_DEFINITION_ADMIN_REQUIRED: "Aksi ini hanya tersedia untuk admin aktif.",
-    BOX_DEFINITION_INPUT_INVALID: "Data definisi box tidak valid.",
-    BOX_DEFINITION_IN_USE:
-      "Definisi box sudah digunakan dan tidak dapat diubah.",
-    BOX_DEFINITION_NOT_FOUND: "Definisi box tidak ditemukan.",
-    BOX_DEFINITION_VERSION_EXISTS: "Versi definisi box sudah ada.",
-    BOX_DEFINITION_INVALID: "Definisi box belum valid untuk diaktifkan.",
-    BOX_DEFINITION_PRODUCT_NOT_ALLOWED:
-      "Produk requirement tidak diizinkan untuk Master Item ini.",
+    MASTER_ITEM_BOX_DEFINITION_MISMATCH:
+      "Box Definition tidak sesuai dengan Master Item ini.",
   }
 
   return (
-    messages[message] ?? "Aksi definisi box gagal. Coba lagi atau hubungi admin."
+    messages[message] ??
+    "Aksi kebutuhan box Master Item gagal. Coba lagi atau hubungi admin."
   )
 }

@@ -85,6 +85,23 @@ describe("parseBoxDefinitionInput", () => {
     })
   })
 
+  it("rejects an eleventh layer", () => {
+    const formData = validFormData()
+    formData.set(
+      "layers",
+      JSON.stringify(
+        Array.from({ length: 11 }, (_, index) => ({
+          name: `Layer ${index + 1}`,
+          requirements: [{ productId: `product-${index + 1}`, expectedQty: 1 }],
+        })),
+      ),
+    )
+
+    expect(parseBoxDefinitionInput(formData)).toEqual({
+      error: "Maksimal 10 layer per box.",
+    })
+  })
+
   it.each([
     [
       [{ name: "", requirements: [{ productId: "product-id", expectedQty: 1 }] }],
