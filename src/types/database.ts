@@ -878,7 +878,13 @@ export type Database = {
       }
       workstations: {
         Row: {
+          approval_status: Database["public"]["Enums"]["workstation_approval_status"]
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
+          disabled_at: string | null
+          disabled_by: string | null
+          disabled_reason: string | null
           id: string
           is_active: boolean
           last_seen_at: string | null
@@ -890,7 +896,13 @@ export type Database = {
           workstation_code: string
         }
         Insert: {
+          approval_status?: Database["public"]["Enums"]["workstation_approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_reason?: string | null
           id?: string
           is_active?: boolean
           last_seen_at?: string | null
@@ -902,7 +914,13 @@ export type Database = {
           workstation_code: string
         }
         Update: {
+          approval_status?: Database["public"]["Enums"]["workstation_approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_reason?: string | null
           id?: string
           is_active?: boolean
           last_seen_at?: string | null
@@ -920,7 +938,243 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      approve_workstation: {
+        Args: { p_workstation_id: string }
+        Returns: undefined
+      }
+      create_supplier: {
+        Args: { p_supplier_code: string; p_supplier_name: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          supplier_code: string
+          supplier_name: string
+          updated_at: string
+        }[]
+      }
+      create_master_item: {
+        Args: {
+          p_default_label_qty: number
+          p_item_code: string
+          p_item_sequence_code?: string | null
+          p_part_name: string
+          p_part_no: string
+          p_unit: string
+        }
+        Returns: {
+          created_at: string
+          default_label_qty: number
+          id: string
+          is_active: boolean
+          item_code: string
+          item_sequence_code: string | null
+          part_name: string
+          part_no: string
+          unit: string
+          updated_at: string
+        }[]
+      }
+      create_master_item_product_mapping: {
+        Args: { p_master_item_id: string; p_product_id: string }
+        Returns: undefined
+      }
+      create_product: {
+        Args: {
+          p_inner_diameter: number
+          p_length: number
+          p_outer_diameter: number
+          p_part_name: string
+          p_product_code: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          inner_diameter: number
+          is_active: boolean
+          length: number
+          normalized_dimensions: string
+          outer_diameter: number
+          part_name: string
+          product_code: string
+          updated_at: string
+        }[]
+      }
+      create_delivery_number: {
+        Args: {
+          p_delivery_date: string
+          p_delivery_number: string
+          p_status?: Database["public"]["Enums"]["delivery_status"]
+          p_supplier_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          delivery_date: string
+          delivery_number: string
+          id: string
+          status: Database["public"]["Enums"]["delivery_status"]
+          supplier_id: string
+          updated_at: string
+        }[]
+      }
+      close_or_cancel_delivery_number: {
+        Args: {
+          p_delivery_number_id: string
+          p_status: Database["public"]["Enums"]["delivery_status"]
+        }
+        Returns: undefined
+      }
+      disable_workstation: {
+        Args: { p_reason: string; p_workstation_id: string }
+        Returns: undefined
+      }
+      enroll_workstation: {
+        Args: { p_enrollment_code: string }
+        Returns: { device_token: string; workstation_id: string }[]
+      }
+      list_workstations_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          approval_status: Database["public"]["Enums"]["workstation_approval_status"]
+          assigned_operator_id: string | null
+          has_active_device: boolean
+          id: string
+          is_active: boolean
+          last_seen_at: string | null
+          name: string
+          printer_model: string
+          printer_name: string
+          scanner_model: string
+          workstation_code: string
+        }[]
+      }
+      register_workstation: {
+        Args: {
+          p_name: string
+          p_operator_id: string
+          p_printer_model: string
+          p_printer_name: string
+          p_scanner_model: string
+          p_workstation_code: string
+        }
+        Returns: {
+          enrollment_code: string
+          enrollment_expires_at: string
+          workstation_id: string
+        }[]
+      }
+      set_supplier_active: {
+        Args: { p_is_active: boolean; p_supplier_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          supplier_code: string
+          supplier_name: string
+          updated_at: string
+        }[]
+      }
+      update_supplier: {
+        Args: {
+          p_supplier_code: string
+          p_supplier_id: string
+          p_supplier_name: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          supplier_code: string
+          supplier_name: string
+          updated_at: string
+        }[]
+      }
+      set_product_active: {
+        Args: { p_is_active: boolean; p_product_id: string }
+        Returns: undefined
+      }
+      set_master_item_active: {
+        Args: { p_is_active: boolean; p_master_item_id: string }
+        Returns: undefined
+      }
+      set_master_item_product_active: {
+        Args: { p_is_active: boolean; p_mapping_id: string }
+        Returns: undefined
+      }
+      update_product: {
+        Args: {
+          p_inner_diameter: number
+          p_length: number
+          p_outer_diameter: number
+          p_part_name: string
+          p_product_code: string
+          p_product_id: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          inner_diameter: number
+          is_active: boolean
+          length: number
+          normalized_dimensions: string
+          outer_diameter: number
+          part_name: string
+          product_code: string
+          updated_at: string
+        }[]
+      }
+      update_master_item: {
+        Args: {
+          p_default_label_qty: number
+          p_item_code: string
+          p_item_sequence_code?: string | null
+          p_master_item_id: string
+          p_part_name: string
+          p_part_no: string
+          p_unit: string
+        }
+        Returns: {
+          created_at: string
+          default_label_qty: number
+          id: string
+          is_active: boolean
+          item_code: string
+          item_sequence_code: string | null
+          part_name: string
+          part_no: string
+          unit: string
+          updated_at: string
+        }[]
+      }
+      update_delivery_number: {
+        Args: {
+          p_delivery_date: string
+          p_delivery_number: string
+          p_delivery_number_id: string
+          p_supplier_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          delivery_date: string
+          delivery_number: string
+          id: string
+          status: Database["public"]["Enums"]["delivery_status"]
+          supplier_id: string
+          updated_at: string
+        }[]
+      }
+      workstation_heartbeat: {
+        Args: { p_device_token_hash: string }
+        Returns: {
+          printer_model: string
+          printer_name: string
+          scanner_model: string
+          workstation_code: string
+          workstation_id: string
+        }[]
+      }
     }
     Enums: {
       delivery_status: "draft" | "active" | "closed" | "cancelled"
@@ -938,15 +1192,11 @@ export type Database = {
         | "expired"
       print_attempt_result: "sent" | "failed"
       print_job_status:
-        | "pending"
-        | "printing"
-        | "sent"
-        | "confirmed"
-        | "failed"
-        | "cancelled"
+        "pending" | "printing" | "sent" | "confirmed" | "failed" | "cancelled"
       reprint_status: "requested" | "approved" | "rejected" | "executed"
       scan_result: "accepted" | "invalid" | "duplicate" | "over_qty"
       user_role: "admin" | "operator"
+      workstation_approval_status: "pending" | "approved" | "disabled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -962,12 +1212,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -989,13 +1239,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1014,13 +1263,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1039,13 +1287,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1058,11 +1305,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1100,6 +1347,7 @@ export const Constants = {
       reprint_status: ["requested", "approved", "rejected", "executed"],
       scan_result: ["accepted", "invalid", "duplicate", "over_qty"],
       user_role: ["admin", "operator"],
+      workstation_approval_status: ["pending", "approved", "disabled"],
     },
   },
 } as const

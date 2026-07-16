@@ -7,7 +7,7 @@ export default function UnauthorizedPage() {
   return (
     <section className="border-border bg-background flex flex-col gap-6 rounded-xl border p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Akses ditolak</h1>
+        <h1 className="text-2xl font-semibold">Akses ditolak</h1>
         <p className="text-muted-foreground text-sm">
           Akun ini tidak memiliki izin untuk membuka halaman tersebut.
         </p>

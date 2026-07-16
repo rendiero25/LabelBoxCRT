@@ -1,5 +1,3 @@
-import Image from "next/image"
-
 import { CircleCheckIcon } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,12 +13,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const notice = getAuthNotice(reason)
 
   return (
-    <section className="border-border bg-background w-full rounded-xl border p-6 shadow-sm sm:p-8">
+    <section className="w-full max-w-[22rem]">
       <div className="mb-8 space-y-4">
-        <Image alt="CRT" height={42} priority src="/logo-crt.png" width={112} />
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Masuk Label Box
+          <h1 className="text-5xl leading-[0.98] font-semibold text-[#15222b]">
+            Masuk ke workspace.
           </h1>
           <p className="text-muted-foreground text-sm">
             Gunakan akun workstation Anda untuk melanjutkan.

@@ -257,6 +257,9 @@
 
 ## 3.3 Workstation
 
+> **Status 15 Juli 2026:** implementasi dan unit test tersedia; checklist
+> menunggu migration diterapkan serta database/browser QA dilakukan.
+
 - [ ] Workstation identity design.
 - [ ] Admin register/approve.
 - [ ] Bind printer name.
@@ -273,42 +276,42 @@
 
 ## 4.1 Supplier
 
-- [ ] List/search/filter.
-- [ ] Create/edit.
-- [ ] Unique code validation.
-- [ ] Deactivate.
-- [ ] Prevent destructive delete if referenced.
+- [x] List/search/filter.
+- [x] Create/edit.
+- [x] Unique code validation.
+- [x] Deactivate.
+- [x] Prevent destructive delete if referenced.
 
 ## 4.2 Delivery Number
 
-- [ ] List by supplier.
-- [ ] Create/edit.
-- [ ] Date.
-- [ ] Status.
-- [ ] Unique constraint UX.
-- [ ] Close/cancel behavior.
+- [x] List by supplier.
+- [x] Create/edit.
+- [x] Date.
+- [x] Status.
+- [x] Unique constraint UX.
+- [x] Close/cancel behavior.
 
 ## 4.3 Product
 
-- [ ] CRUD/deactivate.
-- [ ] Size normalization preview.
-- [ ] Duplicate/conflict warning.
-- [ ] Search code/name/size.
+- [x] CRUD/deactivate.
+- [x] Size normalization preview.
+- [x] Duplicate/conflict warning.
+- [x] Search code/name/size.
 
 ## 4.4 Master Item
 
-- [ ] CRUD/deactivate.
-- [ ] Part No.
-- [ ] Unit.
-- [ ] Default label Qty.
-- [ ] Sequence config if needed.
+- [x] CRUD/deactivate.
+- [x] Part No.
+- [x] Unit.
+- [x] Default label Qty.
+- [x] Sequence config if needed.
 
 ## 4.5 Product Mapping
 
-- [ ] Map many products to Master Item.
-- [ ] Reverse usage view.
-- [ ] Prevent duplicate mapping.
-- [ ] Warning on deactivate.
+- [x] Map many products to Master Item.
+- [x] Reverse usage view.
+- [x] Prevent duplicate mapping.
+- [x] Warning on deactivate.
 
 ## 4.6 Box Definition
 

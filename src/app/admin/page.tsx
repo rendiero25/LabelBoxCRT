@@ -7,7 +7,7 @@ export default function AdminPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <p className="text-muted-foreground text-sm font-medium">Phase 1</p>
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-semibold">
           Dashboard admin
         </h1>
       </div>

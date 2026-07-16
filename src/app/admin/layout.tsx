@@ -1,6 +1,14 @@
 import Image from "next/image"
 import Link from "next/link"
-import { LayoutDashboardIcon } from "lucide-react"
+import {
+  Building2Icon,
+  BoxesIcon,
+  LayoutDashboardIcon,
+  Link2Icon,
+  MonitorCogIcon,
+  PackageSearchIcon,
+  TruckIcon,
+} from "lucide-react"
 
 import {
   Sidebar,
@@ -47,6 +55,54 @@ export default async function AdminLayout({
                     <Link href="/admin">
                       <LayoutDashboardIcon />
                       <span>Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/workstations">
+                      <MonitorCogIcon />
+                      <span>Workstations</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/suppliers">
+                      <Building2Icon />
+                      <span>Supplier</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/delivery-numbers">
+                      <TruckIcon />
+                      <span>Delivery Number</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/products">
+                      <BoxesIcon />
+                      <span>Produk</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/master-items">
+                      <PackageSearchIcon />
+                      <span>Master Item</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/product-mappings">
+                      <Link2Icon />
+                      <span>Product Mapping</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
