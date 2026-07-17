@@ -8,7 +8,7 @@ Halaman `/admin/box-definitions` dipakai admin untuk membentuk versi definisi bo
 
 1. Pilih Master Item aktif.
 2. Isi kode dan nama box.
-3. Tambah, hapus, atau pindahkan layer dengan tombol **Naik** dan **Turun**. Urutan yang tersimpan selalu mengikuti urutan yang terlihat di editor.
+3. Tambah, hapus, atau pindahkan layer dengan tombol **Naik** dan **Turun**. Urutan yang tersimpan selalu mengikuti urutan yang terlihat di editor. Maksimal 10 layer per box; tombol **Tambah layer** dinonaktifkan saat batas tercapai.
 4. Pada setiap layer, pilih produk yang memiliki mapping aktif ke Master Item tersebut, lalu masukkan Qty integer minimal 1.
 5. Periksa subtotal layer dan total seluruh box, kemudian pilih **Buat draft**.
 
@@ -25,6 +25,8 @@ Contoh B101:
 Draft dapat diedit untuk memperbarui kode/nama box, layer, produk, serta quantity. Pilih **Publikasikan** lalu konfirmasi untuk mengaktifkan versi tersebut. Database melakukan validasi akhir sebelum publish, termasuk kelengkapan layer dan requirement.
 
 Jika definisi sudah memiliki packing session, status **Dipakai** akan muncul. Versi tersebut hanya dapat dilihat agar data packing historis tidak berubah. Pilih **Clone versi**, konfirmasi, lalu sistem membuat versi berikutnya sebagai draft dengan urutan layer dan requirement yang sama. Edit draft hasil clone dan publish saat siap.
+
+Master Item juga menyediakan editor alternatif untuk memperbarui produk dan Qty pada layer Box Definition yang masih editable. Box Definition tetap menjadi satu-satunya sumber struktur layer yang dipersistenkan.
 
 ## Aturan integritas
 

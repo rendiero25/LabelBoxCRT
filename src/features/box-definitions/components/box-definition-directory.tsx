@@ -141,6 +141,8 @@ export function createInitialEditorLayers(): BoxDefinitionEditorLayer[] {
 }
 
 export function addEditorLayer(layers: BoxDefinitionEditorLayer[]) {
+  if (layers.length >= 10) return layers
+
   return [
     ...layers,
     {
@@ -576,14 +578,22 @@ function BoxDefinitionEditorDialog({
                 </p>
               </div>
               {!isReadOnly ? (
-                <Button
-                  onClick={() => setLayers((current) => addEditorLayer(current))}
-                  type="button"
-                  variant="outline"
-                >
-                  <PlusIcon data-icon="inline-start" />
-                  Tambah layer
-                </Button>
+                <div className="flex flex-col items-end gap-1">
+                  <Button
+                    disabled={layers.length >= 10}
+                    onClick={() => setLayers((current) => addEditorLayer(current))}
+                    type="button"
+                    variant="outline"
+                  >
+                    <PlusIcon data-icon="inline-start" />
+                    Tambah layer
+                  </Button>
+                  {layers.length >= 10 ? (
+                    <p className="text-muted-foreground text-sm">
+                      Maksimal 10 layer per box.
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
             {layers.map((layer, layerIndex) => {

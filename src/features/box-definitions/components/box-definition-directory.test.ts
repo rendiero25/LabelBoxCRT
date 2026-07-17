@@ -26,7 +26,25 @@ const products = [
   },
 ]
 
+function makeLayers(count: number): BoxDefinitionEditorLayer[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `layer-${index + 1}`,
+    name: `Layer ${index + 1}`,
+    requirements: [
+      {
+        id: `requirement-${index + 1}`,
+        productId: "",
+        expectedQty: 1,
+      },
+    ],
+  }))
+}
+
 describe("box definition editor state", () => {
+  it("does not add an eleventh layer", () => {
+    expect(addEditorLayer(makeLayers(10))).toEqual(makeLayers(10))
+  })
+
   it("starts with one editable layer and keeps layer order contiguous", () => {
     const initial = createInitialEditorLayers()
     const withSecondLayer = addEditorLayer(initial)
