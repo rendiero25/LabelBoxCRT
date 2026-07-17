@@ -15,6 +15,11 @@ import {
   setMasterItemActiveAction,
   updateMasterItemAction,
 } from "@/features/master-items/actions"
+import {
+  MasterItemBoxLayerEditor,
+  type MasterItemBoxDefinition,
+  type ProductOption,
+} from "@/features/master-items/components/master-item-box-layer-editor"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -69,7 +74,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-type MasterItem = {
+export type MasterItem = {
   id: string
   item_code: string
   part_no: string
@@ -81,9 +86,13 @@ type MasterItem = {
 }
 
 export function MasterItemDirectory({
+  boxDefinitions,
   masterItems,
+  products,
 }: {
+  boxDefinitions: MasterItemBoxDefinition[]
   masterItems: MasterItem[]
+  products: ProductOption[]
 }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
@@ -192,6 +201,11 @@ export function MasterItemDirectory({
                   <TableCell>
                     <div className="flex items-start gap-2">
                       <EditMasterItemDialog masterItem={masterItem} />
+                      <MasterItemBoxLayerEditor
+                        boxDefinitions={boxDefinitions}
+                        masterItem={masterItem}
+                        products={products}
+                      />
                       <MasterItemActiveAction
                         isActive={masterItem.is_active}
                         masterItemId={masterItem.id}
