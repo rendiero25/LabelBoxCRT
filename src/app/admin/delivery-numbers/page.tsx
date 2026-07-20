@@ -21,7 +21,7 @@ export default async function DeliveryNumbersPage() {
   const error = deliveryResult.error ?? supplierResult.error
 
   return (
-    <div className="flex max-w-6xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
         <p className="text-muted-foreground text-sm font-medium">Phase 4.2</p>
         <h1 className="text-2xl font-semibold">Delivery Number</h1>

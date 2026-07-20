@@ -162,7 +162,7 @@ export default async function BoxDefinitionsPage() {
   )
 
   return (
-    <div className="flex max-w-6xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
         <p className="text-muted-foreground text-sm font-medium">Phase 4.6</p>
         <h1 className="text-2xl font-semibold">Box Definition</h1>

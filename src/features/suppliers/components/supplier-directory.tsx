@@ -113,6 +113,7 @@ export function SupplierDirectory({ suppliers }: { suppliers: Supplier[] }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Kode</TableHead>
                 <TableHead>Nama supplier</TableHead>
                 <TableHead>Status</TableHead>
@@ -120,8 +121,9 @@ export function SupplierDirectory({ suppliers }: { suppliers: Supplier[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSuppliers.map((supplier) => (
+              {filteredSuppliers.map((supplier, index) => (
                 <TableRow key={supplier.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-medium">
                     {supplier.supplier_code}
                   </TableCell>

@@ -41,8 +41,8 @@ export default async function AdminLayout({
           <Image
             src="/logo-crt.png"
             alt="CRT"
-            width={112}
-            height={42}
+            width={56}
+            height={21}
             priority
           />
         </SidebarHeader>

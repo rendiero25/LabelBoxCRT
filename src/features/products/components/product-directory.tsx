@@ -155,6 +155,7 @@ export function ProductDirectory({ products }: { products: Product[] }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Produk</TableHead>
                 <TableHead>Ukuran normal</TableHead>
                 <TableHead>Status</TableHead>
@@ -162,8 +163,9 @@ export function ProductDirectory({ products }: { products: Product[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product, index) => (
                 <TableRow key={product.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">

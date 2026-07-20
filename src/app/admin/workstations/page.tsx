@@ -40,7 +40,7 @@ export default async function WorkstationsPage() {
   const error = workstationError ?? operatorError
 
   return (
-    <div className="flex max-w-6xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Workstations</h1>
         <p className="text-muted-foreground text-sm">
@@ -66,9 +66,10 @@ export default async function WorkstationsPage() {
 
       <section className="rounded-xl border">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Workstation</TableHead>
+            <TableHeader>
+              <TableRow>
+                <TableHead>No</TableHead>
+                <TableHead>Workstation</TableHead>
               <TableHead>Perangkat</TableHead>
               <TableHead>Operator</TableHead>
               <TableHead>Status</TableHead>
@@ -77,8 +78,9 @@ export default async function WorkstationsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(workstations ?? []).map((workstation) => (
+            {(workstations ?? []).map((workstation, index) => (
               <TableRow key={workstation.id}>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">
                     <span className="font-medium">

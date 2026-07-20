@@ -191,6 +191,7 @@ export function DeliveryNumberDirectory({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Delivery Number</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead>Tanggal</TableHead>
@@ -199,7 +200,7 @@ export function DeliveryNumberDirectory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDeliveryNumbers.map((deliveryNumber) => {
+              {filteredDeliveryNumbers.map((deliveryNumber, index) => {
                 const supplier = suppliersById.get(deliveryNumber.supplier_id)
                 const isTerminal =
                   deliveryNumber.status === "closed" ||
@@ -207,6 +208,7 @@ export function DeliveryNumberDirectory({
 
                 return (
                   <TableRow key={deliveryNumber.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-medium">
                       {deliveryNumber.delivery_number}
                     </TableCell>

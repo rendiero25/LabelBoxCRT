@@ -167,6 +167,7 @@ export function MasterItemDirectory({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead>Unit / Qty</TableHead>
                 <TableHead>Sequence</TableHead>
@@ -175,8 +176,9 @@ export function MasterItemDirectory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMasterItems.map((masterItem) => (
+              {filteredMasterItems.map((masterItem, index) => (
                 <TableRow key={masterItem.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">{masterItem.part_no}</span>

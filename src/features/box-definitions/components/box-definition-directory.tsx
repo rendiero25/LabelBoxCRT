@@ -295,6 +295,7 @@ export function BoxDefinitionDirectory({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Box</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead>Ringkasan</TableHead>
@@ -303,8 +304,9 @@ export function BoxDefinitionDirectory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {definitions.map((definition) => (
+              {definitions.map((definition, index) => (
                 <TableRow key={definition.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">

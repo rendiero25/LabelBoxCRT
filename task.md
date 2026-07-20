@@ -326,7 +326,7 @@
 
 ## 4.7 Optional CSV Import
 
-- [ ] Define templates.
+- [x] Define templates.
 - [ ] Preview validation.
 - [ ] Transactional import.
 - [ ] Per-row errors.

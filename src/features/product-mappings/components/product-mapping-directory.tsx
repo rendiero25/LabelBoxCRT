@@ -180,6 +180,7 @@ export function ProductMappingDirectory({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead>Produk</TableHead>
                 <TableHead>Ukuran normal</TableHead>
@@ -188,8 +189,9 @@ export function ProductMappingDirectory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMappings.map((mapping) => (
+              {filteredMappings.map((mapping, index) => (
                 <TableRow key={mapping.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">
@@ -457,16 +459,18 @@ function ReverseUsageView({ mappings }: { mappings: ProductMapping[] }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>No</TableHead>
                 <TableHead>Produk</TableHead>
                 <TableHead>Master Item yang memakai</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usageByProduct.map((usage) => {
+              {usageByProduct.map((usage, index) => {
                 const product = usage[0].product
 
                 return (
                   <TableRow key={product.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">
