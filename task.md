@@ -315,14 +315,14 @@
 
 ## 4.6 Box Definition
 
-- [ ] Create box.
-- [ ] Add/reorder layers.
-- [ ] Add product requirements.
-- [ ] Validate expected_qty.
-- [ ] Total count summary.
-- [ ] Publish/activate.
-- [ ] New version flow.
-- [ ] Read-only used versions.
+- [x] Create box.
+- [x] Add/reorder layers.
+- [x] Add product requirements.
+- [x] Validate expected_qty.
+- [x] Total count summary.
+- [x] Publish/activate.
+- [x] New version flow.
+- [x] Read-only used versions.
 
 ## 4.7 Optional CSV Import
 
