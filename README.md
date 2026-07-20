@@ -6,7 +6,7 @@ Aplikasi produksi untuk memvalidasi label produk, menyelesaikan packing box, dan
 
 - Node.js 20.9 atau lebih baru.
 - npm (package manager project ini).
-- Docker Desktop bila menjalankan Supabase lokal.
+- Akun dan project Supabase online yang sudah linked.
 
 ## Menjalankan project
 
@@ -30,4 +30,4 @@ npm run test:integration
 npm run build
 ```
 
-Workflow Supabase lokal dan migration dijelaskan di `docs/development/supabase.md`.
+Workflow Supabase online dan migration dijelaskan di `docs/development/supabase.md`.

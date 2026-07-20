@@ -26,10 +26,12 @@
 ### Task 1: Establish the hosted development target and schema contract tests
 
 **Files:**
+
 - Create: `supabase/tests/database/001_phase_2_schema.test.sql`
 - Modify: `docs/development/supabase.md`
 
 **Interfaces:**
+
 - Consumes: An explicitly approved Supabase project reference with PostgreSQL 17 and no conflicting LabelBoxCRT migrations.
 - Produces: pgTAP assertions for all Phase 2 enums, relations, columns, constraints, and indexes.
 
@@ -127,7 +129,7 @@ Expected: FAIL because `public.user_role` and Phase 2 tables do not exist. A con
 
 - [ ] **Step 4: Document hosted-only workflow**
 
-Update `docs/development/supabase.md` to replace local Docker commands with linked development-project commands, while explicitly prohibiting reset of a hosted project and requiring a Supabase branch or disposable development target.
+Update `docs/development/supabase.md` with linked development-project commands, explicitly prohibit reset of a hosted project, and require a Supabase branch or disposable development target.
 
 - [ ] **Step 5: Commit the red contract**
 
@@ -139,10 +141,12 @@ git commit -m "test: define phase 2 database contract"
 ### Task 2: Implement relational schema and integrity constraints
 
 **Files:**
+
 - Create via CLI: migration named `phase_2_schema`
 - Test: `supabase/tests/database/001_phase_2_schema.test.sql`
 
 **Interfaces:**
+
 - Consumes: The failing pgTAP schema contract from Task 1.
 - Produces: All Phase 2 enum and table types, foreign keys, checks, unique indexes, and timestamp maintenance.
 
@@ -254,10 +258,12 @@ git commit -m "feat: add phase 2 relational schema"
 ### Task 3: Specify and implement RLS, box activation, and function privileges
 
 **Files:**
+
 - Create: `supabase/tests/database/002_phase_2_rls.test.sql`
 - Modify: CLI-generated `phase_2_schema` migration
 
 **Interfaces:**
+
 - Consumes: Phase 2 tables and Auth-backed `profiles`.
 - Produces: Private authorization helpers, explicit table grants, RLS policies, and admin-only box activation.
 
@@ -387,10 +393,12 @@ git commit -m "feat: enforce phase 2 row security"
 ### Task 4: Add idempotent development seed and seed verification
 
 **Files:**
+
 - Create: `supabase/seed.sql`
 - Create: `supabase/tests/database/003_phase_2_seed.test.sql`
 
 **Interfaces:**
+
 - Consumes: Existing Auth users `admin@crtkabelita.com` and `user@crtkabelita.com`.
 - Produces: Admin/operator profiles and the complete B101 development sample graph.
 
@@ -459,11 +467,13 @@ git commit -m "test: add reproducible phase 2 seed"
 ### Task 5: Generate types, run advisors, and close the Phase 2 checklist
 
 **Files:**
+
 - Modify: `src/types/database.ts`
 - Modify: `docs/development/supabase.md`
 - Modify: `task.md`
 
 **Interfaces:**
+
 - Consumes: Verified hosted schema, migrations, RLS, and seed.
 - Produces: Generated application types and fresh completion evidence.
 

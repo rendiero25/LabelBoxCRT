@@ -81,9 +81,9 @@
 
 # Phase 1 — Project Foundation
 
-> **Status 13 Juli 2026:** fondasi project selesai dan diverifikasi. Supabase lokal
-> sudah dikonfigurasi, tetapi runtime database lokal belum dijalankan karena Docker
-> Desktop belum tersedia di workstation. Phase 0 yang masih terbuka tetap ditunda
+> **Status 13 Juli 2026:** fondasi project selesai dan diverifikasi. Supabase online
+> sudah linked; runtime database lokal tidak digunakan untuk project ini. Phase 0
+> yang masih terbuka tetap ditunda
 > sesuai arahan dan tidak mengubah invariant implementasi.
 
 ## 1.1 Repository

@@ -38,10 +38,12 @@
 ### Task 1: Test-first nested input validation
 
 **Files:**
+
 - Create: src/features/box-definitions/validation.ts
 - Test: src/features/box-definitions/validation.test.ts
 
 **Interfaces:**
+
 - BoxDefinitionInput = { masterItemId: string; boxCode: string; boxName: string; layers: BoxLayerInput[] }.
 - BoxLayerInput = { name: string; requirements: { productId: string; expectedQty: number }[] }.
 - parseBoxDefinitionInput(formData) returns { data: BoxDefinitionInput } or { error: string }.
@@ -49,30 +51,30 @@
 
 - [ ] **Step 1: Write failing tests**
 
-    import { describe, expect, it } from "vitest"
-    import { parseBoxDefinitionInput } from "@/features/box-definitions/validation"
+  import { describe, expect, it } from "vitest"
+  import { parseBoxDefinitionInput } from "@/features/box-definitions/validation"
 
-    it("normalizes box and layer data", () => {
-      const formData = new FormData()
-      formData.set("masterItemId", "item-1")
-      formData.set("boxCode", " b101 ")
-      formData.set("boxName", " B101 Sample ")
-      formData.set("layers", JSON.stringify([{ name: " Layer 1 ", requirements: [{ productId: "product-1", expectedQty: "3" }] }]))
-      expect(parseBoxDefinitionInput(formData)).toEqual({
-        data: { masterItemId: "item-1", boxCode: "B101", boxName: "B101 Sample", layers: [{ name: "Layer 1", requirements: [{ productId: "product-1", expectedQty: 3 }] }] },
-      })
-    })
+  it("normalizes box and layer data", () => {
+  const formData = new FormData()
+  formData.set("masterItemId", "item-1")
+  formData.set("boxCode", " b101 ")
+  formData.set("boxName", " B101 Sample ")
+  formData.set("layers", JSON.stringify([{ name: " Layer 1 ", requirements: [{ productId: "product-1", expectedQty: "3" }] }]))
+  expect(parseBoxDefinitionInput(formData)).toEqual({
+  data: { masterItemId: "item-1", boxCode: "B101", boxName: "B101 Sample", layers: [{ name: "Layer 1", requirements: [{ productId: "product-1", expectedQty: 3 }] }] },
+  })
+  })
 
-    it("rejects zero expected quantity", () => {
-      const formData = new FormData()
-      formData.set("masterItemId", "item-1")
-      formData.set("boxCode", "B101")
-      formData.set("boxName", "B101")
-      formData.set("layers", JSON.stringify([{ name: "Layer 1", requirements: [{ productId: "product-1", expectedQty: "0" }] }]))
-      expect(parseBoxDefinitionInput(formData)).toEqual({
-        error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
-      })
-    })
+  it("rejects zero expected quantity", () => {
+  const formData = new FormData()
+  formData.set("masterItemId", "item-1")
+  formData.set("boxCode", "B101")
+  formData.set("boxName", "B101")
+  formData.set("layers", JSON.stringify([{ name: "Layer 1", requirements: [{ productId: "product-1", expectedQty: "0" }] }]))
+  expect(parseBoxDefinitionInput(formData)).toEqual({
+  error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
+  })
+  })
 
 - [ ] **Step 2: Verify red**
 
@@ -82,20 +84,20 @@ Expected: FAIL, module belum ada.
 
 - [ ] **Step 3: Implement minimal validation**
 
-    export function parseBoxDefinitionInput(formData: FormData) {
-      const masterItemId = String(formData.get("masterItemId") ?? "").trim()
-      const boxCode = String(formData.get("boxCode") ?? "").trim().toUpperCase()
-      const boxName = String(formData.get("boxName") ?? "").trim()
-      let rawLayers: unknown
-      try { rawLayers = JSON.parse(String(formData.get("layers") ?? "[]")) } catch { return { error: "Layer box tidak valid." } }
-      if (!masterItemId || !boxCode || !boxName) return { error: "Master Item, kode box, dan nama box wajib diisi." }
-      if (boxCode.length > 64 || boxName.length > 200 || !Array.isArray(rawLayers) || rawLayers.length === 0) return { error: "Data box tidak valid." }
-      const layers = rawLayers.map((layer) => ({ name: String((layer as { name?: unknown }).name ?? "").trim(), requirements: Array.isArray((layer as { requirements?: unknown }).requirements) ? (layer as { requirements: unknown[] }).requirements.map((requirement) => ({ productId: String((requirement as { productId?: unknown }).productId ?? "").trim(), expectedQty: Number((requirement as { expectedQty?: unknown }).expectedQty) })) : [] }))
-      if (layers.some((layer) => !layer.name || !layer.requirements.length)) return { error: "Setiap layer wajib memiliki nama dan minimal satu requirement produk." }
-      if (layers.some((layer) => layer.requirements.some((item) => !item.productId))) return { error: "Produk requirement wajib dipilih." }
-      if (layers.some((layer) => layer.requirements.some((item) => !Number.isInteger(item.expectedQty) || item.expectedQty < 1 || item.expectedQty > 1000000))) return { error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0." }
-      return { data: { masterItemId, boxCode, boxName, layers } }
-    }
+  export function parseBoxDefinitionInput(formData: FormData) {
+  const masterItemId = String(formData.get("masterItemId") ?? "").trim()
+  const boxCode = String(formData.get("boxCode") ?? "").trim().toUpperCase()
+  const boxName = String(formData.get("boxName") ?? "").trim()
+  let rawLayers: unknown
+  try { rawLayers = JSON.parse(String(formData.get("layers") ?? "[]")) } catch { return { error: "Layer box tidak valid." } }
+  if (!masterItemId || !boxCode || !boxName) return { error: "Master Item, kode box, dan nama box wajib diisi." }
+  if (boxCode.length > 64 || boxName.length > 200 || !Array.isArray(rawLayers) || rawLayers.length === 0) return { error: "Data box tidak valid." }
+  const layers = rawLayers.map((layer) => ({ name: String((layer as { name?: unknown }).name ?? "").trim(), requirements: Array.isArray((layer as { requirements?: unknown }).requirements) ? (layer as { requirements: unknown[] }).requirements.map((requirement) => ({ productId: String((requirement as { productId?: unknown }).productId ?? "").trim(), expectedQty: Number((requirement as { expectedQty?: unknown }).expectedQty) })) : [] }))
+  if (layers.some((layer) => !layer.name || !layer.requirements.length)) return { error: "Setiap layer wajib memiliki nama dan minimal satu requirement produk." }
+  if (layers.some((layer) => layer.requirements.some((item) => !item.productId))) return { error: "Produk requirement wajib dipilih." }
+  if (layers.some((layer) => layer.requirements.some((item) => !Number.isInteger(item.expectedQty) || item.expectedQty < 1 || item.expectedQty > 1000000))) return { error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0." }
+  return { data: { masterItemId, boxCode, boxName, layers } }
+  }
 
 Map codes BOX_DEFINITION_ADMIN_REQUIRED, BOX_DEFINITION_INPUT_INVALID, BOX_DEFINITION_IN_USE, BOX_DEFINITION_NOT_FOUND, BOX_DEFINITION_VERSION_EXISTS, BOX_DEFINITION_INVALID, and BOX_DEFINITION_PRODUCT_NOT_ALLOWED.
 
@@ -107,17 +109,19 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-    git add src/features/box-definitions/validation.ts src/features/box-definitions/validation.test.ts
-    git commit -m "test: cover box definition input validation"
+  git add src/features/box-definitions/validation.ts src/features/box-definitions/validation.test.ts
+  git commit -m "test: cover box definition input validation"
 
 ### Task 2: Secure database RPC and pgTAP
 
 **Files:**
+
 - Create: generated migration file
 - Create: supabase/tests/database/011_phase_4_6_box_definition.test.sql
 - Modify: src/types/database.ts
 
 **Interfaces:**
+
 - public.create_box_definition(p_master_item_id uuid, p_box_code text, p_box_name text, p_layers jsonb) returns uuid.
 - public.update_box_definition(p_box_definition_id uuid, p_box_code text, p_box_name text, p_layers jsonb) returns uuid.
 - public.publish_box_definition(p_box_definition_id uuid) returns uuid.
@@ -131,14 +135,16 @@ Expected: one timestamped SQL file.
 
 - [ ] **Step 2: Write failing pgTAP test**
 
-    select has_function('public', 'create_box_definition', array['uuid','text','text','jsonb'], 'create RPC exists');
-    select throws_ok(
-      $$ select public.create_box_definition(
+  select has_function('public', 'create_box_definition', array['uuid','text','text','jsonb'], 'create RPC exists');
+  select throws_ok(
+
+  $$ select public.create_box_definition(
         '92000000-0000-0000-0000-000000000001', 'B101', 'B101',
         '[{"name":"Layer 1","requirements":[{"product_id":"93000000-0000-0000-0000-000000000001","expected_qty":0}]}]'::jsonb
       ) $$,
-      'P0001', 'BOX_DEFINITION_INPUT_INVALID', 'reject zero quantity'
-    );
+  'P0001', 'BOX_DEFINITION_INPUT_INVALID', 'reject zero quantity'
+  );
+  $$
 
 Seed admin, active Master Item, active product, and active mapping. Assert create persists ordered layer/requirement and audit; publish activates; update after packing session raises BOX_DEFINITION_IN_USE; clone creates next inactive version with same content; anon cannot execute.
 
@@ -162,24 +168,26 @@ At end revoke all four signatures from public and anon; grant each to authentica
 
 - [ ] **Step 5: Verify green**
 
-Run single pgTAP test; all database tests; supabase db advisors; supabase migration list --local.
+Run single pgTAP test; all database tests; Supabase advisors; `supabase migration list --linked`.
 
 Expected: all assertions pass, no new security error, migration listed.
 
 - [ ] **Step 6: Commit**
 
-    git add supabase/migrations/*_box_definition_admin_crud.sql supabase/tests/database/011_phase_4_6_box_definition.test.sql src/types/database.ts
-    git commit -m "feat: add secure box definition admin RPCs"
+  git add supabase/migrations/*_box_definition_admin_crud.sql supabase/tests/database/011_phase_4_6_box_definition.test.sql src/types/database.ts
+  git commit -m "feat: add secure box definition admin RPCs"
 
 ### Task 3: Server actions, page, navigation
 
 **Files:**
+
 - Create: src/features/box-definitions/form-state.ts
 - Create: src/features/box-definitions/actions.ts
 - Create: src/app/admin/box-definitions/page.tsx
 - Modify: src/app/admin/layout.tsx
 
 **Interfaces:**
+
 - BoxDefinitionActionState = { error?: string; success?: string }.
 - Actions call Task 2 RPCs and revalidate /admin/box-definitions.
 - Page returns nested definitions, active Master Items, active mappings/products, and used definition IDs.
@@ -214,16 +222,18 @@ Expected: PASS, exit 0.
 
 - [ ] **Step 5: Commit**
 
-    git add src/features/box-definitions/form-state.ts src/features/box-definitions/actions.ts src/app/admin/box-definitions/page.tsx src/app/admin/layout.tsx
-    git commit -m "feat: add box definition admin actions"
+  git add src/features/box-definitions/form-state.ts src/features/box-definitions/actions.ts src/app/admin/box-definitions/page.tsx src/app/admin/layout.tsx
+  git commit -m "feat: add box definition admin actions"
 
 ### Task 4: Client editor, summary, clone flow
 
 **Files:**
+
 - Create: src/features/box-definitions/components/box-definition-directory.tsx
 - Create: docs/development/box-definition-management.md
 
 **Interfaces:**
+
 - Directory consumes nested page data and used boolean.
 - Directory sends hidden layers JSON with { name, requirements: [{ product_id, expected_qty }] }.
 
@@ -251,12 +261,13 @@ Expected: all exit 0.
 
 - [ ] **Step 5: Commit**
 
-    git add src/features/box-definitions/components/box-definition-directory.tsx docs/development/box-definition-management.md
-    git commit -m "feat: add box definition editor"
+  git add src/features/box-definitions/components/box-definition-directory.tsx docs/development/box-definition-management.md
+  git commit -m "feat: add box definition editor"
 
 ### Task 5: Acceptance and task tracking
 
 **Files:**
+
 - Modify: task.md
 
 - [ ] **Step 1: Browser acceptance**
@@ -273,8 +284,8 @@ Tick all eight Task 4.6 lines only after Step 2 proves them.
 
 - [ ] **Step 4: Commit**
 
-    git add task.md
-    git commit -m "docs: complete box definition task checklist"
+  git add task.md
+  git commit -m "docs: complete box definition task checklist"
 
 ## Plan Self-Review
 

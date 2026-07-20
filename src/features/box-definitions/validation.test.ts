@@ -104,10 +104,18 @@ describe("parseBoxDefinitionInput", () => {
 
   it.each([
     [
-      [{ name: "", requirements: [{ productId: "product-id", expectedQty: 1 }] }],
+      [
+        {
+          name: "",
+          requirements: [{ productId: "product-id", expectedQty: 1 }],
+        },
+      ],
       "Nama layer wajib diisi.",
     ],
-    [[{ name: "Layer 1", requirements: [] }], "Minimal satu requirement wajib diisi."],
+    [
+      [{ name: "Layer 1", requirements: [] }],
+      "Minimal satu requirement wajib diisi.",
+    ],
     [
       [{ name: "Layer 1", requirements: [{ productId: "", expectedQty: 1 }] }],
       "Produk requirement wajib dipilih.",
@@ -119,7 +127,7 @@ describe("parseBoxDefinitionInput", () => {
     expect(parseBoxDefinitionInput(formData)).toEqual({ error })
   })
 
-  it.each(["1.5", "1000001", "abc"]) (
+  it.each(["1.5", "1000001", "abc"])(
     "rejects an invalid expected quantity of %s",
     (expectedQty) => {
       const formData = validFormData()
@@ -134,7 +142,29 @@ describe("parseBoxDefinitionInput", () => {
       )
 
       expect(parseBoxDefinitionInput(formData)).toEqual({
-        error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
+        error:
+          "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
+      })
+    },
+  )
+
+  it.each([[[3]], [{ value: 3 }], [true]])(
+    "rejects a non-scalar expected quantity",
+    (expectedQty) => {
+      const formData = validFormData()
+      formData.set(
+        "layers",
+        JSON.stringify([
+          {
+            name: "Layer 1",
+            requirements: [{ productId: "product-id", expectedQty }],
+          },
+        ]),
+      )
+
+      expect(parseBoxDefinitionInput(formData)).toEqual({
+        error:
+          "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
       })
     },
   )
@@ -152,9 +182,19 @@ describe("parseBoxDefinitionInput", () => {
 
 describe("boxDefinitionRpcErrorMessage", () => {
   it.each([
-    ["BOX_DEFINITION_ADMIN_REQUIRED", "Aksi ini hanya tersedia untuk admin aktif."],
+    [
+      "BOX_DEFINITION_ADMIN_REQUIRED",
+      "Aksi ini hanya tersedia untuk admin aktif.",
+    ],
     ["BOX_DEFINITION_INPUT_INVALID", "Data definisi box tidak valid."],
-    ["BOX_DEFINITION_IN_USE", "Definisi box sudah digunakan dan tidak dapat diubah."],
+    [
+      "BOX_DEFINITION_IN_USE",
+      "Definisi box sudah digunakan dan tidak dapat diubah.",
+    ],
+    [
+      "BOX_DEFINITION_MASTER_ITEM_NOT_FOUND",
+      "Master Item tidak aktif atau tidak ditemukan.",
+    ],
     ["BOX_DEFINITION_NOT_FOUND", "Definisi box tidak ditemukan."],
     ["BOX_DEFINITION_VERSION_EXISTS", "Versi definisi box sudah ada."],
     ["BOX_DEFINITION_INVALID", "Definisi box belum valid untuk diaktifkan."],

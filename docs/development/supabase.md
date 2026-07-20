@@ -4,7 +4,9 @@
 
 - CLI is pinned in `devDependencies`; on Windows run it with `npx.cmd supabase`.
 - Database development and verification use the hosted Supabase development
-  project approved for LabelBoxCRT. Docker is not required for this repository.
+  project approved for LabelBoxCRT. This is a hosted-only workflow: do not run
+  `supabase start`, `supabase stop`, `supabase status`, `supabase db reset`, or
+  commands with `--local` for this repository.
 - Browser code receives only `NEXT_PUBLIC_SUPABASE_URL` and
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Never expose service-role, secret, or QZ private keys through `NEXT_PUBLIC_`.

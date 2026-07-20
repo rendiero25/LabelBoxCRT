@@ -13,8 +13,8 @@ even when future application code or clients behave incorrectly.
 
 ## Confirmed Decisions
 
-- Supabase development and verification use an online Supabase project. Docker
-  and the local Supabase runtime are not part of this phase.
+- Supabase development and verification use an online Supabase project. The
+  local Supabase runtime is not part of this phase.
 - Application roles are `admin` and `operator`. There is no supervisor role.
   Administrative approval workflows, including future reprints, belong to the
   admin role.
@@ -215,16 +215,16 @@ functions do not read JWT user metadata.
 
 Policy matrix:
 
-| Data group | Admin | Operator | Anonymous |
-| --- | --- | --- | --- |
-| Own profile | Read own profile; read all for administration | Read own profile | No access |
-| Master and active box data | Read and manage through allowed admin operations | Read active records required for work | No access |
-| Delivery numbers | Read and manage | Read active records needed by assigned sessions | No access |
-| Workstations | Read and manage | Read assigned active workstation | No access |
-| Packing sessions and scans | Read all | Read only own sessions on assigned workstations | No access |
-| Print jobs and attempts | Read all | Read only jobs targeted to assigned workstations | No access |
-| Reprint requests | Read all | Read own requests and related source job | No access |
-| Audit logs | Read all | No direct access | No access |
+| Data group                 | Admin                                            | Operator                                         | Anonymous |
+| -------------------------- | ------------------------------------------------ | ------------------------------------------------ | --------- |
+| Own profile                | Read own profile; read all for administration    | Read own profile                                 | No access |
+| Master and active box data | Read and manage through allowed admin operations | Read active records required for work            | No access |
+| Delivery numbers           | Read and manage                                  | Read active records needed by assigned sessions  | No access |
+| Workstations               | Read and manage                                  | Read assigned active workstation                 | No access |
+| Packing sessions and scans | Read all                                         | Read only own sessions on assigned workstations  | No access |
+| Print jobs and attempts    | Read all                                         | Read only jobs targeted to assigned workstations | No access |
+| Reprint requests           | Read all                                         | Read own requests and related source job         | No access |
+| Audit logs                 | Read all                                         | No direct access                                 | No access |
 
 Direct mutation of packing sessions, scans, sequence counters, print jobs,
 print attempts, reprint status, and audit logs is denied to browser roles in

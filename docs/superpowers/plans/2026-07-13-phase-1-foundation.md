@@ -72,4 +72,4 @@
 - [ ] Run `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`.
 - [ ] Run `npx shadcn@4.13.0 info` and inspect the final component list.
 - [ ] Scan source and build output for service-role/private-key material.
-- [ ] Check only evidence-backed Phase 1 items in `task.md`; document Docker as an external prerequisite if unavailable.
+- [ ] Check only evidence-backed Phase 1 items in `task.md`; document the hosted-only Supabase workflow.

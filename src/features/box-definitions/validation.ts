@@ -59,11 +59,18 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
       }
       const normalizedProductId =
         typeof productId === "string" ? productId.trim() : ""
-      const rawExpectedQty = String(expectedQty ?? "").trim()
 
       if (!normalizedProductId) {
         return { error: "Produk requirement wajib dipilih." }
       }
+      if (typeof expectedQty !== "string" && typeof expectedQty !== "number") {
+        return {
+          error:
+            "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
+        }
+      }
+
+      const rawExpectedQty = String(expectedQty).trim()
       if (
         !/^\d+$/.test(rawExpectedQty) ||
         Number(rawExpectedQty) < 1 ||
@@ -81,7 +88,10 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
       })
     }
 
-    parsedLayers.push({ name: normalizedName, requirements: parsedRequirements })
+    parsedLayers.push({
+      name: normalizedName,
+      requirements: parsedRequirements,
+    })
   }
 
   return parsedLayers
@@ -113,6 +123,8 @@ export function boxDefinitionRpcErrorMessage(message: string): string {
     BOX_DEFINITION_INPUT_INVALID: "Data definisi box tidak valid.",
     BOX_DEFINITION_IN_USE:
       "Definisi box sudah digunakan dan tidak dapat diubah.",
+    BOX_DEFINITION_MASTER_ITEM_NOT_FOUND:
+      "Master Item tidak aktif atau tidak ditemukan.",
     BOX_DEFINITION_NOT_FOUND: "Definisi box tidak ditemukan.",
     BOX_DEFINITION_VERSION_EXISTS: "Versi definisi box sudah ada.",
     BOX_DEFINITION_INVALID: "Definisi box belum valid untuk diaktifkan.",
@@ -121,6 +133,7 @@ export function boxDefinitionRpcErrorMessage(message: string): string {
   }
 
   return (
-    messages[message] ?? "Aksi definisi box gagal. Coba lagi atau hubungi admin."
+    messages[message] ??
+    "Aksi definisi box gagal. Coba lagi atau hubungi admin."
   )
 }

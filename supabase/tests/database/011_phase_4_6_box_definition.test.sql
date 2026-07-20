@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(21);
+select plan(23);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -192,6 +192,55 @@ select is(
   ),
   true,
   'publish activates the selected version'
+);
+
+select lives_ok(
+  $$
+    select public.update_box_definition(
+      (
+        select id
+        from public.box_definitions
+        where master_item_id = '92100000-0000-0000-0000-000000000001'
+          and box_code = 'B101'
+          and version = 1
+      ),
+      'B101',
+      'B101 Updated',
+      '[
+        {
+          "name": "Layer 1",
+          "requirements": [
+            {
+              "product_id": "93100000-0000-0000-0000-000000000001",
+              "expected_qty": 3
+            }
+          ]
+        },
+        {
+          "name": "Layer 2",
+          "requirements": [
+            {
+              "product_id": "93100000-0000-0000-0000-000000000001",
+              "expected_qty": 5
+            }
+          ]
+        }
+      ]'::jsonb
+    )
+  $$,
+  'admin updates an unused Box Definition'
+);
+
+select is(
+  (
+    select box_name
+    from public.box_definitions
+    where master_item_id = '92100000-0000-0000-0000-000000000001'
+      and box_code = 'B101'
+      and version = 1
+  ),
+  'B101 Updated',
+  'update persists the revised box name'
 );
 
 reset role;
