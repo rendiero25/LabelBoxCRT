@@ -123,7 +123,7 @@ export default async function ScanPage() {
         boxDefinitions={boxDefinitions}
         deliveryNumbers={deliveryNumbers}
         masterItems={masterItems}
-        {/* workstationId={workstationId} */}
+        /* workstationId={workstationId} */
       />
     </div>
   )
