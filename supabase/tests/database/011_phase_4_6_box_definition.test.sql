@@ -265,17 +265,10 @@ insert into public.profiles (id, display_name, role, is_active) values (
   true
 );
 
-insert into public.workstations (id, workstation_code, name) values (
-  '94100000-0000-0000-0000-000000000001',
-  'phase46-workstation',
-  'Phase 4.6 Workstation'
-);
-
 insert into public.packing_sessions (
-  operator_id, workstation_id, master_item_id, box_definition_id, status
+  operator_id, master_item_id, box_definition_id, status
 ) values (
   '91100000-0000-0000-0000-000000000002',
-  '94100000-0000-0000-0000-000000000001',
   '92100000-0000-0000-0000-000000000001',
   (
     select id

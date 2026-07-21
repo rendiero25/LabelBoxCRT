@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       audit_logs: {
@@ -24,7 +49,6 @@ export type Database = {
           entity_type: string
           id: number
           metadata: Json
-          workstation_id: string | null
         }
         Insert: {
           action: string
@@ -35,7 +59,6 @@ export type Database = {
           entity_type: string
           id?: never
           metadata?: Json
-          workstation_id?: string | null
         }
         Update: {
           action?: string
@@ -46,7 +69,6 @@ export type Database = {
           entity_type?: string
           id?: never
           metadata?: Json
-          workstation_id?: string | null
         }
         Relationships: [
           {
@@ -54,54 +76,6 @@ export type Database = {
             columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audit_logs_workstation_id_fkey"
-            columns: ["workstation_id"]
-            isOneToOne: false
-            referencedRelation: "workstations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      box_definitions: {
-        Row: {
-          box_code: string
-          box_name: string
-          created_at: string
-          id: string
-          is_active: boolean
-          master_item_id: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          box_code: string
-          box_name: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          master_item_id: string
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          box_code?: string
-          box_name?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          master_item_id?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "box_definitions_master_item_id_fkey"
-            columns: ["master_item_id"]
-            isOneToOne: false
-            referencedRelation: "master_items"
             referencedColumns: ["id"]
           },
         ]
@@ -112,6 +86,7 @@ export type Database = {
           created_at: string
           expected_qty: number
           id: string
+          master_item_box_id: string
           product_id: string
           sort_order: number
           updated_at: string
@@ -121,6 +96,7 @@ export type Database = {
           created_at?: string
           expected_qty: number
           id?: string
+          master_item_box_id: string
           product_id: string
           sort_order: number
           updated_at?: string
@@ -130,6 +106,7 @@ export type Database = {
           created_at?: string
           expected_qty?: number
           id?: string
+          master_item_box_id?: string
           product_id?: string
           sort_order?: number
           updated_at?: string
@@ -143,6 +120,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "box_layer_requirements_master_item_box_id_fkey"
+            columns: ["master_item_box_id"]
+            isOneToOne: false
+            referencedRelation: "master_item_boxes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "box_layer_requirements_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -153,7 +137,7 @@ export type Database = {
       }
       box_layers: {
         Row: {
-          box_definition_id: string
+          box_id: string
           created_at: string
           id: string
           is_active: boolean
@@ -163,7 +147,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          box_definition_id: string
+          box_id: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -173,7 +157,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          box_definition_id?: string
+          box_id?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -184,13 +168,40 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "box_layers_box_definition_id_fkey"
-            columns: ["box_definition_id"]
+            foreignKeyName: "box_layers_box_id_fkey"
+            columns: ["box_id"]
             isOneToOne: false
-            referencedRelation: "box_definitions"
+            referencedRelation: "boxes"
             referencedColumns: ["id"]
           },
         ]
+      }
+      boxes: {
+        Row: {
+          box_code: string
+          box_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          box_code: string
+          box_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          box_code?: string
+          box_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       delivery_numbers: {
         Row: {
@@ -236,6 +247,51 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      master_item_boxes: {
+        Row: {
+          box_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          master_item_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          box_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          master_item_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          box_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          master_item_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_item_boxes_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "master_item_boxes_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_items"
             referencedColumns: ["id"]
           },
         ]
@@ -337,7 +393,6 @@ export type Database = {
           scanned_by: string
           scanned_part_no: string
           scanned_size: string
-          workstation_id: string
         }
         Insert: {
           box_layer_id?: string | null
@@ -354,7 +409,6 @@ export type Database = {
           scanned_by: string
           scanned_part_no: string
           scanned_size: string
-          workstation_id: string
         }
         Update: {
           box_layer_id?: string | null
@@ -371,7 +425,6 @@ export type Database = {
           scanned_by?: string
           scanned_part_no?: string
           scanned_size?: string
-          workstation_id?: string
         }
         Relationships: [
           {
@@ -402,24 +455,17 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "packing_session_scans_workstation_id_fkey"
-            columns: ["workstation_id"]
-            isOneToOne: false
-            referencedRelation: "workstations"
-            referencedColumns: ["id"]
-          },
         ]
       }
       packing_sessions: {
         Row: {
-          box_definition_id: string
           cancel_reason: string | null
           cancelled_at: string | null
           created_at: string
           delivery_number_id: string | null
           finalized_at: string | null
           id: string
+          master_item_box_id: string
           master_item_id: string
           operator_id: string
           ready_at: string | null
@@ -427,16 +473,15 @@ export type Database = {
           status: Database["public"]["Enums"]["packing_session_status"]
           updated_at: string
           version: number
-          workstation_id: string
         }
         Insert: {
-          box_definition_id: string
           cancel_reason?: string | null
           cancelled_at?: string | null
           created_at?: string
           delivery_number_id?: string | null
           finalized_at?: string | null
           id?: string
+          master_item_box_id: string
           master_item_id: string
           operator_id: string
           ready_at?: string | null
@@ -444,16 +489,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["packing_session_status"]
           updated_at?: string
           version?: number
-          workstation_id: string
         }
         Update: {
-          box_definition_id?: string
           cancel_reason?: string | null
           cancelled_at?: string | null
           created_at?: string
           delivery_number_id?: string | null
           finalized_at?: string | null
           id?: string
+          master_item_box_id?: string
           master_item_id?: string
           operator_id?: string
           ready_at?: string | null
@@ -461,21 +505,20 @@ export type Database = {
           status?: Database["public"]["Enums"]["packing_session_status"]
           updated_at?: string
           version?: number
-          workstation_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "packing_sessions_box_definition_id_fkey"
-            columns: ["box_definition_id"]
-            isOneToOne: false
-            referencedRelation: "box_definitions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "packing_sessions_delivery_number_id_fkey"
             columns: ["delivery_number_id"]
             isOneToOne: false
             referencedRelation: "delivery_numbers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_sessions_master_item_box_id_fkey"
+            columns: ["master_item_box_id"]
+            isOneToOne: false
+            referencedRelation: "master_item_boxes"
             referencedColumns: ["id"]
           },
           {
@@ -492,13 +535,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "packing_sessions_workstation_id_fkey"
-            columns: ["workstation_id"]
-            isOneToOne: false
-            referencedRelation: "workstations"
-            referencedColumns: ["id"]
-          },
         ]
       }
       print_attempts: {
@@ -511,7 +547,6 @@ export type Database = {
           print_job_id: string
           printer_name: string
           result: Database["public"]["Enums"]["print_attempt_result"]
-          workstation_id: string
         }
         Insert: {
           attempt_no: number
@@ -522,7 +557,6 @@ export type Database = {
           print_job_id: string
           printer_name: string
           result: Database["public"]["Enums"]["print_attempt_result"]
-          workstation_id: string
         }
         Update: {
           attempt_no?: number
@@ -533,7 +567,6 @@ export type Database = {
           print_job_id?: string
           printer_name?: string
           result?: Database["public"]["Enums"]["print_attempt_result"]
-          workstation_id?: string
         }
         Relationships: [
           {
@@ -541,13 +574,6 @@ export type Database = {
             columns: ["print_job_id"]
             isOneToOne: false
             referencedRelation: "print_jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "print_attempts_workstation_id_fkey"
-            columns: ["workstation_id"]
-            isOneToOne: false
-            referencedRelation: "workstations"
             referencedColumns: ["id"]
           },
         ]
@@ -576,7 +602,6 @@ export type Database = {
           supplier_name_snapshot: string
           template_version: string
           updated_at: string
-          workstation_id: string
           zpl_payload: string
         }
         Insert: {
@@ -602,7 +627,6 @@ export type Database = {
           supplier_name_snapshot: string
           template_version: string
           updated_at?: string
-          workstation_id: string
           zpl_payload: string
         }
         Update: {
@@ -628,7 +652,6 @@ export type Database = {
           supplier_name_snapshot?: string
           template_version?: string
           updated_at?: string
-          workstation_id?: string
           zpl_payload?: string
         }
         Relationships: [
@@ -651,13 +674,6 @@ export type Database = {
             columns: ["parent_print_job_id"]
             isOneToOne: false
             referencedRelation: "print_jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "print_jobs_workstation_id_fkey"
-            columns: ["workstation_id"]
-            isOneToOne: false
-            referencedRelation: "workstations"
             referencedColumns: ["id"]
           },
         ]
@@ -834,131 +850,35 @@ export type Database = {
         }
         Relationships: []
       }
-      workstation_assignments: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          operator_id: string
-          updated_at: string
-          workstation_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          operator_id: string
-          updated_at?: string
-          workstation_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          operator_id?: string
-          updated_at?: string
-          workstation_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workstation_assignments_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workstation_assignments_workstation_id_fkey"
-            columns: ["workstation_id"]
-            isOneToOne: false
-            referencedRelation: "workstations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workstations: {
-        Row: {
-          approval_status: Database["public"]["Enums"]["workstation_approval_status"]
-          approved_at: string | null
-          approved_by: string | null
-          created_at: string
-          disabled_at: string | null
-          disabled_by: string | null
-          disabled_reason: string | null
-          id: string
-          is_active: boolean
-          last_seen_at: string | null
-          name: string
-          printer_model: string
-          printer_name: string | null
-          scanner_model: string
-          updated_at: string
-          workstation_code: string
-        }
-        Insert: {
-          approval_status?: Database["public"]["Enums"]["workstation_approval_status"]
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          disabled_at?: string | null
-          disabled_by?: string | null
-          disabled_reason?: string | null
-          id?: string
-          is_active?: boolean
-          last_seen_at?: string | null
-          name: string
-          printer_model?: string
-          printer_name?: string | null
-          scanner_model?: string
-          updated_at?: string
-          workstation_code: string
-        }
-        Update: {
-          approval_status?: Database["public"]["Enums"]["workstation_approval_status"]
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          disabled_at?: string | null
-          disabled_by?: string | null
-          disabled_reason?: string | null
-          id?: string
-          is_active?: boolean
-          last_seen_at?: string | null
-          name?: string
-          printer_model?: string
-          printer_name?: string | null
-          scanner_model?: string
-          updated_at?: string
-          workstation_code?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workstations_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workstations_disabled_by_fkey"
-            columns: ["disabled_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      approve_workstation: {
-        Args: { p_workstation_id: string }
-        Returns: undefined
+      accept_packing_scan: {
+        Args: {
+          p_label_uid: string
+          p_normalized_size: string
+          p_packing_session_id: string
+          p_raw_payload_hash: string
+          p_scanned_size: string
+        }
+        Returns: {
+          box_layer_id: string
+          error_code: string
+          layer_accepted_qty: number
+          layer_expected_qty: number
+          product_id: string
+          ready_at: string
+          result: Database["public"]["Enums"]["scan_result"]
+          session_id: string
+          session_status: Database["public"]["Enums"]["packing_session_status"]
+          total_accepted_qty: number
+          total_expected_qty: number
+        }[]
       }
-      clone_box_definition_version: {
-        Args: { p_box_definition_id: string }
+      clone_master_item_box_version: {
+        Args: { p_master_item_box_id: string }
         Returns: string
       }
       close_or_cancel_delivery_number: {
@@ -968,13 +888,8 @@ export type Database = {
         }
         Returns: undefined
       }
-      create_box_definition: {
-        Args: {
-          p_box_code: string
-          p_box_name: string
-          p_layers: Json
-          p_master_item_id: string
-        }
+      create_box: {
+        Args: { p_box_code: string; p_box_name: string; p_layers: Json }
         Returns: string
       }
       create_delivery_number: {
@@ -1017,6 +932,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      create_master_item_box: {
+        Args: { p_box_id: string; p_layers: Json; p_master_item_id: string }
+        Returns: string
+      }
       create_master_item_product_mapping: {
         Args: { p_master_item_id: string; p_product_id: string }
         Returns: undefined
@@ -1052,59 +971,54 @@ export type Database = {
           updated_at: string
         }[]
       }
-      disable_workstation: {
-        Args: { p_reason: string; p_workstation_id: string }
-        Returns: undefined
-      }
-      enroll_workstation: {
-        Args: { p_enrollment_code: string }
+      delete_box: { Args: { p_box_id: string }; Returns: undefined }
+      delete_product: { Args: { p_product_id: string }; Returns: undefined }
+      finalize_packing_session: {
+        Args: { p_delivery_number_id: string; p_packing_session_id: string }
         Returns: {
-          device_token: string
-          workstation_id: string
+          already_finalized: boolean
+          box_code: string
+          box_name: string
+          delivery_date: string
+          delivery_number: string
+          label_reference: string
+          packing_session_id: string
+          part_name: string
+          part_no: string
+          print_job_id: string
+          qty: number
+          sequence_no: number
+          session_status: Database["public"]["Enums"]["packing_session_status"]
+          supplier_code: string
+          supplier_name: string
         }[]
       }
-      list_workstations_for_admin: {
-        Args: never
+      import_csv_master_data: {
+        Args: { p_correlation_id: string; p_rows: Json; p_template: string }
+        Returns: number
+      }
+      preview_csv_import: {
+        Args: { p_rows: Json; p_template: string }
         Returns: {
-          approval_status: Database["public"]["Enums"]["workstation_approval_status"]
-          assigned_operator_id: string
-          has_active_device: boolean
-          id: string
-          is_active: boolean
-          last_seen_at: string
-          name: string
-          printer_model: string
-          printer_name: string
-          scanner_model: string
-          workstation_code: string
+          errors: string[]
+          row_number: number
         }[]
       }
-      publish_box_definition: {
-        Args: { p_box_definition_id: string }
+      publish_master_item_box: {
+        Args: { p_master_item_box_id: string }
         Returns: string
-      }
-      register_workstation: {
-        Args: {
-          p_name: string
-          p_operator_id: string
-          p_printer_model: string
-          p_printer_name: string
-          p_scanner_model: string
-          p_workstation_code: string
-        }
-        Returns: {
-          enrollment_code: string
-          enrollment_expires_at: string
-          workstation_id: string
-        }[]
       }
       save_master_item_box_requirements: {
         Args: {
-          p_box_definition_id: string
           p_layers: Json
+          p_master_item_box_id: string
           p_master_item_id: string
         }
         Returns: string
+      }
+      set_box_active: {
+        Args: { p_box_id: string; p_is_active: boolean }
+        Returns: undefined
       }
       set_master_item_active: {
         Args: { p_is_active: boolean; p_master_item_id: string }
@@ -1129,10 +1043,42 @@ export type Database = {
           updated_at: string
         }[]
       }
-      update_box_definition: {
+      start_packing_session:
+        | {
+            Args: { p_box_definition_id: string; p_master_item_id: string }
+            Returns: {
+              accepted_qty: number
+              box_definition_id: string
+              master_item_id: string
+              operator_id: string
+              session_id: string
+              started_at: string
+              status: Database["public"]["Enums"]["packing_session_status"]
+              total_expected_qty: number
+            }[]
+          }
+        | {
+            Args: {
+              p_master_item_box_id: string
+              p_master_item_id: string
+              p_workstation_id: string
+            }
+            Returns: {
+              accepted_qty: number
+              master_item_box_id: string
+              master_item_id: string
+              operator_id: string
+              session_id: string
+              started_at: string
+              status: Database["public"]["Enums"]["packing_session_status"]
+              total_expected_qty: number
+              workstation_id: string
+            }[]
+          }
+      update_box: {
         Args: {
           p_box_code: string
-          p_box_definition_id: string
+          p_box_id: string
           p_box_name: string
           p_layers: Json
         }
@@ -1216,16 +1162,6 @@ export type Database = {
           updated_at: string
         }[]
       }
-      workstation_heartbeat: {
-        Args: { p_device_token_hash: string }
-        Returns: {
-          printer_model: string
-          printer_name: string
-          scanner_model: string
-          workstation_code: string
-          workstation_id: string
-        }[]
-      }
     }
     Enums: {
       delivery_status: "draft" | "active" | "closed" | "cancelled"
@@ -1252,7 +1188,6 @@ export type Database = {
       reprint_status: "requested" | "approved" | "rejected" | "executed"
       scan_result: "accepted" | "invalid" | "duplicate" | "over_qty"
       user_role: "admin" | "operator"
-      workstation_approval_status: "pending" | "approved" | "disabled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1378,6 +1313,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       delivery_status: ["draft", "active", "closed", "cancelled"],
@@ -1406,7 +1344,6 @@ export const Constants = {
       reprint_status: ["requested", "approved", "rejected", "executed"],
       scan_result: ["accepted", "invalid", "duplicate", "over_qty"],
       user_role: ["admin", "operator"],
-      workstation_approval_status: ["pending", "approved", "disabled"],
     },
   },
 } as const

@@ -2,21 +2,28 @@
 
 import { useActionState, useMemo, useState } from "react"
 import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
   BanIcon,
   CheckIcon,
   CircleAlertIcon,
+  FilterIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import {
   createProductAction,
+  deleteProductAction,
   setProductActiveAction,
   updateProductAction,
 } from "@/features/products/actions"
 import { initialProductActionState } from "@/features/products/form-state"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
+import { PaginationControls } from "@/components/shared/pagination-controls"
 import {
   formatProductPreview,
   normalizeDimensions,
@@ -57,6 +64,11 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -84,13 +96,33 @@ type Product = {
   is_active: boolean
 }
 
+type ProductSortColumn = "product_code" | "normalized_dimensions" | "is_active"
+type SortDirection = "asc" | "desc"
+
+const PAGE_SIZE = 20
+
 export function ProductDirectory({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
+  const [sortColumn, setSortColumn] =
+    useState<ProductSortColumn>("product_code")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [page, setPage] = useState(1)
+
+  function toggleSort(column: ProductSortColumn) {
+    if (column === sortColumn) {
+      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
+      return
+    }
+    setSortColumn(column)
+    setSortDirection("asc")
+    setPage(1)
+  }
+
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("id-ID")
 
-    return products.filter((product) => {
+    const filtered = products.filter((product) => {
       const matchesQuery =
         !normalizedQuery ||
         product.product_code
@@ -108,35 +140,117 @@ export function ProductDirectory({ products }: { products: Product[] }) {
 
       return matchesQuery && matchesStatus
     })
-  }, [products, query, status])
+
+    const direction = sortDirection === "asc" ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      if (sortColumn === "is_active") {
+        return (Number(a.is_active) - Number(b.is_active)) * direction
+      }
+      const valueA = (a[sortColumn] ?? "").toString().toLocaleLowerCase("id-ID")
+      const valueB = (b[sortColumn] ?? "").toString().toLocaleLowerCase("id-ID")
+      return valueA.localeCompare(valueB, "id-ID") * direction
+    })
+  }, [products, query, status, sortColumn, sortDirection])
+
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const pagedProducts = filteredProducts.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
+
+  const sortLabels: Record<ProductSortColumn, string> = {
+    product_code: "Produk",
+    normalized_dimensions: "Ukuran normal",
+    is_active: "Status",
+  }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="grid gap-3 sm:grid-cols-[minmax(16rem,24rem)_10rem]">
-          <div className="relative">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="relative min-w-[16rem] flex-1 sm:max-w-sm">
             <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2 left-2.5 size-4" />
             <Input
               aria-label="Cari produk"
               className="pl-8"
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPage(1)
+              }}
               placeholder="Cari kode, nama, atau ukuran"
               value={query}
             />
           </div>
-          <Select
-            value={status}
-            onValueChange={(value) => setStatus(value as typeof status)}
-          >
-            <SelectTrigger aria-label="Filter status produk" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua status</SelectItem>
-              <SelectItem value="active">Aktif</SelectItem>
-              <SelectItem value="inactive">Nonaktif</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <FilterIcon data-icon="inline-start" />
+                Filter
+                {status !== "all" ? (
+                  <Badge className="ml-1" variant="secondary">
+                    1
+                  </Badge>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64">
+              <div className="flex flex-col gap-2">
+                <p className="text-muted-foreground text-xs font-medium">
+                  Status
+                </p>
+                <Select
+                  value={status}
+                  onValueChange={(value) => {
+                    setStatus(value as typeof status)
+                    setPage(1)
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label="Filter status produk"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua status</SelectItem>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="inactive">Nonaktif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <ArrowUpDownIcon data-icon="inline-start" />
+                Urutkan
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56">
+              <div className="flex flex-col gap-1">
+                {(
+                  Object.keys(sortLabels) as ProductSortColumn[]
+                ).map((column) => {
+                  const isActive = column === sortColumn
+                  const Icon = sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+                  return (
+                    <Button
+                      className="justify-between"
+                      key={column}
+                      onClick={() => toggleSort(column)}
+                      type="button"
+                      variant={isActive ? "secondary" : "ghost"}
+                    >
+                      {sortLabels[column]}
+                      {isActive ? <Icon className="size-3.5" /> : null}
+                    </Button>
+                  )
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <CreateProductDialog products={products} />
       </div>
@@ -152,31 +266,55 @@ export function ProductDirectory({ products }: { products: Product[] }) {
         </Empty>
       ) : (
         <div className="rounded-xl border">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>No</TableHead>
-                <TableHead>Produk</TableHead>
-                <TableHead>Ukuran normal</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="w-12">No</TableHead>
+                <TableHead className="w-[24%]">
+                  <SortableHeader
+                    column="product_code"
+                    label="Produk"
+                    onSort={toggleSort}
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                  />
+                </TableHead>
+                <TableHead className="w-[26%]">
+                  <SortableHeader
+                    column="normalized_dimensions"
+                    label="Ukuran normal"
+                    onSort={toggleSort}
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                  />
+                </TableHead>
+                <TableHead className="w-[14%]">
+                  <SortableHeader
+                    column="is_active"
+                    label="Status"
+                    onSort={toggleSort}
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                  />
+                </TableHead>
                 <TableHead>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product, index) => (
+              {pagedProducts.map((product, index) => (
                 <TableRow key={product.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>
+                  <TableCell>{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                  <TableCell className="whitespace-normal">
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-medium">
+                      <span className="font-medium break-words">
                         {product.product_code}
                       </span>
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-muted-foreground text-xs break-words">
                         {product.part_name}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="font-sans text-xs">
+                  <TableCell className="font-sans text-xs whitespace-normal break-words">
                     {formatProductPreview(
                       product.part_name,
                       product.outer_diameter,
@@ -191,8 +329,8 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                       {product.is_active ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-start gap-2">
+                  <TableCell className="whitespace-normal">
+                    <div className="flex flex-wrap items-start gap-2">
                       <EditProductDialog
                         product={product}
                         products={products}
@@ -201,15 +339,53 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                         isActive={product.is_active}
                         productId={product.id}
                       />
+                      <DeleteProductAction
+                        productCode={product.product_code}
+                        productId={product.id}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          <PaginationControls
+            currentPage={currentPage}
+            onPageChange={setPage}
+            pageCount={pageCount}
+            totalItems={filteredProducts.length}
+          />
         </div>
       )}
     </div>
+  )
+}
+
+function SortableHeader({
+  column,
+  label,
+  onSort,
+  sortColumn,
+  sortDirection,
+}: {
+  column: ProductSortColumn
+  label: string
+  onSort: (column: ProductSortColumn) => void
+  sortColumn: ProductSortColumn
+  sortDirection: SortDirection
+}) {
+  const isActive = column === sortColumn
+  const Icon = sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+
+  return (
+    <button
+      className="hover:text-foreground flex items-center gap-1 font-medium"
+      onClick={() => onSort(column)}
+      type="button"
+    >
+      {label}
+      {isActive ? <Icon className="size-3.5" /> : null}
+    </button>
   )
 }
 
@@ -352,13 +528,17 @@ function ProductForm({
         </Alert>
       ) : null}
       {duplicateCode || duplicateDimensions ? (
-        <Alert>
+        <Alert variant={!product && duplicateDimensions ? "destructive" : "default"}>
           <CircleAlertIcon />
-          <AlertTitle>Potensi konflik data</AlertTitle>
+          <AlertTitle>
+            {!product && duplicateDimensions
+              ? "Produk sudah terdaftar"
+              : "Potensi konflik data"}
+          </AlertTitle>
           <AlertDescription>
             {duplicateCode
               ? `Kode sudah dipakai oleh ${duplicateCode.product_code}.`
-              : `Ukuran ${preview} sudah dipakai oleh ${duplicateDimensions?.product_code}.`}
+              : `Ukuran ${preview} sudah dipakai oleh ${duplicateDimensions?.product_code}.${!product ? " Gunakan produk yang sudah ada." : ""}`}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -438,7 +618,14 @@ function ProductForm({
         </Field>
       </FieldGroup>
       <DialogFooter>
-        <Button disabled={isPending} type="submit">
+        <Button
+          disabled={
+            isPending ||
+            Boolean(duplicateCode) ||
+            (!product && Boolean(duplicateDimensions))
+          }
+          type="submit"
+        >
           {isPending ? <Spinner data-icon="inline-start" /> : null}
           {submitLabel}
         </Button>
@@ -522,6 +709,58 @@ function ProductActiveAction({
               >
                 {isPending ? <Spinner data-icon="inline-start" /> : null}
                 {actionLabel}
+              </Button>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+      {state.error ? (
+        <Alert className="max-w-xs" variant="destructive">
+          <CircleAlertIcon />
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </div>
+  )
+}
+
+function DeleteProductAction({
+  productCode,
+  productId,
+}: {
+  productCode: string
+  productId: string
+}) {
+  const [state, formAction, isPending] = useActionState(
+    deleteProductAction,
+    initialProductActionState,
+  )
+  useActionStateToast(state)
+
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button size="sm" variant="destructive">
+            <Trash2Icon data-icon="inline-start" />
+            Hapus
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus produk {productCode}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini permanen. Produk yang masih dipakai Master Item,
+              Box Definition, atau riwayat scan tidak dapat dihapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <form action={formAction}>
+            <input name="productId" type="hidden" value={productId} />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <Button disabled={isPending} type="submit" variant="destructive">
+                {isPending ? <Spinner data-icon="inline-start" /> : null}
+                Hapus
               </Button>
             </AlertDialogFooter>
           </form>

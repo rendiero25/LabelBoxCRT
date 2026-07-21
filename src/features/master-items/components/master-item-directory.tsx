@@ -17,7 +17,8 @@ import {
 } from "@/features/master-items/actions"
 import {
   MasterItemBoxLayerEditor,
-  type MasterItemBoxDefinition,
+  type BoxOption,
+  type MasterItemBoxAssignment,
   type ProductOption,
 } from "@/features/master-items/components/master-item-box-layer-editor"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
@@ -86,11 +87,13 @@ export type MasterItem = {
 }
 
 export function MasterItemDirectory({
-  boxDefinitions,
+  boxes,
+  masterItemBoxes,
   masterItems,
   products,
 }: {
-  boxDefinitions: MasterItemBoxDefinition[]
+  boxes: BoxOption[]
+  masterItemBoxes: MasterItemBoxAssignment[]
   masterItems: MasterItem[]
   products: ProductOption[]
 }) {
@@ -204,8 +207,9 @@ export function MasterItemDirectory({
                     <div className="flex items-start gap-2">
                       <EditMasterItemDialog masterItem={masterItem} />
                       <MasterItemBoxLayerEditor
-                        boxDefinitions={boxDefinitions}
+                        boxes={boxes}
                         masterItem={masterItem}
+                        masterItemBoxes={masterItemBoxes}
                         products={products}
                       />
                       <MasterItemActiveAction

@@ -4,9 +4,9 @@ import {
   Building2Icon,
   BoxesIcon,
   ContainerIcon,
+  FileSpreadsheetIcon,
   LayoutDashboardIcon,
   Link2Icon,
-  MonitorCogIcon,
   PackageSearchIcon,
   TruckIcon,
 } from "lucide-react"
@@ -48,7 +48,7 @@ export default async function AdminLayout({
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Administrasi</SidebarGroupLabel>
+            <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -59,14 +59,44 @@ export default async function AdminLayout({
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Produk, Box Definition, & Master Item</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/admin/workstations">
-                      <MonitorCogIcon />
-                      <span>Workstations</span>
+                    <Link href="/admin/products">
+                      <BoxesIcon />
+                      <span>Produk</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/box-definitions">
+                      <ContainerIcon />
+                      <span>Box Definition</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/admin/master-items">
+                      <PackageSearchIcon />
+                      <span>Master Item</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Administrasi Lainnya</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link href="/admin/suppliers">
@@ -85,22 +115,6 @@ export default async function AdminLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/admin/products">
-                      <BoxesIcon />
-                      <span>Produk</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/master-items">
-                      <PackageSearchIcon />
-                      <span>Master Item</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
                     <Link href="/admin/product-mappings">
                       <Link2Icon />
                       <span>Product Mapping</span>
@@ -109,9 +123,9 @@ export default async function AdminLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/admin/box-definitions">
-                      <ContainerIcon />
-                      <span>Box Definition</span>
+                    <Link href="/admin/csv-imports">
+                      <FileSpreadsheetIcon />
+                      <span>CSV Import</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

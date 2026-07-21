@@ -1,16 +1,16 @@
-export type MasterItemBoxRequirementsInput = {
-  boxDefinitionId: string
-  layers: {
-    name: string
-    requirements: { productId: string; expectedQty: number }[]
-  }[]
+export type MasterItemBoxLayerRequirementInput = {
+  boxLayerId: string
+  requirements: { productId: string; expectedQty: number }[]
 }
 
-type ParseResult = { data: MasterItemBoxRequirementsInput } | { error: string }
+type ParseResult =
+  | { data: MasterItemBoxLayerRequirementInput[] }
+  | { error: string }
 
-function parseLayers(
-  rawLayers: string,
-): MasterItemBoxRequirementsInput["layers"] | { error: string } {
+export function parseMasterItemBoxLayersInput(
+  formData: FormData,
+): ParseResult {
+  const rawLayers = String(formData.get("layers") ?? "")
   let layers: unknown
 
   try {
@@ -23,25 +23,26 @@ function parseLayers(
   if (layers.length === 0) return { error: "Minimal satu layer wajib diisi." }
   if (layers.length > 10) return { error: "Maksimal 10 layer per box." }
 
-  const parsedLayers: MasterItemBoxRequirementsInput["layers"] = []
+  const parsedLayers: MasterItemBoxLayerRequirementInput[] = []
 
   for (const layer of layers) {
     if (!layer || typeof layer !== "object") {
       return { error: "Layer box tidak valid." }
     }
 
-    const { name, requirements } = layer as {
-      name?: unknown
+    const { boxLayerId, requirements } = layer as {
+      boxLayerId?: unknown
       requirements?: unknown
     }
-    const normalizedName = typeof name === "string" ? name.trim() : ""
+    const normalizedBoxLayerId =
+      typeof boxLayerId === "string" ? boxLayerId.trim() : ""
 
-    if (!normalizedName) return { error: "Nama layer wajib diisi." }
+    if (!normalizedBoxLayerId) return { error: "Layer box tidak valid." }
     if (!Array.isArray(requirements) || requirements.length === 0) {
       return { error: "Minimal satu requirement wajib diisi." }
     }
 
-    const parsedRequirements: MasterItemBoxRequirementsInput["layers"][number]["requirements"] =
+    const parsedRequirements: MasterItemBoxLayerRequirementInput["requirements"] =
       []
     const productIds = new Set<string>()
 
@@ -88,42 +89,30 @@ function parseLayers(
     }
 
     parsedLayers.push({
-      name: normalizedName,
+      boxLayerId: normalizedBoxLayerId,
       requirements: parsedRequirements,
     })
   }
 
-  return parsedLayers
+  return { data: parsedLayers }
 }
 
-export function parseMasterItemBoxRequirementsInput(
-  formData: FormData,
-): ParseResult {
-  const boxDefinitionId = String(formData.get("boxDefinitionId") ?? "").trim()
-  const rawLayers = String(formData.get("layers") ?? "")
-
-  if (!boxDefinitionId) return { error: "Box Definition wajib dipilih." }
-
-  const layers = parseLayers(rawLayers)
-  if ("error" in layers) return layers
-
-  return { data: { boxDefinitionId, layers } }
-}
-
-export function masterItemBoxRequirementsRpcErrorMessage(
-  message: string,
-): string {
+export function masterItemBoxRpcErrorMessage(message: string): string {
   const messages: Record<string, string> = {
-    MASTER_ITEM_BOX_DEFINITION_MISMATCH:
-      "Box Definition tidak sesuai dengan Master Item ini.",
-    MASTER_ITEM_BOX_DEFINITION_IN_USE:
-      "Definisi box sudah digunakan dan tidak dapat diubah.",
-    MASTER_ITEM_BOX_REQUIREMENTS_INPUT_INVALID:
-      "Data kebutuhan Box dan Layer tidak valid.",
-    MASTER_ITEM_BOX_REQUIREMENTS_PRODUCT_INVALID:
-      "Produk requirement tidak aktif atau tidak valid.",
-    MASTER_ITEM_BOX_REQUIREMENTS_ADMIN_REQUIRED:
-      "Aksi ini hanya tersedia untuk admin aktif.",
+    MASTER_ITEM_BOX_ADMIN_REQUIRED: "Aksi ini hanya tersedia untuk admin aktif.",
+    MASTER_ITEM_BOX_MASTER_ITEM_NOT_FOUND:
+      "Master Item tidak aktif atau tidak ditemukan.",
+    MASTER_ITEM_BOX_BOX_NOT_FOUND: "Box tidak aktif atau tidak ditemukan.",
+    MASTER_ITEM_BOX_INPUT_INVALID: "Data kebutuhan Box dan Layer tidak valid.",
+    MASTER_ITEM_BOX_LAYER_NOT_ALLOWED: "Layer tidak sesuai dengan box terpilih.",
+    MASTER_ITEM_BOX_PRODUCT_NOT_ALLOWED:
+      "Produk requirement tidak diizinkan untuk Master Item ini.",
+    MASTER_ITEM_BOX_EXISTS:
+      "Master Item ini sudah memakai box tersebut. Edit assignment yang ada.",
+    MASTER_ITEM_BOX_NOT_FOUND: "Assignment box tidak ditemukan.",
+    MASTER_ITEM_BOX_MISMATCH: "Assignment box tidak sesuai dengan Master Item ini.",
+    MASTER_ITEM_BOX_IN_USE: "Assignment box sudah digunakan dan tidak dapat diubah.",
+    MASTER_ITEM_BOX_INVALID: "Assignment box belum valid untuk diaktifkan.",
   }
 
   return (

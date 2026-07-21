@@ -63,8 +63,10 @@ verifikasi unit fisik.
 
 1. Install QZ Tray dari distribusi yang disetujui IT.
 2. Catat versi dan pastikan QZ berjalan pada user Windows operator.
-3. Catat exact printer name dari Windows dan mapping satu workstation ke satu
-   printer target; jangan menggunakan printer pertama sebagai fallback.
+3. Catat exact printer name dari Windows. Tidak ada mapping printer per
+   workstation di server — operator memilih printer dari dropdown QZ Tray
+   setiap mulai sesi (Phase 7); jangan menggunakan printer pertama sebagai
+   fallback default.
 4. Ukur media, pilih sensing mode yang benar, kalibrasi, lalu kirim raw ZPL
    minimal yang mencetak border, garis ukur, dan teks identitas test.
 5. Ukur output fisik; catat clipping, offset, darkness, speed, orientation,

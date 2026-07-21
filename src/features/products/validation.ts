@@ -93,6 +93,7 @@ export function productRpcErrorMessage(message: string): string {
     PRODUCT_CODE_EXISTS: "Kode produk sudah digunakan.",
     PRODUCT_INPUT_INVALID: "Data produk tidak valid.",
     PRODUCT_NOT_FOUND: "Produk tidak ditemukan.",
+    PRODUCT_IN_USE: "Produk tidak dapat dihapus karena masih dipakai data lain.",
   }
 
   return messages[message] ?? "Aksi produk gagal. Coba lagi atau hubungi admin."

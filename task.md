@@ -236,7 +236,7 @@
 
 ---
 
-# Phase 3 — Authentication dan Workstation
+# Phase 3 — Authentication
 
 ## 3.1 Auth
 
@@ -255,20 +255,7 @@
 - [x] Server permission helpers.
 - [x] UI navigation per permission.
 
-## 3.3 Workstation
-
-> **Status 15 Juli 2026:** implementasi dan unit test tersedia; checklist
-> menunggu migration diterapkan serta database/browser QA dilakukan.
-
-- [ ] Workstation identity design.
-- [ ] Admin register/approve.
-- [ ] Bind printer name.
-- [ ] Save scanner/printer model.
-- [ ] Heartbeat.
-- [ ] Disable workstation.
-- [ ] Prevent localStorage-only spoofing.
-
-**Gate Phase 3:** unauthorized user/workstation tidak dapat scan atau print.
+**Gate Phase 3:** unauthorized user tidak dapat scan atau print.
 
 ---
 
@@ -327,11 +314,11 @@
 ## 4.7 Optional CSV Import
 
 - [x] Define templates.
-- [ ] Preview validation.
-- [ ] Transactional import.
-- [ ] Per-row errors.
-- [ ] Audit import.
-- [ ] Implement only after CRUD stable.
+- [x] Preview validation.
+- [x] Transactional import.
+- [x] Per-row errors.
+- [x] Audit import.
+- [x] Implement only after CRUD stable.
 
 **Gate Phase 4:** sample B101 dapat dibuat tanpa database console.
 
@@ -339,117 +326,142 @@
 
 # Phase 5 — Barcode Parser dan Scan Engine
 
+> **Status 21 Juli 2026:** parser, RPC (`start_packing_session`, `accept_packing_scan`),
+> dan operator scan UI diverifikasi lewat 25 unit test (vitest) dan 40 pgTAP assertion
+> yang dijalankan terhadap hosted development project (migrasi Phase 5 sudah live).
+> Gate B101 3 + 5 terverifikasi otomatis lewat pgTAP. Label UID tetap menolak setiap
+> scan nyata (`LABEL_UID_MISSING`) karena QR asli belum memiliki identitas unik
+> (Phase 0.1 belum ditutup, lihat AGENTS.md Open Decision #2) — end-to-end hardware
+> UAT belum bisa dilakukan. Concurrency hanya diverifikasi struktural (unique index +
+> `FOR UPDATE` lock via pgTAP single-connection), bukan uji koneksi paralel nyata.
+> Fullscreen/kiosk sizing diperbaiki tapi belum di-screenshot live (operator auth
+> sengaja tidak diseed ke repo).
+
 ## 5.1 Parser
 
-- [ ] Implement v1 parser.
-- [ ] Validate required fields.
+- [x] Implement v1 parser.
+- [x] Validate required fields.
 - [ ] Normalize Part No.
-- [ ] Normalize Size.
-- [ ] Validate Label UID.
-- [ ] Reject unsupported version.
-- [ ] Unit tests dari QR nyata.
-- [ ] Malformed payload tests.
+- [x] Normalize Size.
+- [x] Validate Label UID.
+- [x] Reject unsupported version.
+- [x] Unit tests dari QR nyata.
+- [x] Malformed payload tests.
 
 ## 5.2 Start Session RPC
 
-- [ ] Verify actor/workstation.
-- [ ] Resolve Master Item.
-- [ ] Resolve active box.
-- [ ] Handle multiple boxes.
-- [ ] Enforce one active session per workstation.
-- [ ] Save box version.
+- [x] Verify actor.
+- [x] Resolve Master Item.
+- [x] Resolve active box.
+- [x] Handle multiple boxes.
+- [x] Save box version.
 
 ## 5.3 Accept Scan RPC
 
-- [ ] Auth/role.
-- [ ] Workstation ownership.
-- [ ] Session state.
-- [ ] Duplicate UID.
-- [ ] Master Item lookup.
-- [ ] Product Size lookup.
-- [ ] Product ↔ Master Item.
-- [ ] Layer assignment.
-- [ ] Quantity enforcement.
-- [ ] Insert scan.
-- [ ] Progress calculation.
-- [ ] Ready transition.
-- [ ] Audit.
-- [ ] Domain errors.
+- [x] Auth/role.
+- [x] Session state.
+- [x] Duplicate UID.
+- [x] Master Item lookup.
+- [x] Product Size lookup.
+- [x] Product ↔ Master Item.
+- [x] Layer assignment.
+- [x] Quantity enforcement.
+- [x] Insert scan.
+- [x] Progress calculation.
+- [x] Ready transition.
+- [x] Audit.
+- [x] Domain errors.
 
 ## 5.4 Concurrency Tests
 
 - [ ] Same label parallel.
-- [ ] Same label two workstations.
 - [ ] Rapid labels same product.
 - [ ] Last required scan parallel.
 - [ ] Over-quantity race.
 
 ## 5.5 Operator Scan UI
 
-- [ ] Dedicated scan listener.
-- [ ] Ignore editable controls.
-- [ ] Enter terminator.
-- [ ] One active request queue.
-- [ ] Success state.
-- [ ] Error state.
-- [ ] Duplicate state.
-- [ ] Layer progress.
-- [ ] Total progress.
-- [ ] Last scans.
-- [ ] Sound.
-- [ ] Mute setting.
+- [x] Dedicated scan listener.
+- [x] Ignore editable controls.
+- [x] Enter terminator.
+- [x] One active request queue.
+- [x] Success state.
+- [x] Error state.
+- [x] Duplicate state.
+- [x] Layer progress.
+- [x] Total progress.
+- [x] Last scans.
+- [x] Sound.
+- [x] Mute setting.
 - [ ] Fullscreen-friendly.
-- [ ] Refresh recovery.
+- [x] Refresh recovery.
 
-**Gate Phase 5:** B101 selesai dengan assignment 3 + 5 yang benar.
+**Gate Phase 5:** B101 selesai dengan assignment 3 + 5 yang benar. Terverifikasi
+otomatis lewat pgTAP (`014_phase_5_packing_session_scan.test.sql`, assertion 34).
+Live hardware/browser UAT masih tertunda Phase 0.1.
 
 ---
 
 # Phase 6 — Finalization dan Label Snapshot
 
+> **Status 21 Juli 2026:** desain dikunci lewat brainstorming (BR-04 sequence global
+> never-reset, format reference `{sequence}-{DDMMYY}-{box_code}` tanpa padding,
+> finalize idempotent replay, DN reusable lintas session) — lihat
+> [`docs/superpowers/specs/2026-07-21-phase-6-finalize-design.md`](docs/superpowers/specs/2026-07-21-phase-6-finalize-design.md).
+> Implementasi diverifikasi lewat 42 pgTAP assertion baru + 40 regresi Phase 5 (tetap
+> hijau), 14 unit test formatter, dan full suite 139/139 test aplikasi; typecheck+lint
+> bersih. `print_jobs.zpl_payload` diisi placeholder `'PENDING_ZPL_GENERATION'` sampai
+> Phase 7 membangun ZPL generator asli. Preview qty pra-submit di UI masih approximate
+> (`totalExpectedQty`, bukan `default_label_qty` asli) karena client belum fetch nilai
+> itu — qty final tetap benar dari RPC setelah submit. Concurrency test 6.2 hanya
+> diverifikasi via pgTAP single-connection (row lock + idempotent replay), belum uji
+> koneksi paralel nyata — sama seperti catatan Phase 5.4.
+
 ## 6.1 Delivery Selection
 
-- [ ] Load active DNs.
-- [ ] Group/filter by supplier.
-- [ ] Show DN and date.
-- [ ] Block invalid/cancelled.
-- [ ] Confirmation summary.
+- [x] Load active DNs.
+- [x] Group/filter by supplier.
+- [x] Show DN and date.
+- [x] Block invalid/cancelled.
+- [x] Confirmation summary.
 
 ## 6.2 Sequence
 
-- [ ] Finalize sequence scope.
-- [ ] Implement atomic sequence/counter.
+- [x] Finalize sequence scope.
+- [x] Implement atomic sequence/counter.
 - [ ] Concurrency tests.
-- [ ] Date-source test.
-- [ ] Reset behavior test if applicable.
+- [x] Date-source test.
+- [x] Reset behavior test if applicable.
 
 ## 6.3 Finalize RPC
 
-- [ ] Lock session.
-- [ ] Recalculate exact quantity.
-- [ ] Validate DN.
-- [ ] Resolve supplier.
-- [ ] Allocate sequence.
-- [ ] Build label reference.
-- [ ] Snapshot label.
-- [ ] Create exactly one initial print job.
-- [ ] Set `print_pending`.
-- [ ] Audit.
-- [ ] Idempotent replay.
+- [x] Lock session.
+- [x] Recalculate exact quantity.
+- [x] Validate DN.
+- [x] Resolve supplier.
+- [x] Allocate sequence.
+- [x] Build label reference.
+- [x] Snapshot label.
+- [x] Create exactly one initial print job.
+- [x] Set `print_pending`.
+- [x] Audit.
+- [x] Idempotent replay.
 
 ## 6.4 Formatter
 
-- [ ] Supplier Code.
-- [ ] Part No.
-- [ ] Qty.
-- [ ] Item/Box reference.
-- [ ] Delivery Number.
-- [ ] Box Name.
-- [ ] Delivery Date.
-- [ ] Date formatting tests.
-- [ ] Long-value tests.
+- [x] Supplier Code.
+- [x] Part No.
+- [x] Qty.
+- [x] Item/Box reference.
+- [x] Delivery Number.
+- [x] Box Name.
+- [x] Delivery Date.
+- [x] Date formatting tests.
+- [x] Long-value tests.
 
 **Gate Phase 6:** parallel finalize menghasilkan satu sequence dan satu print job.
+Terverifikasi pgTAP (`015_phase_6_finalize.test.sql`): dua finalize call pada session
+sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 
 ---
 
@@ -491,7 +503,11 @@
 
 ## 7.4 Browser Print Worker
 
-- [ ] Claim only workstation target job.
+- [ ] Claim only target job (needs new design now that workstation identity is
+  removed — see forward note in
+  `docs/superpowers/specs/2026-07-21-remove-workstation-design.md`; likely
+  "any browser tab logged in as the finalizing operator may claim their own
+  session's print job").
 - [ ] Set printing.
 - [ ] Create print attempt.
 - [ ] Send raw ZPL.

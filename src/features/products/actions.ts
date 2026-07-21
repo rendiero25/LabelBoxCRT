@@ -64,6 +64,25 @@ export async function updateProductAction(
   return { success: "Produk diperbarui." }
 }
 
+export async function deleteProductAction(
+  _previousState: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  await requireAdmin()
+  const productId = productIdFromFormData(formData)
+  if (!productId) return { error: "Produk tidak valid." }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_product", {
+    p_product_id: productId,
+  })
+
+  if (error) return { error: productRpcErrorMessage(error.message) }
+
+  revalidatePath("/admin/products")
+  return { success: "Produk dihapus." }
+}
+
 export async function setProductActiveAction(
   _previousState: ProductActionState,
   formData: FormData,

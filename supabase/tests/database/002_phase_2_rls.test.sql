@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(30);
+select plan(28);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data,
@@ -61,24 +61,11 @@ insert into public.box_layer_requirements (
   ('62000000-0000-0000-0000-000000000001', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 3, 1),
   ('62000000-0000-0000-0000-000000000002', '61000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 5, 1);
 
-insert into public.workstations (id, workstation_code, name, is_active) values
-  ('70000000-0000-0000-0000-000000000001', 'RLS-WS-1', 'RLS Workstation 1', true),
-  ('70000000-0000-0000-0000-000000000002', 'RLS-WS-2', 'RLS Workstation 2', true);
-
-insert into public.workstation_assignments (
-  id, workstation_id, operator_id, is_active
-) values (
-  '71000000-0000-0000-0000-000000000001',
-  '70000000-0000-0000-0000-000000000001',
-  '10000000-0000-0000-0000-000000000002',
-  true
-);
-
 insert into public.packing_sessions (
-  id, operator_id, workstation_id, master_item_id, box_definition_id, status
+  id, operator_id, master_item_id, box_definition_id, status
 ) values
-  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '70000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed'),
-  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed');
+  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed'),
+  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed');
 
 set local role anon;
 select throws_ok(
@@ -104,21 +91,16 @@ select results_eq(
   'operator reads own profile only'
 );
 select results_eq(
-  $$ select workstation_code from public.workstations $$,
-  array['RLS-WS-1'::text],
-  'operator reads assigned active workstation only'
-);
-select results_eq(
   $$ select id from public.packing_sessions $$,
   array['80000000-0000-0000-0000-000000000001'::uuid],
-  'operator reads own session on assigned workstation only'
+  'operator reads own session only'
 );
 select throws_ok(
   $$ insert into public.suppliers (supplier_code, supplier_name) values ('RLS-DENIED', 'Denied') $$,
   '42501', null, 'operator cannot create suppliers'
 );
 select throws_ok(
-  $$ insert into public.packing_sessions (operator_id, workstation_id, master_item_id, box_definition_id) values ('10000000-0000-0000-0000-000000000002', '70000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001') $$,
+  $$ insert into public.packing_sessions (operator_id, master_item_id, box_definition_id) values ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001') $$,
   '42501', null, 'operator cannot mutate packing sessions directly'
 );
 select throws_ok(
@@ -129,10 +111,6 @@ reset role;
 
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
 set local role authenticated;
-select is_empty(
-  $$ select id from public.workstations $$,
-  'unassigned operator cannot read workstations'
-);
 select is_empty(
   $$ select id from public.packing_sessions $$,
   'unassigned operator cannot read sessions'

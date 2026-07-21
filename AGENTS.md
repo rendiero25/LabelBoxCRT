@@ -14,7 +14,7 @@ Bangun aplikasi produksi untuk:
 6. Mencetak label box ke **Zebra ZD220** melalui **QZ Tray + raw ZPL**.
 7. Menyediakan:
    - Halaman operator untuk scan dan print.
-   - Halaman admin untuk master data, supplier, Delivery Number, box/layer, user, workstation, print job, reprint, dan audit.
+   - Halaman admin untuk master data, supplier, Delivery Number, box/layer, user, print job, reprint, dan audit.
 
 Aplikasi di-host di Vercel. Scanner dan printer tetap terhubung ke workstation lokal.
 
@@ -138,7 +138,6 @@ Gunakan model relasional, bukan nested JSON besar:
 - `box_definitions`
 - `box_layers`
 - `box_layer_requirements`
-- `workstations`
 - `packing_sessions`
 - `packing_session_scans`
 - `sequence_counters`
@@ -207,7 +206,7 @@ Jangan melakukan check di client lalu insert terpisah.
 
 - Unique constraint pada `label_uid`.
 - Maksimal satu initial print job per session.
-- Dua workstation memproses label sama: hanya satu diterima.
+- Dua sesi memproses label sama: hanya satu diterima.
 - Dua finalize bersamaan: hanya satu print job.
 - Conflict memakai domain error, bukan generic 500.
 
@@ -215,7 +214,7 @@ Jangan melakukan check di client lalu insert terpisah.
 
 - Memerlukan reason.
 - Memerlukan supervisor/admin atau approval rule.
-- Menyimpan actor, approver, timestamp, workstation, source job, dan nomor reprint.
+- Menyimpan actor, approver, timestamp, source job, dan nomor reprint.
 - Tidak menghapus histori sebelumnya.
 
 ---
@@ -233,7 +232,7 @@ Aturan:
 - Jangan memakai user-editable metadata untuk authorization.
 - Verifikasi identity di server.
 - Jangan mengandalkan `getSession()` sebagai satu-satunya server verification.
-- Operator hanya memproses session/workstation yang diizinkan.
+- Operator hanya memproses session miliknya sendiri (`operator_id = auth.uid()`); tidak ada lapisan identitas device/workstation.
 - Admin mengelola master data.
 - Supervisor menangani exception/reprint.
 
@@ -277,7 +276,7 @@ Audit wajib untuk:
 - Start/cancel/finalize session.
 - Create/claim/send/fail print.
 - Reprint request/approval/execution.
-- Perubahan workstation/printer.
+- Perubahan printer/print job.
 
 Audit append-oriented dan tidak punya delete normal dari UI.
 
@@ -328,7 +327,7 @@ Supabase/Vercel membuat print job
 - Signature dibuat server-side.
 - Private key tidak boleh ke browser.
 - Allowlist production origin.
-- Printer dipilih dari mapping workstation, bukan printer pertama.
+- Printer dipilih operator dari dropdown QZ Tray setiap mulai sesi (bukan otomatis printer pertama); pilihan disimpan di `localStorage` browser sebagai default kenyamanan, bukan record approval server.
 - Health check:
   - QZ connected.
   - Printer ditemukan.
@@ -363,7 +362,7 @@ Cron harus:
 - Aman dipanggil ulang.
 - Menggunakan UTC.
 - Tidak mencoba mengakses QZ Tray/printer USB.
-- Tidak melakukan auto-reprint fisik tanpa workstation aktif.
+- Tidak melakukan auto-reprint fisik tanpa job aktif yang di-claim operator.
 
 ---
 
@@ -447,7 +446,6 @@ Log context minimum:
 
 - correlation ID
 - user ID
-- workstation ID
 - session ID
 - label UID/hash
 - print job ID
@@ -465,7 +463,6 @@ Dashboard admin minimum:
 - Print success/fail.
 - Stuck jobs.
 - Reprint count.
-- Workstation last seen.
 
 ---
 

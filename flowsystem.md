@@ -27,7 +27,7 @@ Next.js Operator Screen
             │
             ▼
 Supabase PostgreSQL RPC
-    ├─ Validasi auth/workstation/session
+    ├─ Validasi auth/session
     ├─ Validasi Part No
     ├─ Validasi Size/Product
     ├─ Validasi relasi Product ↔ Part No
@@ -253,28 +253,12 @@ B101
 
 Struktur juga mendukung banyak jenis produk pada satu layer.
 
-### 4.10 `workstations`
-
-| Field              | Tipe        | Aturan                |
-| ------------------ | ----------- | --------------------- |
-| `id`               | uuid        | PK                    |
-| `workstation_code` | text        | unique                |
-| `name`             | text        | required              |
-| `printer_name`     | text        | exact OS printer name |
-| `printer_model`    | text        | Zebra ZD220           |
-| `scanner_model`    | text        | Zebra DS2208 2D       |
-| `is_active`        | boolean     | default true          |
-| `last_seen_at`     | timestamptz | nullable              |
-
-Identitas workstation tidak boleh dipercaya hanya dari localStorage tanpa registration/approval.
-
 ### 4.11 `packing_sessions`
 
 | Field                | Tipe        | Aturan                          |
 | -------------------- | ----------- | ------------------------------- |
 | `id`                 | uuid        | PK                              |
 | `operator_id`        | uuid        | FK profiles                     |
-| `workstation_id`     | uuid        | FK workstations                 |
 | `master_item_id`     | FK          | master_items                    |
 | `box_definition_id`  | uuid        | FK box_definitions              |
 | `delivery_number_id` | uuid        | nullable sampai finalisasi      |
@@ -318,7 +302,6 @@ expired
 | `result`             | text        | accepted, invalid, duplicate, over_qty |
 | `error_code`         | text        | nullable                               |
 | `scanned_by`         | uuid        | FK profiles                            |
-| `workstation_id`     | uuid        | FK                                     |
 | `scanned_at`         | timestamptz | required                               |
 
 Scope unique `label_uid` harus diputuskan: global, per Delivery Number, atau scope bisnis lain.
@@ -340,7 +323,6 @@ Jika sequence global, PostgreSQL sequence lebih sederhana. Jika reset per tangga
 | `id`                       | uuid        | PK                                                    |
 | `packing_session_id`       | uuid        | FK                                                    |
 | `parent_print_job_id`      | uuid        | nullable untuk reprint                                |
-| `workstation_id`           | uuid        | target                                                |
 | `status`                   | text        | pending, printing, sent, confirmed, failed, cancelled |
 | `supplier_code_snapshot`   | text        | required                                              |
 | `supplier_name_snapshot`   | text        | required                                              |
@@ -370,7 +352,6 @@ Satu session hanya boleh memiliki satu initial print job.
 | `id`                 | uuid        | PK           |
 | `print_job_id`       | uuid        | FK           |
 | `attempt_no`         | integer     | required     |
-| `workstation_id`     | uuid        | FK           |
 | `printer_name`       | text        | snapshot     |
 | `result`             | text        | sent, failed |
 | `error_code`         | text        | nullable     |
@@ -400,7 +381,6 @@ Satu session hanya boleh memiliki satu initial print job.
 | `action`         | text        | required              |
 | `entity_type`    | text        | required              |
 | `entity_id`      | text        | nullable              |
-| `workstation_id` | uuid        | nullable              |
 | `metadata`       | jsonb       | non-secret            |
 | `created_at`     | timestamptz | required              |
 
@@ -494,7 +474,7 @@ Contoh:
    - supplier
    - No DN
    - tanggal delivery.
-10. Register workstation dan printer mapping.
+10. (Phase 7) Operator memilih printer dari dropdown QZ Tray saat mulai sesi — tidak ada registrasi workstation di admin.
 
 Admin tidak boleh mengaktifkan box bila:
 
@@ -510,13 +490,12 @@ Admin tidak boleh mengaktifkan box bila:
 ## 8. Flow Start Session
 
 1. Operator login.
-2. Sistem memverifikasi workstation.
-3. Buka halaman Proses Cetak Label.
-4. Health check:
+2. Buka halaman Proses Cetak Label.
+3. Health check:
    - Supabase/network.
    - QZ Tray.
-   - Printer mapping.
-5. Operator mulai scan.
+   - Printer terpilih (dropdown, bukan mapping server).
+4. Operator mulai scan (bisa lebih dari satu session paralel).
 
 ### Auto-detect dari scan pertama
 
@@ -547,7 +526,7 @@ Alternatif yang lebih eksplisit: operator memilih Part No dan Box sebelum scan.
    ├─ kosong → LABEL_UID_MISSING
    ▼
 [RPC accept_packing_scan]
-   ├─ verify auth/role/workstation
+   ├─ verify auth/role
    ├─ lock/verify session
    ├─ check duplicate UID
    ├─ lookup Master Item by Part No
@@ -810,7 +789,7 @@ Pilihan:
 ### Printer tidak ditemukan
 
 - Tampilkan expected printer.
-- Admin memperbaiki workstation mapping.
+- Operator memilih ulang printer dari dropdown QZ Tray.
 - Jangan memilih printer lain otomatis.
 
 ### Printer offline/no media
@@ -822,13 +801,13 @@ Pilihan:
 
 ### Browser refresh
 
-1. Identifikasi user/workstation.
-2. Load active session.
-3. Load pending/printing/sent job.
-4. Resume UI.
-5. Jangan membuat session baru bila session lama belum selesai.
+1. Identifikasi user (Supabase Auth).
+2. Load semua session aktif milik operator (`scanning`/`ready_to_finalize`).
+3. Load pending/printing/sent job per session.
+4. Resume UI (list session, lalu detail).
+5. Jangan membuat session baru otomatis bila session lama masih terbuka; operator boleh membuka session baru secara paralel.
 
-### Workstation restart
+### Browser/PC restart
 
 State tetap di Supabase. Browser reconnect ke QZ dan resume.
 
@@ -863,7 +842,7 @@ Supervisor/Admin review
 Buat child print job
       │
       ▼
-Print via workstation/QZ
+Print via browser/QZ
       │
       ▼
 Audit parent + reprint no
@@ -906,7 +885,7 @@ print_failed → print_pending → printing
 
 ## 19. Concurrency
 
-### Dua workstation scan label sama
+### Dua session scan label sama
 
 - Unique `label_uid`.
 - Satu berhasil.
@@ -937,7 +916,6 @@ print_failed → print_pending → printing
 
 - Login.
 - Unauthorized.
-- Workstation registration/approval.
 
 ### Operator
 
@@ -958,7 +936,6 @@ print_failed → print_pending → printing
 - Suppliers.
 - Delivery Numbers.
 - Users & Roles.
-- Workstations.
 - Packing Sessions.
 - Print Jobs.
 - Reprint Requests.
@@ -1019,7 +996,7 @@ Uji abuse:
 
 - Operator mencoba admin action.
 - Session ID user lain.
-- Cross-workstation print claim.
+- Cross-operator print claim (needs new design in Phase 7, workstation identity removed).
 - Replay finalize.
 - Replay scan.
 - ZPL injection.
@@ -1111,8 +1088,8 @@ Operator      DS2208       Browser       Supabase RPC      QZ Tray       ZD220
 
 ### Print
 
-- Workstation hanya mencetak job target.
-- Printer sesuai mapping Zebra ZD220.
+- Hanya browser/session target yang mencetak job miliknya.
+- Printer sesuai pilihan operator (QZ Tray, Zebra ZD220).
 - Raw ZPL tercetak melalui QZ.
 - Retry tidak membuat sequence baru.
 - Semua attempt tercatat.

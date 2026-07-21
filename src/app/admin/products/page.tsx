@@ -18,7 +18,6 @@ export default async function ProductsPage() {
   return (
     <div className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <p className="text-muted-foreground text-sm font-medium">Phase 4.3</p>
         <h1 className="text-2xl font-semibold">Produk</h1>
         <p className="text-muted-foreground text-sm">
           Preview ukuran mengikuti format label; key database tetap memakai OD ×

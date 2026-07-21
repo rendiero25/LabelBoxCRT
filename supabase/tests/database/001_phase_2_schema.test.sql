@@ -208,22 +208,7 @@ select has_index(
   'layer requirement order is unique'
 );
 
-select has_table('public', 'workstations', 'workstations exists');
-select has_table('public', 'workstation_assignments', 'workstation_assignments exists');
-select has_index(
-  'public',
-  'workstation_assignments',
-  'workstation_assignments_workstation_operator_key',
-  'workstation assignment is unique'
-);
-
 select has_table('public', 'packing_sessions', 'packing_sessions exists');
-select has_index(
-  'public',
-  'packing_sessions',
-  'packing_sessions_one_open_per_workstation_idx',
-  'workstation has one open session'
-);
 
 select has_table('public', 'packing_session_scans', 'packing_session_scans exists');
 select has_index(
@@ -279,13 +264,13 @@ select results_eq(
       and c.relname in (
         'profiles', 'suppliers', 'delivery_numbers', 'products', 'master_items',
         'master_item_products', 'box_definitions', 'box_layers',
-        'box_layer_requirements', 'workstations', 'workstation_assignments',
+        'box_layer_requirements',
         'packing_sessions', 'packing_session_scans', 'sequence_counters',
         'print_jobs', 'print_attempts', 'reprint_requests', 'audit_logs'
       )
     order by c.relname
   $$,
-  array_fill(true, array[18]),
+  array_fill(true, array[16]),
   'RLS is enabled on every exposed Phase 2 table'
 );
 

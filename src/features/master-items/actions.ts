@@ -5,14 +5,15 @@ import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/features/auth/server"
 import type { MasterItemActionState } from "@/features/master-items/form-state"
 import {
-  masterItemBoxRequirementsRpcErrorMessage,
-  parseMasterItemBoxRequirementsInput,
+  masterItemBoxRpcErrorMessage,
+  parseMasterItemBoxLayersInput,
 } from "@/features/master-items/box-layer-requirements"
 import {
   masterItemRpcErrorMessage,
   parseMasterItemInput,
 } from "@/features/master-items/validation"
 import { createClient } from "@/lib/supabase/server"
+import type { Json } from "@/types/database"
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -98,30 +99,115 @@ export async function setMasterItemActiveAction(
   }
 }
 
+function rpcLayers(
+  layers: { boxLayerId: string; requirements: { productId: string; expectedQty: number }[] }[],
+): Json {
+  return layers.map((layer) => ({
+    box_layer_id: layer.boxLayerId,
+    requirements: layer.requirements.map((requirement) => ({
+      product_id: requirement.productId,
+      expected_qty: requirement.expectedQty,
+    })),
+  }))
+}
+
+function revalidateMasterItemBoxes() {
+  revalidatePath("/admin/master-items")
+  revalidatePath("/admin/boxes")
+}
+
+export async function createMasterItemBoxAction(
+  _previousState: MasterItemActionState,
+  formData: FormData,
+): Promise<MasterItemActionState> {
+  await requireAdmin()
+  const masterItemId = masterItemIdFromFormData(formData)
+  const boxId = String(formData.get("boxId") ?? "").trim()
+  const parsed = parseMasterItemBoxLayersInput(formData)
+  if (!masterItemId || !uuidPattern.test(masterItemId)) {
+    return { error: "Master Item tidak valid." }
+  }
+  if (!boxId || !uuidPattern.test(boxId)) {
+    return { error: "Box wajib dipilih." }
+  }
+  if ("error" in parsed) return { error: parsed.error }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("create_master_item_box", {
+    p_master_item_id: masterItemId,
+    p_box_id: boxId,
+    p_layers: rpcLayers(parsed.data),
+  })
+
+  if (error) return { error: masterItemBoxRpcErrorMessage(error.message) }
+
+  revalidateMasterItemBoxes()
+  return { success: "Produk per Box dan Layer disimpan." }
+}
+
 export async function saveMasterItemBoxRequirementsAction(
   _previousState: MasterItemActionState,
   formData: FormData,
 ): Promise<MasterItemActionState> {
   await requireAdmin()
   const masterItemId = masterItemIdFromFormData(formData)
-  const parsed = parseMasterItemBoxRequirementsInput(formData)
+  const masterItemBoxId = String(formData.get("masterItemBoxId") ?? "").trim()
+  const parsed = parseMasterItemBoxLayersInput(formData)
   if (!masterItemId || !uuidPattern.test(masterItemId)) {
     return { error: "Master Item tidak valid." }
+  }
+  if (!masterItemBoxId || !uuidPattern.test(masterItemBoxId)) {
+    return { error: "Assignment box tidak valid." }
   }
   if ("error" in parsed) return { error: parsed.error }
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("save_master_item_box_requirements", {
     p_master_item_id: masterItemId,
-    p_box_definition_id: parsed.data.boxDefinitionId,
-    p_layers: parsed.data.layers,
+    p_master_item_box_id: masterItemBoxId,
+    p_layers: rpcLayers(parsed.data),
   })
 
-  if (error) {
-    return { error: masterItemBoxRequirementsRpcErrorMessage(error.message) }
-  }
+  if (error) return { error: masterItemBoxRpcErrorMessage(error.message) }
 
-  revalidatePath("/admin/master-items")
-  revalidatePath("/admin/box-definitions")
+  revalidateMasterItemBoxes()
   return { success: "Produk per Box dan Layer disimpan." }
+}
+
+export async function publishMasterItemBoxAction(
+  _previousState: MasterItemActionState,
+  formData: FormData,
+): Promise<MasterItemActionState> {
+  await requireAdmin()
+  const masterItemBoxId = String(formData.get("masterItemBoxId") ?? "").trim()
+  if (!masterItemBoxId) return { error: "Assignment box tidak valid." }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("publish_master_item_box", {
+    p_master_item_box_id: masterItemBoxId,
+  })
+
+  if (error) return { error: masterItemBoxRpcErrorMessage(error.message) }
+
+  revalidateMasterItemBoxes()
+  return { success: "Assignment box dipublikasikan." }
+}
+
+export async function cloneMasterItemBoxVersionAction(
+  _previousState: MasterItemActionState,
+  formData: FormData,
+): Promise<MasterItemActionState> {
+  await requireAdmin()
+  const masterItemBoxId = String(formData.get("masterItemBoxId") ?? "").trim()
+  if (!masterItemBoxId) return { error: "Assignment box tidak valid." }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("clone_master_item_box_version", {
+    p_master_item_box_id: masterItemBoxId,
+  })
+
+  if (error) return { error: masterItemBoxRpcErrorMessage(error.message) }
+
+  revalidateMasterItemBoxes()
+  return { success: "Versi draft baru dibuat." }
 }

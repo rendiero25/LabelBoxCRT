@@ -1,15 +1,18 @@
 "use client"
 
 import { useActionState, useMemo, useState } from "react"
-import { CircleAlertIcon, CopyIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { CircleAlertIcon, CopyIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react"
 
 import {
-  cloneBoxDefinitionVersionAction,
-} from "@/features/box-definitions/actions"
-import { saveMasterItemBoxRequirementsAction } from "@/features/master-items/actions"
+  cloneMasterItemBoxVersionAction,
+  createMasterItemBoxAction,
+  publishMasterItemBoxAction,
+  saveMasterItemBoxRequirementsAction,
+} from "@/features/master-items/actions"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -58,196 +61,237 @@ export type ProductOption = {
   normalizedDimensions: string | null
 }
 
-export type MasterItemBoxLayerRequirement = {
+export type BoxLayerOption = {
+  id: string
+  layerNo: number
+  name: string
+}
+
+export type BoxOption = {
+  id: string
+  boxCode: string
+  boxName: string
+  layers: BoxLayerOption[]
+}
+
+export type MasterItemBoxRequirement = {
+  productId: string
+  expectedQty: number
+}
+
+export type MasterItemBoxAssignment = {
+  id: string
+  masterItemId: string
+  boxId: string
+  version: number
+  isActive: boolean
+  isUsed: boolean
+  requirementsByLayer: Record<string, MasterItemBoxRequirement[]>
+}
+
+type EditorRequirement = {
   id: string
   productId: string
   expectedQty: number
 }
 
-export type MasterItemBoxLayer = {
-  id: string
+type EditorLayer = {
+  boxLayerId: string
   layerNo: number
   name: string
-  requirements: MasterItemBoxLayerRequirement[]
+  requirements: EditorRequirement[]
 }
 
-export type MasterItemBoxDefinition = {
-  id: string
-  masterItemId: string
-  boxCode: string
-  boxName: string
-  version: number
-  isActive: boolean
-  isUsed: boolean
-  layers: MasterItemBoxLayer[]
-}
-
-export function selectableBoxDefinitions(
-  definitions: MasterItemBoxDefinition[],
-  masterItemId: string,
-) {
-  return definitions.filter(
-    (definition) => definition.masterItemId === masterItemId,
-  )
-}
-
-export function selectableLayerNumbers(definition: MasterItemBoxDefinition) {
-  return [...new Set(definition.layers.map((layer) => layer.layerNo))]
-    .filter((layerNo) => layerNo >= 1 && layerNo <= 10)
-    .sort((first, second) => first - second)
-}
-
-export function replaceLayerRequirements(
-  layers: MasterItemBoxLayer[],
-  layerId: string,
-  requirements: MasterItemBoxLayerRequirement[],
-) {
-  return layers.map((layer) =>
-    layer.id === layerId ? { ...layer, requirements } : layer,
-  )
+let nextRequirementId = 0
+function requirementId() {
+  nextRequirementId += 1
+  return `requirement-${nextRequirementId}`
 }
 
 function productLabel(product: ProductOption) {
   return `${product.productCode} - ${product.partName}${product.normalizedDimensions ? ` (${product.normalizedDimensions})` : ""}`
 }
 
-function layersFromDefinition(
-  definition: MasterItemBoxDefinition | undefined,
-): MasterItemBoxLayer[] {
-  return (definition?.layers ?? [])
+function editorLayersFromBox(
+  box: BoxOption | undefined,
+  assignment: MasterItemBoxAssignment | undefined,
+): EditorLayer[] {
+  if (!box) return []
+
+  return box.layers
     .slice()
-    .sort((first, second) => first.layerNo - second.layerNo)
-    .map((layer) => ({
-      ...layer,
-      requirements: layer.requirements.map((requirement) => ({ ...requirement })),
-    }))
+    .sort((a, b) => a.layerNo - b.layerNo)
+    .map((layer) => {
+      const existing = assignment?.requirementsByLayer[layer.id]
+      const requirements: EditorRequirement[] =
+        existing && existing.length > 0
+          ? existing.map((requirement) => ({
+              id: requirementId(),
+              productId: requirement.productId,
+              expectedQty: requirement.expectedQty,
+            }))
+          : [{ id: requirementId(), productId: "", expectedQty: 1 }]
+
+      return {
+        boxLayerId: layer.id,
+        layerNo: layer.layerNo,
+        name: layer.name,
+        requirements,
+      }
+    })
 }
 
 function selectableProducts(
   products: ProductOption[],
-  requirements: MasterItemBoxLayerRequirement[],
-  requirementId: string,
+  requirements: EditorRequirement[],
+  requirementIdToKeep: string,
 ) {
   const selectedElsewhere = new Set(
     requirements
-      .filter((requirement) => requirement.id !== requirementId)
+      .filter((requirement) => requirement.id !== requirementIdToKeep)
       .map((requirement) => requirement.productId)
       .filter(Boolean),
   )
-
   return products.filter((product) => !selectedElsewhere.has(product.id))
 }
 
-let nextRequirementId = 0
-
-function requirementId(layerId: string) {
-  nextRequirementId += 1
-  return `${layerId}-requirement-${nextRequirementId}`
+function assignmentSortKey(assignment: MasterItemBoxAssignment) {
+  return assignment.isActive ? 0 : 1
 }
 
 export function MasterItemBoxLayerEditor({
   masterItem,
-  boxDefinitions,
+  boxes,
+  masterItemBoxes,
   products,
 }: {
   masterItem: MasterItem
-  boxDefinitions: MasterItemBoxDefinition[]
+  boxes: BoxOption[]
+  masterItemBoxes: MasterItemBoxAssignment[]
   products: ProductOption[]
 }) {
   const [open, setOpen] = useState(false)
-  const ownedDefinitions = useMemo(
-    () => selectableBoxDefinitions(boxDefinitions, masterItem.id),
-    [boxDefinitions, masterItem.id],
+  const [boxId, setBoxId] = useState("")
+  const [masterItemBoxId, setMasterItemBoxId] = useState("")
+  const [layers, setLayers] = useState<EditorLayer[]>([])
+
+  const ownAssignments = useMemo(
+    () => masterItemBoxes.filter((assignment) => assignment.masterItemId === masterItem.id),
+    [masterItemBoxes, masterItem.id],
   )
-  const [boxDefinitionId, setBoxDefinitionId] = useState("")
-  const [selectedLayerNo, setSelectedLayerNo] = useState("")
-  const [layers, setLayers] = useState<MasterItemBoxLayer[]>([])
-  const [state, formAction, isPending] = useActionState(
+  const assignmentsForBox = useMemo(
+    () =>
+      ownAssignments
+        .filter((assignment) => assignment.boxId === boxId)
+        .sort((a, b) => assignmentSortKey(a) - assignmentSortKey(b) || b.version - a.version),
+    [ownAssignments, boxId],
+  )
+  const selectedBox = boxes.find((box) => box.id === boxId)
+  const selectedAssignment = assignmentsForBox.find(
+    (assignment) => assignment.id === masterItemBoxId,
+  )
+  const isNewAssignment = Boolean(boxId) && !selectedAssignment
+  const isReadOnly = selectedAssignment?.isUsed ?? false
+
+  const [createState, createAction, isCreating] = useActionState(
+    createMasterItemBoxAction,
+    initialMasterItemActionState,
+  )
+  const [saveState, saveAction, isSaving] = useActionState(
     saveMasterItemBoxRequirementsAction,
     initialMasterItemActionState,
   )
-  const [cloneState, cloneAction, isCloning] = useActionState(
-    cloneBoxDefinitionVersionAction,
+  const [publishState, publishAction, isPublishing] = useActionState(
+    publishMasterItemBoxAction,
     initialMasterItemActionState,
   )
-  const selectedDefinition = ownedDefinitions.find(
-    (definition) => definition.id === boxDefinitionId,
+  const [cloneState, cloneAction, isCloning] = useActionState(
+    cloneMasterItemBoxVersionAction,
+    initialMasterItemActionState,
   )
-  const selectedLayer = layers.find(
-    (layer) => layer.layerNo === Number(selectedLayerNo),
-  )
-  const isReadOnly = selectedDefinition?.isUsed ?? false
 
-  useActionStateToast(state)
+  useActionStateToast(createState)
+  useActionStateToast(saveState)
+  useActionStateToast(publishState)
   useActionStateToast(cloneState)
 
-  function selectDefinition(definitionId: string) {
-    const definition = ownedDefinitions.find(
-      (candidate) => candidate.id === definitionId,
-    )
-    const nextLayers = layersFromDefinition(definition)
+  const formAction = isReadOnly ? cloneAction : isNewAssignment ? createAction : saveAction
+  const isPending = isReadOnly ? isCloning : isNewAssignment ? isCreating : isSaving
+  const formError = isReadOnly
+    ? cloneState.error
+    : isNewAssignment
+      ? createState.error
+      : saveState.error
 
-    setBoxDefinitionId(definitionId)
-    setSelectedLayerNo(
-      definition ? String(selectableLayerNumbers(definition)[0] ?? "") : "",
-    )
-    setLayers(nextLayers)
+  function selectBox(nextBoxId: string) {
+    const box = boxes.find((candidate) => candidate.id === nextBoxId)
+    const assignments = ownAssignments
+      .filter((assignment) => assignment.boxId === nextBoxId)
+      .sort((a, b) => assignmentSortKey(a) - assignmentSortKey(b) || b.version - a.version)
+    const defaultAssignment = assignments[0]
+
+    setBoxId(nextBoxId)
+    setMasterItemBoxId(defaultAssignment?.id ?? "")
+    setLayers(editorLayersFromBox(box, defaultAssignment))
+  }
+
+  function selectAssignment(nextMasterItemBoxId: string) {
+    const assignment = assignmentsForBox.find((candidate) => candidate.id === nextMasterItemBoxId)
+    setMasterItemBoxId(nextMasterItemBoxId)
+    setLayers(editorLayersFromBox(selectedBox, assignment))
   }
 
   function resetForm() {
-    const definition = ownedDefinitions[0]
-    const nextLayers = layersFromDefinition(definition)
-
-    setBoxDefinitionId(definition?.id ?? "")
-    setSelectedLayerNo(
-      definition ? String(selectableLayerNumbers(definition)[0] ?? "") : "",
-    )
-    setLayers(nextLayers)
+    setBoxId("")
+    setMasterItemBoxId("")
+    setLayers([])
   }
 
-  function setSelectedRequirement(
-    requirementId: string,
-    update: Partial<MasterItemBoxLayerRequirement>,
+  function setRequirementField(
+    layerBoxLayerId: string,
+    reqId: string,
+    update: Partial<EditorRequirement>,
   ) {
-    if (!selectedLayer) return
-
     setLayers((current) =>
-      replaceLayerRequirements(
-        current,
-        selectedLayer.id,
-        selectedLayer.requirements.map((requirement) =>
-          requirement.id === requirementId ? { ...requirement, ...update } : requirement,
-        ),
+      current.map((layer) =>
+        layer.boxLayerId === layerBoxLayerId
+          ? {
+              ...layer,
+              requirements: layer.requirements.map((requirement) =>
+                requirement.id === reqId ? { ...requirement, ...update } : requirement,
+              ),
+            }
+          : layer,
       ),
     )
   }
 
-  function removeSelectedRequirement(requirementId: string) {
-    if (!selectedLayer || selectedLayer.requirements.length <= 1) return
-
+  function addRequirement(layerBoxLayerId: string) {
     setLayers((current) =>
-      replaceLayerRequirements(
-        current,
-        selectedLayer.id,
-        selectedLayer.requirements.filter(
-          (requirement) => requirement.id !== requirementId,
-        ),
+      current.map((layer) =>
+        layer.boxLayerId === layerBoxLayerId
+          ? {
+              ...layer,
+              requirements: [
+                ...layer.requirements,
+                { id: requirementId(), productId: "", expectedQty: 1 },
+              ],
+            }
+          : layer,
       ),
     )
   }
 
-  function addSelectedRequirement() {
-    if (!selectedLayer) return
-
+  function removeRequirement(layerBoxLayerId: string, reqId: string) {
     setLayers((current) =>
-      replaceLayerRequirements(current, selectedLayer.id, [
-        ...selectedLayer.requirements,
-        {
-          id: requirementId(selectedLayer.id),
-          productId: "",
-          expectedQty: 1,
-        },
-      ]),
+      current.map((layer) =>
+        layer.boxLayerId === layerBoxLayerId && layer.requirements.length > 1
+          ? {
+              ...layer,
+              requirements: layer.requirements.filter((requirement) => requirement.id !== reqId),
+            }
+          : layer,
+      ),
     )
   }
 
@@ -272,29 +316,29 @@ export function MasterItemBoxLayerEditor({
           </DialogDescription>
         </DialogHeader>
 
-        {ownedDefinitions.length === 0 ? (
+        {boxes.length === 0 ? (
           <Empty className="border">
             <EmptyHeader>
-              <EmptyTitle>Belum ada Box Definition</EmptyTitle>
+              <EmptyTitle>Belum ada Box aktif</EmptyTitle>
               <EmptyDescription>
-                Buat Box Definition untuk Master Item ini sebelum mengatur produk per layer.
+                Buat Box di halaman Box sebelum mengatur produk per layer.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
-          <form
-            action={isReadOnly ? cloneAction : formAction}
-            className="flex flex-col gap-5"
-            noValidate
-          >
+          <form action={formAction} className="flex flex-col gap-5" noValidate>
             <input name="masterItemId" type="hidden" value={masterItem.id} />
-            <input name="boxDefinitionId" type="hidden" value={boxDefinitionId} />
+            {isNewAssignment ? (
+              <input name="boxId" type="hidden" value={boxId} />
+            ) : (
+              <input name="masterItemBoxId" type="hidden" value={masterItemBoxId} />
+            )}
             <input
               name="layers"
               type="hidden"
               value={JSON.stringify(
                 layers.map((layer) => ({
-                  name: layer.name,
+                  boxLayerId: layer.boxLayerId,
                   requirements: layer.requirements.map((requirement) => ({
                     productId: requirement.productId,
                     expectedQty: requirement.expectedQty,
@@ -306,76 +350,90 @@ export function MasterItemBoxLayerEditor({
             {isReadOnly ? (
               <Alert>
                 <CircleAlertIcon />
-                <AlertTitle>Definisi ini sudah dipakai</AlertTitle>
+                <AlertTitle>Assignment ini sudah dipakai</AlertTitle>
                 <AlertDescription>
-                  Requirement ditampilkan hanya-baca agar packing session historis tetap konsisten. Clone versi untuk membuat draft baru.
+                  Requirement ditampilkan hanya-baca agar packing session
+                  historis tetap konsisten. Clone versi untuk membuat draft
+                  baru.
                 </AlertDescription>
               </Alert>
             ) : null}
-            {state.error ? (
+            {formError ? (
               <Alert variant="destructive">
                 <CircleAlertIcon />
-                <AlertDescription>{state.error}</AlertDescription>
+                <AlertDescription>{formError}</AlertDescription>
               </Alert>
             ) : null}
-            {cloneState.error ? (
+            {publishState.error ? (
               <Alert variant="destructive">
                 <CircleAlertIcon />
-                <AlertDescription>{cloneState.error}</AlertDescription>
+                <AlertDescription>{publishState.error}</AlertDescription>
               </Alert>
             ) : null}
 
             <FieldGroup>
-              <Field>
-                <FieldLabel>Box Definition</FieldLabel>
-                <Select value={boxDefinitionId} onValueChange={selectDefinition}>
-                  <SelectTrigger aria-label="Pilih Box Definition">
-                    <SelectValue placeholder="Pilih Box Definition" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ownedDefinitions.map((definition) => (
-                      <SelectItem key={definition.id} value={definition.id}>
-                        {definition.boxCode} · {definition.boxName} v{definition.version}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>Layer</FieldLabel>
-                <Select
-                  disabled={!selectedDefinition}
-                  value={selectedLayerNo}
-                  onValueChange={setSelectedLayerNo}
-                >
-                  <SelectTrigger aria-label="Pilih Layer">
-                    <SelectValue placeholder="Pilih Layer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedDefinition
-                      ? selectableLayerNumbers(selectedDefinition).map((layerNo) => (
-                          <SelectItem key={layerNo} value={String(layerNo)}>
-                            Layer {layerNo}
-                          </SelectItem>
-                        ))
-                      : null}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Box</FieldLabel>
+                  <Select value={boxId} onValueChange={selectBox}>
+                    <SelectTrigger aria-label="Pilih Box">
+                      <SelectValue placeholder="Pilih Box aktif" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {boxes.map((box) => (
+                        <SelectItem key={box.id} value={box.id}>
+                          {box.boxCode} · {box.boxName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel>Assignment</FieldLabel>
+                  <Select
+                    disabled={!boxId}
+                    value={isNewAssignment ? "__new__" : masterItemBoxId}
+                    onValueChange={(value) =>
+                      value === "__new__"
+                        ? selectAssignment("")
+                        : selectAssignment(value)
+                    }
+                  >
+                    <SelectTrigger aria-label="Pilih versi assignment">
+                      <SelectValue placeholder="Pilih assignment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignmentsForBox.map((assignment) => (
+                        <SelectItem key={assignment.id} value={assignment.id}>
+                          v{assignment.version}
+                          {assignment.isActive ? " · Aktif" : " · Draft"}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__">+ Assignment baru</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
             </FieldGroup>
 
-            {selectedLayer ? (
-              <section className="flex flex-col gap-4 rounded-lg border p-4">
-                <div>
-                  <h3 className="font-medium">
-                    Layer {selectedLayer.layerNo}: {selectedLayer.name}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    Edit hanya requirement layer yang dipilih. Layer lain tetap ikut disimpan.
-                  </p>
-                </div>
+            {selectedAssignment ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={selectedAssignment.isActive ? "secondary" : "outline"}>
+                  {selectedAssignment.isActive ? "Aktif" : "Draft"}
+                </Badge>
+                {selectedAssignment.isUsed ? (
+                  <Badge variant="secondary">Dipakai</Badge>
+                ) : null}
+              </div>
+            ) : null}
+
+            {layers.map((layer) => (
+              <section className="flex flex-col gap-4 rounded-lg border p-4" key={layer.boxLayerId}>
+                <h3 className="font-medium">
+                  Layer {layer.layerNo}: {layer.name}
+                </h3>
                 <div className="flex flex-col gap-3">
-                  {selectedLayer.requirements.map((requirement) => (
+                  {layer.requirements.map((requirement) => (
                     <div
                       className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto]"
                       key={requirement.id}
@@ -386,16 +444,16 @@ export function MasterItemBoxLayerEditor({
                           disabled={isReadOnly}
                           value={requirement.productId}
                           onValueChange={(productId) =>
-                            setSelectedRequirement(requirement.id, { productId })
+                            setRequirementField(layer.boxLayerId, requirement.id, { productId })
                           }
                         >
-                          <SelectTrigger aria-label={`Pilih produk ${selectedLayer.name}`}>
+                          <SelectTrigger aria-label={`Pilih produk ${layer.name}`}>
                             <SelectValue placeholder="Pilih produk aktif" />
                           </SelectTrigger>
                           <SelectContent>
                             {selectableProducts(
                               products,
-                              selectedLayer.requirements,
+                              layer.requirements,
                               requirement.id,
                             ).map((product) => (
                               <SelectItem key={product.id} value={product.id}>
@@ -412,7 +470,7 @@ export function MasterItemBoxLayerEditor({
                           id={`qty-${requirement.id}`}
                           min={1}
                           onChange={(event) =>
-                            setSelectedRequirement(requirement.id, {
+                            setRequirementField(layer.boxLayerId, requirement.id, {
                               expectedQty: Number(event.target.value),
                             })
                           }
@@ -424,8 +482,8 @@ export function MasterItemBoxLayerEditor({
                         <Button
                           aria-label="Hapus requirement"
                           className="self-end"
-                          disabled={selectedLayer.requirements.length === 1}
-                          onClick={() => removeSelectedRequirement(requirement.id)}
+                          disabled={layer.requirements.length === 1}
+                          onClick={() => removeRequirement(layer.boxLayerId, requirement.id)}
                           size="icon"
                           type="button"
                           variant="outline"
@@ -438,7 +496,7 @@ export function MasterItemBoxLayerEditor({
                 </div>
                 {!isReadOnly ? (
                   <Button
-                    onClick={addSelectedRequirement}
+                    onClick={() => addRequirement(layer.boxLayerId)}
                     type="button"
                     variant="outline"
                   >
@@ -447,20 +505,27 @@ export function MasterItemBoxLayerEditor({
                   </Button>
                 ) : null}
               </section>
-            ) : null}
+            ))}
 
-            <DialogFooter>
-              {isReadOnly && selectedDefinition ? (
+            <DialogFooter className="flex-wrap gap-2">
+              {selectedAssignment && !selectedAssignment.isActive && !isReadOnly ? (
+                <Button
+                  disabled={isPublishing}
+                  formAction={publishAction}
+                  type="submit"
+                  variant="outline"
+                >
+                  {isPublishing ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}
+                  Publikasikan
+                </Button>
+              ) : null}
+              {isReadOnly ? (
                 <Button disabled={isCloning} type="submit" variant="outline">
-                  {isCloning ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <CopyIcon data-icon="inline-start" />
-                  )}
+                  {isCloning ? <Spinner data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
                   Clone versi
                 </Button>
               ) : (
-                <Button disabled={isPending || !selectedLayer} type="submit">
+                <Button disabled={isPending || layers.length === 0} type="submit">
                   {isPending ? <Spinner data-icon="inline-start" /> : null}
                   Simpan produk per layer
                 </Button>

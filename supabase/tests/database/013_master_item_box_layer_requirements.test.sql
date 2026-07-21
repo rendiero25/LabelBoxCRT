@@ -111,17 +111,10 @@ insert into public.box_definitions (
     false
   );
 
-insert into public.workstations (id, workstation_code, name) values (
-  '94300000-0000-0000-0000-000000000001',
-  'requirements-workstation',
-  'Requirements Workstation'
-);
-
 insert into public.packing_sessions (
-  operator_id, workstation_id, master_item_id, box_definition_id, status
+  operator_id, master_item_id, box_definition_id, status
 ) values (
   '91300000-0000-0000-0000-000000000002',
-  '94300000-0000-0000-0000-000000000001',
   '92300000-0000-0000-0000-000000000001',
   '95300000-0000-0000-0000-000000000003',
   'draft'
