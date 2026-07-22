@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_active")
+    .eq("id", user.id)
+    .maybeSingle()
+  if (!profile?.is_active) {
+    console.warn("qz-sign: inactive profile", user.id)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   if (isRateLimited(user.id)) {
     console.warn("qz-sign: rate limited", user.id)
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })
