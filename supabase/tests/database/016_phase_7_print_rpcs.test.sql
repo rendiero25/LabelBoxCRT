@@ -7,7 +7,20 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(22);
+select plan(26);
+
+select ok(
+  not has_function_privilege(
+    'anon', 'public.claim_print_job(uuid, text)', 'EXECUTE'
+  ),
+  'anon has no execute privilege on claim_print_job'
+);
+select ok(
+  not has_function_privilege(
+    'anon', 'public.complete_print_job(uuid, public.print_attempt_result, text, text, text)', 'EXECUTE'
+  ),
+  'anon has no execute privilege on complete_print_job'
+);
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
   ('a7100000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'phase7-operator@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
@@ -72,6 +85,14 @@ select * from public.claim_print_job('a7700000-0000-0000-0000-000000000001', '^X
 select is((select job_status from phase7_claim), 'printing'::public.print_job_status, 'claim sets job printing');
 select is((select session_status from phase7_claim), 'printing'::public.packing_session_status, 'claim sets session printing');
 
+-- Non-owner cannot complete a printing job.
+select set_config('request.jwt.claim.sub', 'a7100000-0000-0000-0000-000000000002', true);
+select throws_ok(
+  $$ select public.complete_print_job('a7700000-0000-0000-0000-000000000001', 'sent', 'ZDesigner ZD220-203dpi ZPL') $$,
+  'P0001', 'PRINT_JOB_FORBIDDEN', 'non-owner operator cannot complete'
+);
+select set_config('request.jwt.claim.sub', 'a7100000-0000-0000-0000-000000000001', true);
+
 reset role;
 select is(
   (select zpl_payload from public.print_jobs where id = 'a7700000-0000-0000-0000-000000000001'),
@@ -120,6 +141,7 @@ select set_config('request.jwt.claim.sub', 'a7100000-0000-0000-0000-000000000001
 create temporary table phase7_reclaim as
 select * from public.claim_print_job('a7700000-0000-0000-0000-000000000001', '^XA^FDretry^FS^XZ');
 select is((select job_status from phase7_reclaim), 'printing'::public.print_job_status, 'failed job re-claimable');
+select is((select session_status from phase7_reclaim), 'printing'::public.packing_session_status, 'failed session returns to printing on re-claim');
 
 select throws_ok(
   $$ select public.complete_print_job('00000000-0000-0000-0000-00000000dead', 'sent', 'p') $$,
