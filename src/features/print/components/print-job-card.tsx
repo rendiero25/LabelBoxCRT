@@ -42,42 +42,57 @@ export function PrintJobCard({ snapshot }: { snapshot: FinalizeSnapshot }) {
     setPhase("printing")
     setMessage(null)
 
-    const zpl = buildLabelZpl(formatLabelFields(snapshot))
-    const claim = await claimPrintJobAction({
-      printJobId: snapshot.printJobId,
-      zplPayload: zpl,
-    })
-    if (claim.error) {
-      setPhase("failed")
-      setMessage(claim.error)
-      inFlight.current = false
-      return
-    }
-
     try {
-      await sendZpl(activePrinter, zpl)
-      const complete = await completePrintJobAction({
+      const zpl = buildLabelZpl(formatLabelFields(snapshot))
+      const claim = await claimPrintJobAction({
         printJobId: snapshot.printJobId,
-        printerName: activePrinter,
-        result: "sent",
+        zplPayload: zpl,
       })
-      if (complete.error) {
+      if (claim.error) {
         setPhase("failed")
-        setMessage(complete.error)
-      } else {
-        setPhase("confirmed")
-        setMessage(`Label terkirim ke ${activePrinter}.`)
+        setMessage(claim.error)
+        return
       }
-    } catch {
-      await completePrintJobAction({
-        errorCode: "QZ_SEND_FAILED",
-        errorMessage: "Gagal mengirim ke printer.",
-        printJobId: snapshot.printJobId,
-        printerName: activePrinter,
-        result: "failed",
-      })
-      setPhase("failed")
-      setMessage("Gagal mengirim ke printer. Coba lagi.")
+
+      try {
+        await sendZpl(activePrinter, zpl)
+      } catch {
+        // sendZpl failed: best-effort mark the job failed server-side, but a
+        // rejection here must not escape and leave phase stuck "printing".
+        await completePrintJobAction({
+          errorCode: "QZ_SEND_FAILED",
+          errorMessage: "Gagal mengirim ke printer.",
+          printJobId: snapshot.printJobId,
+          printerName: activePrinter,
+          result: "failed",
+        }).catch(() => undefined)
+        setPhase("failed")
+        setMessage("Gagal mengirim ke printer. Coba lagi.")
+        return
+      }
+
+      try {
+        const complete = await completePrintJobAction({
+          printJobId: snapshot.printJobId,
+          printerName: activePrinter,
+          result: "sent",
+        })
+        if (complete.error) {
+          setPhase("failed")
+          setMessage(complete.error)
+        } else {
+          setPhase("confirmed")
+          setMessage(`Label terkirim ke ${activePrinter}.`)
+        }
+      } catch {
+        // sendZpl succeeded but confirming completion failed (e.g. network
+        // drop after send). The job stays "printing" server-side; do not
+        // attempt a 'failed' completion here since the print may have gone
+        // through. A stale re-claim after 2 minutes or a manual retry
+        // reconciles the server-side state.
+        setPhase("failed")
+        setMessage("Print terkirim tetapi konfirmasi gagal. Coba lagi.")
+      }
     } finally {
       inFlight.current = false
     }
