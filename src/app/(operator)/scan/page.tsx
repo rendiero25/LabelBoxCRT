@@ -11,55 +11,45 @@ import { createClient } from "@/lib/supabase/server"
 export default async function ScanPage() {
   const auth = await requireOperator()
   const supabase = await createClient()
-  // const [
-  //   workstationAssignmentResult,
-  //   masterItemsResult,
-  //   masterItemBoxesResult,
-  //   activeSessionsResult,
-  //   deliveryNumbersResult,
-  // ] = await Promise.all([
-  //   supabase
-  //     .from("workstation_assignments")
-  //     .select("workstation_id")
-  //     .eq("operator_id", auth.userId)
-  //     .eq("is_active", true)
-  //     .limit(1)
-  //     .maybeSingle(),
-  //   supabase
-  //     .from("master_items")
-  //     .select("id, item_code, part_no, part_name")
-  //     .eq("is_active", true)
-  //     .order("part_no"),
-  //   supabase
-  //     .from("master_item_boxes")
-  //     .select(
-  //       "id, master_item_id, box_id, version, boxes(box_code, box_name, is_active)",
-  //     )
-  //     .eq("is_active", true),
-  //   supabase
-  //     .from("packing_sessions")
-  //     .select(
-  //       "id, status, version, master_item_id, master_item_box_id, master_items(part_no, part_name), master_item_boxes(boxes(box_code, box_name), box_layer_requirements(box_layer_id, expected_qty, sort_order, box_layers(layer_no, layer_name, sort_order))), packing_session_scans(id, box_layer_id, result, error_code, scanned_at)",
-  //     )
-  //     .eq("operator_id", auth.userId)
-  //     .in("status", ["scanning", "ready_to_finalize"])
-  //     .order("started_at", { ascending: false }),
-  //   supabase
-  //     .from("delivery_numbers")
-  //     .select(
-  //       "id, delivery_number, delivery_date, supplier_id, suppliers(supplier_code, supplier_name)",
-  //     )
-  //     .eq("status", "active")
-  //     .order("delivery_number"),
-  // ])
+  const [
+    masterItemsResult,
+    masterItemBoxesResult,
+    activeSessionsResult,
+    deliveryNumbersResult,
+  ] = await Promise.all([
+    supabase
+      .from("master_items")
+      .select("id, item_code, part_no, part_name")
+      .eq("is_active", true)
+      .order("part_no"),
+    supabase
+      .from("master_item_boxes")
+      .select(
+        "id, master_item_id, box_id, version, boxes(box_code, box_name, is_active)",
+      )
+      .eq("is_active", true),
+    supabase
+      .from("packing_sessions")
+      .select(
+        "id, status, version, master_item_id, master_item_box_id, master_items(part_no, part_name), master_item_boxes(boxes(box_code, box_name), box_layer_requirements(box_layer_id, expected_qty, sort_order, box_layers(layer_no, layer_name, sort_order))), packing_session_scans(id, box_layer_id, result, error_code, scanned_at)",
+      )
+      .eq("operator_id", auth.userId)
+      .in("status", ["scanning", "ready_to_finalize"])
+      .order("started_at", { ascending: false }),
+    supabase
+      .from("delivery_numbers")
+      .select(
+        "id, delivery_number, delivery_date, supplier_id, suppliers(supplier_code, supplier_name)",
+      )
+      .eq("status", "active")
+      .order("delivery_number"),
+  ])
 
   const dataError =
-    // workstationAssignmentResult.error ??
     masterItemsResult.error ??
     masterItemBoxesResult.error ??
     activeSessionsResult.error ??
     deliveryNumbersResult.error
-  // const workstationId = workstationAssignmentResult.data?.workstation_id ?? null
   const activeMasterItemBoxes = (masterItemBoxesResult.data ?? []).filter(
     (assignment): assignment is typeof assignment & {
       boxes: NonNullable<typeof assignment.boxes>
@@ -123,7 +113,6 @@ export default async function ScanPage() {
         boxDefinitions={boxDefinitions}
         deliveryNumbers={deliveryNumbers}
         masterItems={masterItems}
-        /* workstationId={workstationId} */
       />
     </div>
   )

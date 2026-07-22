@@ -8,6 +8,7 @@ import {
   LayoutDashboardIcon,
   Link2Icon,
   PackageSearchIcon,
+  ScanLineIcon,
   TruckIcon,
 } from "lucide-react"
 
@@ -26,6 +27,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { SignOutButton } from "@/features/auth/components/sign-out-button"
 import { requireAdmin } from "@/features/auth/server"
 
@@ -63,7 +65,7 @@ export default async function AdminLayout({
             </SidebarGroupContent>
           </SidebarGroup>
           <SidebarGroup>
-            <SidebarGroupLabel>Produk, Box Definition, & Master Item</SidebarGroupLabel>
+            <SidebarGroupLabel>Produk, Box, & Master Item</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -76,9 +78,9 @@ export default async function AdminLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/admin/box-definitions">
+                    <Link href="/admin/boxes">
                       <ContainerIcon />
-                      <span>Box Definition</span>
+                      <span>Box</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -141,7 +143,13 @@ export default async function AdminLayout({
           <Badge className="hidden sm:inline-flex" variant="secondary">
             {auth.profile.display_name}
           </Badge>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/scan">
+                <ScanLineIcon />
+                Ke Halaman Scan
+              </Link>
+            </Button>
             <SignOutButton />
           </div>
         </header>

@@ -329,13 +329,13 @@ function MasterItemForm({
               Kode item
             </FieldLabel>
             <Input
-              defaultValue={masterItem?.item_code}
+              disabled
               id={masterItem ? `itemCode-${masterItem.id}` : "itemCode"}
-              maxLength={64}
-              name="itemCode"
-              placeholder="dm-0001"
-              required
+              value={masterItem?.item_code ?? "Dibuat otomatis setelah disimpan"}
             />
+            <FieldDescription>
+              Kode item dibuat otomatis oleh sistem dan tidak bisa diubah.
+            </FieldDescription>
           </Field>
           <Field>
             <FieldLabel

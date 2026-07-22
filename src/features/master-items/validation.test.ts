@@ -8,7 +8,6 @@ import {
 describe("parseMasterItemInput", () => {
   it("normalizes identifiers and preserves the default label quantity", () => {
     const formData = new FormData()
-    formData.set("itemCode", " DM-0001 ")
     formData.set("partNo", " 3210a-k1z-na01-dl ")
     formData.set("partName", " Tube Assy ")
     formData.set("unit", " pcs ")
@@ -17,7 +16,6 @@ describe("parseMasterItemInput", () => {
 
     expect(parseMasterItemInput(formData)).toEqual({
       data: {
-        itemCode: "dm-0001",
         partNo: "3210A-K1Z-NA01-DL",
         partName: "Tube Assy",
         unit: "Pcs",
@@ -29,7 +27,6 @@ describe("parseMasterItemInput", () => {
 
   it("rejects a non-positive default label quantity", () => {
     const formData = new FormData()
-    formData.set("itemCode", "dm-0001")
     formData.set("partNo", "3210A-K1Z-NA01-DL")
     formData.set("partName", "Tube Assy")
     formData.set("unit", "Pcs")

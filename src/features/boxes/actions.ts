@@ -36,7 +36,6 @@ export async function createBoxAction(
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("create_box", {
-    p_box_code: parsed.data.boxCode,
     p_box_name: parsed.data.boxName,
     p_layers: rpcLayers(parsed.data.layers),
   })
@@ -60,7 +59,6 @@ export async function updateBoxAction(
   const supabase = await createClient()
   const { error } = await supabase.rpc("update_box", {
     p_box_id: boxId,
-    p_box_code: parsed.data.boxCode,
     p_box_name: parsed.data.boxName,
     p_layers: rpcLayers(parsed.data.layers),
   })

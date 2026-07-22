@@ -1,10 +1,8 @@
-const itemCodePattern = /^[a-z0-9][a-z0-9_-]{1,63}$/
 const partNoPattern = /^[A-Z0-9][A-Z0-9_./-]{1,127}$/
 const unitPattern = /^[A-Za-z][A-Za-z ./-]{0,31}$/
 const sequenceCodePattern = /^[A-Z0-9][A-Z0-9_-]{1,63}$/
 
 type MasterItemInput = {
-  itemCode: string
   partNo: string
   partName: string
   unit: string
@@ -22,9 +20,6 @@ function normalizeUnit(value: string): string {
 export function parseMasterItemInput(
   formData: FormData,
 ): { data: MasterItemInput } | { error: string } {
-  const itemCode = String(formData.get("itemCode") ?? "")
-    .trim()
-    .toLowerCase()
   const partNo = String(formData.get("partNo") ?? "")
     .trim()
     .toUpperCase()
@@ -35,12 +30,6 @@ export function parseMasterItemInput(
     .trim()
     .toUpperCase()
 
-  if (!itemCodePattern.test(itemCode)) {
-    return {
-      error:
-        "Kode item harus 2–64 karakter huruf kecil, angka, garis bawah, atau tanda minus.",
-    }
-  }
   if (!partNoPattern.test(partNo)) {
     return {
       error:
@@ -66,7 +55,6 @@ export function parseMasterItemInput(
 
   return {
     data: {
-      itemCode,
       partNo,
       partName,
       unit,

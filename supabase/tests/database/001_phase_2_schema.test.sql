@@ -149,27 +149,36 @@ select has_index(
   'master item product mapping is unique'
 );
 
-select has_table('public', 'box_definitions', 'box_definitions exists');
+select has_table('public', 'boxes', 'boxes exists');
 select columns_are(
   'public',
-  'box_definitions',
+  'boxes',
+  array['id', 'box_code', 'box_name', 'is_active', 'created_at', 'updated_at'],
+  'boxes columns stay locked'
+);
+select has_index('public', 'boxes', 'boxes_box_code_key', 'box code is globally unique');
+
+select has_table('public', 'master_item_boxes', 'master_item_boxes exists');
+select columns_are(
+  'public',
+  'master_item_boxes',
   array[
-    'id', 'master_item_id', 'box_code', 'box_name', 'version', 'is_active',
+    'id', 'master_item_id', 'box_id', 'version', 'is_active',
     'created_at', 'updated_at'
   ],
-  'box_definitions columns stay locked'
+  'master_item_boxes columns stay locked'
 );
 select has_index(
   'public',
-  'box_definitions',
-  'box_definitions_master_code_version_key',
-  'box version is unique'
+  'master_item_boxes',
+  'master_item_boxes_item_box_version_key',
+  'master item + box + version is unique'
 );
 select has_index(
   'public',
-  'box_definitions',
-  'box_definitions_one_active_version_idx',
-  'only one box version can be active'
+  'master_item_boxes',
+  'master_item_boxes_one_active_idx',
+  'only one version can be active per master item + box'
 );
 
 select has_table('public', 'box_layers', 'box_layers exists');
@@ -177,20 +186,20 @@ select columns_are(
   'public',
   'box_layers',
   array[
-    'id', 'box_definition_id', 'layer_no', 'layer_name', 'sort_order',
+    'id', 'box_id', 'layer_no', 'layer_name', 'sort_order',
     'is_active', 'created_at', 'updated_at'
   ],
   'box_layers columns stay locked'
 );
-select has_index('public', 'box_layers', 'box_layers_definition_layer_key', 'layer number is unique');
-select has_index('public', 'box_layers', 'box_layers_definition_sort_key', 'layer order is unique');
+select has_index('public', 'box_layers', 'box_layers_box_layer_key', 'layer number is unique per box');
+select has_index('public', 'box_layers', 'box_layers_box_sort_key', 'layer order is unique per box');
 
 select has_table('public', 'box_layer_requirements', 'box_layer_requirements exists');
 select columns_are(
   'public',
   'box_layer_requirements',
   array[
-    'id', 'box_layer_id', 'product_id', 'expected_qty', 'sort_order',
+    'id', 'master_item_box_id', 'box_layer_id', 'product_id', 'expected_qty', 'sort_order',
     'created_at', 'updated_at'
   ],
   'box_layer_requirements columns stay locked'
@@ -198,14 +207,14 @@ select columns_are(
 select has_index(
   'public',
   'box_layer_requirements',
-  'box_layer_requirements_layer_product_key',
-  'layer product requirement is unique'
+  'box_layer_requirements_assignment_layer_product_key',
+  'layer product requirement is unique per assignment'
 );
 select has_index(
   'public',
   'box_layer_requirements',
-  'box_layer_requirements_layer_sort_key',
-  'layer requirement order is unique'
+  'box_layer_requirements_assignment_layer_sort_key',
+  'layer requirement order is unique per assignment'
 );
 
 select has_table('public', 'packing_sessions', 'packing_sessions exists');
@@ -263,14 +272,14 @@ select results_eq(
       and c.relkind = 'r'
       and c.relname in (
         'profiles', 'suppliers', 'delivery_numbers', 'products', 'master_items',
-        'master_item_products', 'box_definitions', 'box_layers',
+        'master_item_products', 'boxes', 'master_item_boxes', 'box_layers',
         'box_layer_requirements',
         'packing_sessions', 'packing_session_scans', 'sequence_counters',
         'print_jobs', 'print_attempts', 'reprint_requests', 'audit_logs'
       )
     order by c.relname
   $$,
-  array_fill(true, array[16]),
+  array_fill(true, array[17]),
   'RLS is enabled on every exposed Phase 2 table'
 );
 

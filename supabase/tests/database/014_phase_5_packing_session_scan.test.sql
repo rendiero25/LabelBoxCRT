@@ -70,22 +70,31 @@ insert into public.master_item_products (master_item_id, product_id, is_active) 
   ('96100000-0000-0000-0000-000000000001', '97100000-0000-0000-0000-000000000003', true),
   ('96100000-0000-0000-0000-000000000001', '97100000-0000-0000-0000-000000000004', true);
 
-insert into public.box_definitions (
-  id, master_item_id, box_code, box_name, version, is_active
-) values
+-- Box shape (B101, B102), decoupled from any one Master Item.
+insert into public.boxes (id, box_code, box_name, is_active) values
+  ('98100000-0000-0000-0000-000000000001', 'B101-T5', 'Phase 5 B101', true),
+  ('98100000-0000-0000-0000-000000000002', 'B102-T5', 'Phase 5 Overflow', true);
+
+-- Master Item's adoption of each Box (this is what start_packing_session/
+-- packing_sessions actually reference as master_item_box_id).
+insert into public.master_item_boxes (id, master_item_id, box_id, version, is_active) values
   (
-    '98100000-0000-0000-0000-000000000001',
+    '98150000-0000-0000-0000-000000000001',
     '96100000-0000-0000-0000-000000000001',
-    'B101', 'Phase 5 B101', 1, true
+    '98100000-0000-0000-0000-000000000001',
+    1,
+    true
   ),
   (
-    '98100000-0000-0000-0000-000000000002',
+    '98150000-0000-0000-0000-000000000002',
     '96100000-0000-0000-0000-000000000001',
-    'B102', 'Phase 5 Overflow', 1, true
+    '98100000-0000-0000-0000-000000000002',
+    1,
+    true
   );
 
 insert into public.box_layers (
-  id, box_definition_id, layer_no, layer_name, sort_order, is_active
+  id, box_id, layer_no, layer_name, sort_order, is_active
 ) values
   (
     '98200000-0000-0000-0000-000000000001',
@@ -105,12 +114,24 @@ insert into public.box_layers (
   );
 
 insert into public.box_layer_requirements (
-  box_layer_id, product_id, expected_qty, sort_order
+  master_item_box_id, box_layer_id, product_id, expected_qty, sort_order
 ) values
-  ('98200000-0000-0000-0000-000000000001', '97100000-0000-0000-0000-000000000001', 3, 1),
-  ('98200000-0000-0000-0000-000000000002', '97100000-0000-0000-0000-000000000001', 5, 1),
-  ('98200000-0000-0000-0000-000000000003', '97100000-0000-0000-0000-000000000001', 1, 1),
-  ('98200000-0000-0000-0000-000000000004', '97100000-0000-0000-0000-000000000004', 1, 1);
+  (
+    '98150000-0000-0000-0000-000000000001',
+    '98200000-0000-0000-0000-000000000001', '97100000-0000-0000-0000-000000000001', 3, 1
+  ),
+  (
+    '98150000-0000-0000-0000-000000000001',
+    '98200000-0000-0000-0000-000000000002', '97100000-0000-0000-0000-000000000001', 5, 1
+  ),
+  (
+    '98150000-0000-0000-0000-000000000002',
+    '98200000-0000-0000-0000-000000000003', '97100000-0000-0000-0000-000000000001', 1, 1
+  ),
+  (
+    '98150000-0000-0000-0000-000000000002',
+    '98200000-0000-0000-0000-000000000004', '97100000-0000-0000-0000-000000000004', 1, 1
+  );
 
 select has_function(
   'public',
@@ -161,7 +182,7 @@ select throws_ok(
   $$
     select public.start_packing_session(
       '96100000-0000-0000-0000-000000000099',
-      '98100000-0000-0000-0000-000000000001'
+      '98150000-0000-0000-0000-000000000001'
     )
   $$,
   'P0001',
@@ -173,19 +194,19 @@ select throws_ok(
   $$
     select public.start_packing_session(
       '96100000-0000-0000-0000-000000000002',
-      '98100000-0000-0000-0000-000000000001'
+      '98150000-0000-0000-0000-000000000001'
     )
   $$,
   'P0001',
-  'BOX_DEFINITION_NOT_ACTIVE_OR_MISMATCH',
-  'start requires the explicitly selected active Box Definition to belong to its Master Item'
+  'MASTER_ITEM_BOX_NOT_ACTIVE_OR_MISMATCH',
+  'start requires the explicitly selected active assignment to belong to its Master Item'
 );
 
 create temporary table phase5_b101_session as
 select *
 from public.start_packing_session(
   '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000001'
+  '98150000-0000-0000-0000-000000000001'
 );
 grant select on phase5_b101_session to public;
 
@@ -197,11 +218,11 @@ select is(
 
 select is(
   (
-    select box_definition_id::text || ':' || total_expected_qty::text || ':' || accepted_qty::text
+    select master_item_box_id::text || ':' || total_expected_qty::text || ':' || accepted_qty::text
     from phase5_b101_session
   ),
-  '98100000-0000-0000-0000-000000000001:8:0',
-  'start snapshots B101 and calculates its expected total'
+  '98150000-0000-0000-0000-000000000001:8:0',
+  'start snapshots the B101 assignment and calculates its expected total'
 );
 
 select is(
@@ -211,7 +232,7 @@ select is(
     join phase5_b101_session started on started.session_id = session.id
   ),
   1,
-  'start snapshots the active box version on the session'
+  'start snapshots the active assignment version on the session'
 );
 
 reset role;
@@ -232,11 +253,11 @@ set local role authenticated;
 select throws_ok(
   $$
     insert into public.packing_sessions (
-      operator_id, master_item_id, box_definition_id, status
+      operator_id, master_item_id, master_item_box_id, status
     ) values (
       '95100000-0000-0000-0000-000000000001',
       '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001',
+      '98150000-0000-0000-0000-000000000001',
       'scanning'
     )
   $$,
@@ -378,7 +399,7 @@ create temporary table phase5_second_session as
 select *
 from public.start_packing_session(
   '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000001'
+  '98150000-0000-0000-0000-000000000001'
 );
 
 select is(
@@ -413,7 +434,7 @@ create temporary table phase5_overflow_session as
 select *
 from public.start_packing_session(
   '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000002'
+  '98150000-0000-0000-0000-000000000002'
 );
 
 select is(
@@ -523,7 +544,7 @@ select is(
         on scan.box_layer_id = layer.id
         and scan.result = 'accepted'
         and scan.packing_session_id = (select session_id from phase5_b101_session)
-      where layer.box_definition_id = '98100000-0000-0000-0000-000000000001'
+      where layer.box_id = '98100000-0000-0000-0000-000000000001'
       group by layer.id, layer.layer_no, layer.sort_order
     ) as layer_progress
   ),
@@ -604,7 +625,7 @@ select throws_ok(
   $$
     select public.start_packing_session(
       '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001'
+      '98150000-0000-0000-0000-000000000001'
     )
   $$,
   '42501',

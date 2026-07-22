@@ -7,7 +7,7 @@ describe("hasRequiredRole", () => {
     expect(hasRequiredRole("admin", "admin")).toBe(true)
     expect(hasRequiredRole("operator", "operator")).toBe(true)
     expect(hasRequiredRole("operator", "admin")).toBe(false)
-    expect(hasRequiredRole("admin", "operator")).toBe(false)
+    expect(hasRequiredRole("admin", "operator")).toBe(true)
   })
 })
 

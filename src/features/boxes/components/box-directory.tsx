@@ -404,7 +404,6 @@ function SortableHeader({
 function BoxEditorDialog({ box }: { box?: Box }) {
   const isReadOnly = box?.isUsed ?? false
   const [open, setOpen] = useState(false)
-  const [boxCode, setBoxCode] = useState(box?.boxCode ?? "")
   const [boxName, setBoxName] = useState(box?.boxName ?? "")
   const [layers, setLayers] = useState<EditorLayer[]>(() =>
     createInitialEditorLayers(box),
@@ -424,7 +423,6 @@ function BoxEditorDialog({ box }: { box?: Box }) {
   useActionStateToast(state)
 
   function resetForm() {
-    setBoxCode(box?.boxCode ?? "")
     setBoxName(box?.boxName ?? "")
     setLayers(createInitialEditorLayers(box))
   }
@@ -468,7 +466,6 @@ function BoxEditorDialog({ box }: { box?: Box }) {
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-6" noValidate>
           {box ? <input name="boxId" type="hidden" value={box.id} /> : null}
-          <input name="boxCode" type="hidden" value={boxCode} />
           <input name="boxName" type="hidden" value={boxName} />
           <input
             name="layers"
@@ -481,7 +478,7 @@ function BoxEditorDialog({ box }: { box?: Box }) {
               <AlertTitle>Layer sudah dipakai Master Item</AlertTitle>
               <AlertDescription>
                 Struktur layer terkunci agar assignment Master Item yang ada
-                tetap konsisten. Kode dan nama box masih bisa diubah.
+                tetap konsisten. Nama box masih bisa diubah.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -496,10 +493,9 @@ function BoxEditorDialog({ box }: { box?: Box }) {
               <Field>
                 <FieldLabel htmlFor="box-code">Kode box</FieldLabel>
                 <Input
+                  disabled
                   id="box-code"
-                  onChange={(event) => setBoxCode(event.target.value)}
-                  placeholder="B101"
-                  value={boxCode}
+                  value={box ? box.boxCode : "Dibuat otomatis setelah disimpan"}
                 />
               </Field>
               <Field>

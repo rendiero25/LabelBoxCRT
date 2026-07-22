@@ -150,7 +150,7 @@ Jangan membuat `size` unique global sebelum data nyata membuktikan tidak ada dua
 | Field                | Tipe         | Aturan                   |
 | -------------------- | ------------ | ------------------------ |
 | `id`                 | uuid/text    | PK                       |
-| `item_code`          | text         | unique, contoh `dm-0001` |
+| `item_code`          | text         | unique; admin form: auto-generated `mstritem-01`, `mstritem-02`, ... via `create_master_item`, read-only after creation; CSV import: still supplied manually per row |
 | `part_no`            | text         | unique, required         |
 | `part_name`          | text         | required                 |
 | `unit`               | text         | required                 |

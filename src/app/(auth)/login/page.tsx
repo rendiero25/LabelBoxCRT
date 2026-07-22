@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             Masuk ke workspace.
           </h1>
           <p className="text-muted-foreground text-sm">
-            Gunakan akun workstation Anda untuk melanjutkan.
+            Gunakan akun Anda untuk melanjutkan.
           </p>
         </div>
       </div>

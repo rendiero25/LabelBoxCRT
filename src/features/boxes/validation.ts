@@ -3,7 +3,6 @@ export type BoxLayerInput = {
 }
 
 export type BoxInput = {
-  boxCode: string
   boxName: string
   layers: BoxLayerInput[]
 }
@@ -45,21 +44,16 @@ function parseLayers(rawLayers: string): BoxLayerInput[] | { error: string } {
 }
 
 export function parseBoxInput(formData: FormData): ParseResult {
-  const boxCode = String(formData.get("boxCode") ?? "")
-    .trim()
-    .toUpperCase()
   const boxName = String(formData.get("boxName") ?? "").trim()
   const rawLayers = String(formData.get("layers") ?? "")
 
-  if (!boxCode) return { error: "Kode box wajib diisi." }
-  if (boxCode.length > 64) return { error: "Kode box maksimal 64 karakter." }
   if (!boxName) return { error: "Nama box wajib diisi." }
   if (boxName.length > 200) return { error: "Nama box maksimal 200 karakter." }
 
   const layers = parseLayers(rawLayers)
   if ("error" in layers) return layers
 
-  return { data: { boxCode, boxName, layers } }
+  return { data: { boxName, layers } }
 }
 
 export function boxRpcErrorMessage(message: string): string {

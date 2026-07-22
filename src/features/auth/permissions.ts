@@ -6,7 +6,7 @@ export function hasRequiredRole(
   actualRole: AppRole,
   requiredRole: AppRole,
 ): boolean {
-  return actualRole === requiredRole
+  return actualRole === "admin" || actualRole === requiredRole
 }
 
 export function getRoleHomePath(role: AppRole): "/admin" | "/scan" {

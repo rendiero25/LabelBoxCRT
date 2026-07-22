@@ -112,7 +112,7 @@ function productLabel(product: ProductOption) {
   return `${product.productCode} - ${product.partName}${product.normalizedDimensions ? ` (${product.normalizedDimensions})` : ""}`
 }
 
-function editorLayersFromBox(
+export function editorLayersFromBox(
   box: BoxOption | undefined,
   assignment: MasterItemBoxAssignment | undefined,
 ): EditorLayer[] {
@@ -141,7 +141,7 @@ function editorLayersFromBox(
     })
 }
 
-function selectableProducts(
+export function selectableProducts(
   products: ProductOption[],
   requirements: EditorRequirement[],
   requirementIdToKeep: string,
@@ -157,6 +157,21 @@ function selectableProducts(
 
 function assignmentSortKey(assignment: MasterItemBoxAssignment) {
   return assignment.isActive ? 0 : 1
+}
+
+export function filterAssignmentsForBox(
+  assignments: MasterItemBoxAssignment[],
+  masterItemId: string,
+  boxId: string,
+): MasterItemBoxAssignment[] {
+  return assignments
+    .filter(
+      (assignment) =>
+        assignment.masterItemId === masterItemId && assignment.boxId === boxId,
+    )
+    .sort(
+      (a, b) => assignmentSortKey(a) - assignmentSortKey(b) || b.version - a.version,
+    )
 }
 
 export function MasterItemBoxLayerEditor({
@@ -180,11 +195,8 @@ export function MasterItemBoxLayerEditor({
     [masterItemBoxes, masterItem.id],
   )
   const assignmentsForBox = useMemo(
-    () =>
-      ownAssignments
-        .filter((assignment) => assignment.boxId === boxId)
-        .sort((a, b) => assignmentSortKey(a) - assignmentSortKey(b) || b.version - a.version),
-    [ownAssignments, boxId],
+    () => filterAssignmentsForBox(ownAssignments, masterItem.id, boxId),
+    [ownAssignments, masterItem.id, boxId],
   )
   const selectedBox = boxes.find((box) => box.id === boxId)
   const selectedAssignment = assignmentsForBox.find(
@@ -225,9 +237,7 @@ export function MasterItemBoxLayerEditor({
 
   function selectBox(nextBoxId: string) {
     const box = boxes.find((candidate) => candidate.id === nextBoxId)
-    const assignments = ownAssignments
-      .filter((assignment) => assignment.boxId === nextBoxId)
-      .sort((a, b) => assignmentSortKey(a) - assignmentSortKey(b) || b.version - a.version)
+    const assignments = filterAssignmentsForBox(ownAssignments, masterItem.id, nextBoxId)
     const defaultAssignment = assignments[0]
 
     setBoxId(nextBoxId)

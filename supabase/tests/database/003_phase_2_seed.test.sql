@@ -41,13 +41,13 @@ select results_eq(
 );
 
 select results_eq(
-  $$ select version from public.box_definitions definition join public.master_items item on item.id = definition.master_item_id where item.item_code = 'dm-0001' and definition.box_code = 'B101' and definition.is_active $$,
+  $$ select assignment.version from public.master_item_boxes assignment join public.master_items item on item.id = assignment.master_item_id join public.boxes box on box.id = assignment.box_id where item.item_code = 'dm-0001' and box.box_code = 'B101' and assignment.is_active $$,
   array[1],
   'B101 version 1 is active'
 );
 
 select is(
-  (select array_agg(requirement.expected_qty order by layer.layer_no) from public.box_layer_requirements requirement join public.box_layers layer on layer.id = requirement.box_layer_id join public.box_definitions definition on definition.id = layer.box_definition_id join public.master_items item on item.id = definition.master_item_id where item.item_code = 'dm-0001' and definition.box_code = 'B101' and definition.version = 1),
+  (select array_agg(requirement.expected_qty order by layer.layer_no) from public.box_layer_requirements requirement join public.box_layers layer on layer.id = requirement.box_layer_id join public.master_item_boxes assignment on assignment.id = requirement.master_item_box_id join public.master_items item on item.id = assignment.master_item_id join public.boxes box on box.id = assignment.box_id where item.item_code = 'dm-0001' and box.box_code = 'B101' and assignment.version = 1),
   array[3, 5],
   'B101 development layers require 3 and 5 units'
 );
@@ -65,13 +65,13 @@ select results_eq(
 );
 
 select results_eq(
-  $$ select count(*)::bigint from public.box_definitions definition join public.master_items item on item.id = definition.master_item_id where item.item_code = 'dm-0001' and definition.box_code = 'B101' and definition.version = 1 $$,
+  $$ select count(*)::bigint from public.master_item_boxes assignment join public.master_items item on item.id = assignment.master_item_id join public.boxes box on box.id = assignment.box_id where item.item_code = 'dm-0001' and box.box_code = 'B101' and assignment.version = 1 $$,
   array[1::bigint],
-  'box seed identity remains unique'
+  'box assignment seed identity remains unique'
 );
 
 select results_eq(
-  $$ select count(*)::bigint from public.box_layers layer join public.box_definitions definition on definition.id = layer.box_definition_id join public.master_items item on item.id = definition.master_item_id where item.item_code = 'dm-0001' and definition.box_code = 'B101' and definition.version = 1 $$,
+  $$ select count(*)::bigint from public.box_layers layer join public.boxes box on box.id = layer.box_id where box.box_code = 'B101' $$,
   array[2::bigint],
   'B101 seed has exactly two layers'
 );

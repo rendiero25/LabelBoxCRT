@@ -42,30 +42,36 @@ insert into public.master_item_products (id, master_item_id, product_id, is_acti
   true
 );
 
-insert into public.box_definitions (
-  id, master_item_id, box_code, box_name, version, is_active
+insert into public.boxes (id, box_code, box_name, is_active) values
+  ('60000000-0000-0000-0000-000000000001', 'RLS-BOX', 'RLS Box', true);
+
+-- Three versions of the same Master Item's adoption of RLS-BOX: v1 active
+-- (used by fixture sessions below), v2 a valid draft (has a requirement for
+-- the shared layer, so it can be activated), v3 an invalid draft (no
+-- requirement for the active layer, so activation must fail).
+insert into public.master_item_boxes (
+  id, master_item_id, box_id, version, is_active
 ) values
-  ('60000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'RLS-BOX', 'RLS Box v1', 1, true),
-  ('60000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'RLS-BOX', 'RLS Box v2', 2, false),
-  ('60000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', 'RLS-BOX', 'RLS Box v3 invalid', 3, false);
+  ('63000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 1, true),
+  ('63000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 2, false),
+  ('63000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 3, false);
 
 insert into public.box_layers (
-  id, box_definition_id, layer_no, layer_name, sort_order, is_active
+  id, box_id, layer_no, layer_name, sort_order, is_active
 ) values
-  ('61000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 1, 'Layer 1', 1, true),
-  ('61000000-0000-0000-0000-000000000002', '60000000-0000-0000-0000-000000000002', 1, 'Layer 1', 1, true);
+  ('61000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 1, 'Layer 1', 1, true);
 
 insert into public.box_layer_requirements (
-  id, box_layer_id, product_id, expected_qty, sort_order
+  id, master_item_box_id, box_layer_id, product_id, expected_qty, sort_order
 ) values
-  ('62000000-0000-0000-0000-000000000001', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 3, 1),
-  ('62000000-0000-0000-0000-000000000002', '61000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 5, 1);
+  ('62000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 3, 1),
+  ('62000000-0000-0000-0000-000000000002', '63000000-0000-0000-0000-000000000002', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 5, 1);
 
 insert into public.packing_sessions (
-  id, operator_id, master_item_id, box_definition_id, status
+  id, operator_id, master_item_id, master_item_box_id, status
 ) values
-  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed'),
-  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed');
+  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001', 'confirmed'),
+  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001', 'confirmed');
 
 set local role anon;
 select throws_ok(
@@ -73,8 +79,8 @@ select throws_ok(
   '42501', null, 'anonymous cannot read suppliers'
 );
 select throws_ok(
-  $$ select private.activate_box_definition('60000000-0000-0000-0000-000000000002', gen_random_uuid()) $$,
-  '42501', null, 'anonymous cannot execute box activation'
+  $$ select private.activate_master_item_box('63000000-0000-0000-0000-000000000002', gen_random_uuid()) $$,
+  '42501', null, 'anonymous cannot execute box assignment activation'
 );
 reset role;
 
@@ -100,7 +106,7 @@ select throws_ok(
   '42501', null, 'operator cannot create suppliers'
 );
 select throws_ok(
-  $$ insert into public.packing_sessions (operator_id, master_item_id, box_definition_id) values ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001') $$,
+  $$ insert into public.packing_sessions (operator_id, master_item_id, master_item_box_id) values ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001') $$,
   '42501', null, 'operator cannot mutate packing sessions directly'
 );
 select throws_ok(
@@ -164,17 +170,22 @@ select throws_ok(
   '42501', null, 'admin cannot append audit directly'
 );
 select lives_ok(
-  $$ select private.activate_box_definition('60000000-0000-0000-0000-000000000002', '90000000-0000-0000-0000-000000000001') $$,
-  'active admin can activate a valid box definition'
+  $$ select private.activate_master_item_box('63000000-0000-0000-0000-000000000002', '90000000-0000-0000-0000-000000000001') $$,
+  'active admin can activate a valid box assignment version'
 );
 select results_eq(
-  $$ select version from public.box_definitions where box_code = 'RLS-BOX' and is_active $$,
+  $$
+    select assignment.version
+    from public.master_item_boxes assignment
+    join public.boxes box on box.id = assignment.box_id
+    where box.box_code = 'RLS-BOX' and assignment.is_active
+  $$,
   array[2],
-  'activation atomically replaces the active box version'
+  'activation atomically replaces the active box assignment version'
 );
 select throws_ok(
-  $$ select private.activate_box_definition('60000000-0000-0000-0000-000000000003', gen_random_uuid()) $$,
-  '22023', null, 'invalid box definition cannot be activated'
+  $$ select private.activate_master_item_box('63000000-0000-0000-0000-000000000003', gen_random_uuid()) $$,
+  '22023', null, 'invalid box assignment version cannot be activated'
 );
 reset role;
 
@@ -187,16 +198,16 @@ select ok(
   'anonymous cannot execute the admin policy helper'
 );
 select ok(
-  has_function_privilege('authenticated', 'private.activate_box_definition(uuid,uuid)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'private.activate_master_item_box(uuid,uuid)', 'EXECUTE'),
   'authenticated may reach the guarded activation entrypoint'
 );
 select ok(
-  not has_function_privilege('anon', 'private.activate_box_definition(uuid,uuid)', 'EXECUTE'),
+  not has_function_privilege('anon', 'private.activate_master_item_box(uuid,uuid)', 'EXECUTE'),
   'anonymous cannot execute the activation entrypoint'
 );
 select ok(
-  not has_function_privilege('authenticated', 'private.validate_box_definition(uuid)', 'EXECUTE'),
-  'box validation helper is not directly exposed'
+  not has_function_privilege('authenticated', 'private.validate_master_item_box(uuid)', 'EXECUTE'),
+  'box assignment validation helper is not directly exposed'
 );
 select is(
   (

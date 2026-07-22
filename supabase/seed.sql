@@ -7,7 +7,8 @@ declare
   supplier_row_id uuid;
   product_row_id uuid;
   master_item_row_id uuid;
-  box_definition_row_id uuid;
+  box_row_id uuid;
+  master_item_box_row_id uuid;
   layer_1_row_id uuid;
   layer_2_row_id uuid;
   validation_result jsonb;
@@ -107,69 +108,74 @@ begin
   values (master_item_row_id, product_row_id, true)
   on conflict (master_item_id, product_id) do update set is_active = true;
 
-  select id into box_definition_row_id
-  from public.box_definitions
-  where master_item_id = master_item_row_id
-    and lower(btrim(box_code)) = 'b101'
-    and version = 1;
+  select id into box_row_id
+  from public.boxes
+  where lower(btrim(box_code)) = 'b101';
 
-  if box_definition_row_id is null then
-    insert into public.box_definitions (
-      master_item_id, box_code, box_name, version, is_active
-    ) values (
-      master_item_row_id, 'B101', 'B101 DEV SAMPLE', 1, false
-    ) returning id into box_definition_row_id;
+  if box_row_id is null then
+    insert into public.boxes (box_code, box_name, is_active)
+    values ('B101', 'B101 DEV SAMPLE', true)
+    returning id into box_row_id;
   else
-    update public.box_definitions
-    set box_name = 'B101 DEV SAMPLE'
-    where id = box_definition_row_id;
+    update public.boxes
+    set box_name = 'B101 DEV SAMPLE', is_active = true
+    where id = box_row_id;
   end if;
 
-  insert into public.box_layers (
-    box_definition_id, layer_no, layer_name, sort_order, is_active
-  ) values (
-    box_definition_row_id, 1, 'Layer 1', 1, true
-  ) on conflict (box_definition_id, layer_no) do update set
+  insert into public.box_layers (box_id, layer_no, layer_name, sort_order, is_active)
+  values (box_row_id, 1, 'Layer 1', 1, true)
+  on conflict (box_id, layer_no) do update set
     layer_name = excluded.layer_name,
     sort_order = excluded.sort_order,
     is_active = true
   returning id into layer_1_row_id;
 
-  insert into public.box_layers (
-    box_definition_id, layer_no, layer_name, sort_order, is_active
-  ) values (
-    box_definition_row_id, 2, 'Layer 2', 2, true
-  ) on conflict (box_definition_id, layer_no) do update set
+  insert into public.box_layers (box_id, layer_no, layer_name, sort_order, is_active)
+  values (box_row_id, 2, 'Layer 2', 2, true)
+  on conflict (box_id, layer_no) do update set
     layer_name = excluded.layer_name,
     sort_order = excluded.sort_order,
     is_active = true
   returning id into layer_2_row_id;
 
-  insert into public.box_layer_requirements (
-    box_layer_id, product_id, expected_qty, sort_order
-  ) values (layer_1_row_id, product_row_id, 3, 1)
-  on conflict (box_layer_id, product_id) do update set
-    expected_qty = excluded.expected_qty,
-    sort_order = excluded.sort_order;
+  select id into master_item_box_row_id
+  from public.master_item_boxes
+  where master_item_id = master_item_row_id
+    and box_id = box_row_id
+    and version = 1;
+
+  if master_item_box_row_id is null then
+    insert into public.master_item_boxes (master_item_id, box_id, version, is_active)
+    values (master_item_row_id, box_row_id, 1, false)
+    returning id into master_item_box_row_id;
+  end if;
+
+  -- Two unique constraints on this table (per-product, per-sort-order) can
+  -- both be live for the same (master_item_box_id, box_layer_id) pair, so a
+  -- single ON CONFLICT arbiter can't reliably upsert both. Reset and
+  -- re-insert instead, matching how save_master_item_box_requirements()
+  -- itself replaces requirements.
+  delete from public.box_layer_requirements
+  where master_item_box_id = master_item_box_row_id
+    and box_layer_id in (layer_1_row_id, layer_2_row_id);
 
   insert into public.box_layer_requirements (
-    box_layer_id, product_id, expected_qty, sort_order
-  ) values (layer_2_row_id, product_row_id, 5, 1)
-  on conflict (box_layer_id, product_id) do update set
-    expected_qty = excluded.expected_qty,
-    sort_order = excluded.sort_order;
+    master_item_box_id, box_layer_id, product_id, expected_qty, sort_order
+  ) values
+    (master_item_box_row_id, layer_1_row_id, product_row_id, 3, 1),
+    (master_item_box_row_id, layer_2_row_id, product_row_id, 5, 1);
 
-  validation_result := private.validate_box_definition(box_definition_row_id);
+  validation_result := private.validate_master_item_box(master_item_box_row_id);
   if not coalesce((validation_result ->> 'valid')::boolean, false) then
     raise exception using
       errcode = '22023',
-      message = 'SEED_BOX_DEFINITION_INVALID',
+      message = 'SEED_MASTER_ITEM_BOX_INVALID',
       detail = validation_result::text;
   end if;
 
-  if not (select is_active from public.box_definitions where id = box_definition_row_id) then
+  if not (select is_active from public.master_item_boxes where id = master_item_box_row_id) then
     perform set_config('request.jwt.claim.sub', admin_user_id::text, true);
-    perform private.activate_box_definition(box_definition_row_id, gen_random_uuid());
+    perform private.activate_master_item_box(master_item_box_row_id, gen_random_uuid());
   end if;
 
   if not exists (

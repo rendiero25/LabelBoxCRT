@@ -17,6 +17,11 @@
 -- workstation_id parameter/column/assertion call.
 
 drop function if exists public.start_packing_session(uuid, uuid, uuid);
+-- 20260721081938_remove_workstation.sql already replaced this with a 2-arg
+-- (master_item_id, box_definition_id) overload returning a box_definition_id
+-- column; same arg types as the version below but a different OUT-parameter
+-- name, which `create or replace` cannot reconcile. Drop it explicitly first.
+drop function if exists public.start_packing_session(uuid, uuid);
 
 create or replace function public.start_packing_session(
   p_master_item_id uuid,

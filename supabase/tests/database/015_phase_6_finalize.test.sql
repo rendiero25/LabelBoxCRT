@@ -46,15 +46,20 @@ insert into public.products (
 insert into public.master_item_products (master_item_id, product_id, is_active) values
   ('a6200000-0000-0000-0000-000000000001', 'a6300000-0000-0000-0000-000000000001', true);
 
-insert into public.box_definitions (
-  id, master_item_id, box_code, box_name, version, is_active
-) values (
+insert into public.boxes (id, box_code, box_name, is_active) values (
+  'a6400000-0000-0000-0000-000000000001', 'B101-T6', 'Phase 6 B101', true
+);
+
+insert into public.master_item_boxes (id, master_item_id, box_id, version, is_active) values (
+  'a6450000-0000-0000-0000-000000000001',
+  'a6200000-0000-0000-0000-000000000001',
   'a6400000-0000-0000-0000-000000000001',
-  'a6200000-0000-0000-0000-000000000001', 'B101', 'Phase 6 B101', 1, true
+  1,
+  true
 );
 
 insert into public.box_layers (
-  id, box_definition_id, layer_no, layer_name, sort_order, is_active
+  id, box_id, layer_no, layer_name, sort_order, is_active
 ) values
   (
     'a6500000-0000-0000-0000-000000000001',
@@ -66,10 +71,16 @@ insert into public.box_layers (
   );
 
 insert into public.box_layer_requirements (
-  box_layer_id, product_id, expected_qty, sort_order
+  master_item_box_id, box_layer_id, product_id, expected_qty, sort_order
 ) values
-  ('a6500000-0000-0000-0000-000000000001', 'a6300000-0000-0000-0000-000000000001', 3, 1),
-  ('a6500000-0000-0000-0000-000000000002', 'a6300000-0000-0000-0000-000000000001', 5, 1);
+  (
+    'a6450000-0000-0000-0000-000000000001',
+    'a6500000-0000-0000-0000-000000000001', 'a6300000-0000-0000-0000-000000000001', 3, 1
+  ),
+  (
+    'a6450000-0000-0000-0000-000000000001',
+    'a6500000-0000-0000-0000-000000000002', 'a6300000-0000-0000-0000-000000000001', 5, 1
+  );
 
 insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
   ('a6700000-0000-0000-0000-000000000001', 'PH6SUP', 'Phase 6 Supplier', true);
@@ -136,7 +147,7 @@ create temporary table phase6_session_a as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6400000-0000-0000-0000-000000000001'
+  'a6450000-0000-0000-0000-000000000001'
 );
 grant select on phase6_session_a to public;
 
@@ -287,7 +298,7 @@ select is(
 
 select is(
   (select label_reference from phase6_finalize_a1),
-  (select sequence_no::text || '-150526-B101' from phase6_finalize_a1),
+  (select sequence_no::text || '-150526-B101-T6' from phase6_finalize_a1),
   'label_reference matches {sequence_no}-{DDMMYY}-{box_code} with no zero-padding'
 );
 
@@ -309,7 +320,7 @@ select is(
       || ':' || delivery_number || ':' || delivery_date::text || ':' || box_code || ':' || box_name
     from phase6_finalize_a1
   ),
-  'PH6SUP:Phase 6 Supplier:PHASE6-PART:Phase 6 Part:DN-PHASE6-ACTIVE:2026-05-15:B101:Phase 6 B101',
+  'PH6SUP:Phase 6 Supplier:PHASE6-PART:Phase 6 Part:DN-PHASE6-ACTIVE:2026-05-15:B101-T6:Phase 6 B101',
   'finalize snapshots supplier, part, DN, and box fields onto the print job'
 );
 
@@ -384,7 +395,7 @@ create temporary table phase6_session_b as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6400000-0000-0000-0000-000000000001'
+  'a6450000-0000-0000-0000-000000000001'
 );
 grant select on phase6_session_b to public;
 
@@ -542,7 +553,7 @@ create temporary table phase6_session_c as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6400000-0000-0000-0000-000000000001'
+  'a6450000-0000-0000-0000-000000000001'
 );
 
 select throws_ok(

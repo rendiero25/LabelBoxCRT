@@ -56,26 +56,22 @@ export async function startPackingSessionAction(
   _previousState: PackingSessionActionState,
   formData: FormData,
 ): Promise<PackingSessionActionState> {
-  const workstationId = valueFromFormData(formData, "workstationId")
   const masterItemId = valueFromFormData(formData, "masterItemId")
   const masterItemBoxId = valueFromFormData(formData, "boxDefinitionId")
 
   if (
-    !workstationId ||
     !masterItemId ||
     !masterItemBoxId ||
-    !uuidPattern.test(workstationId) ||
     !uuidPattern.test(masterItemId) ||
     !uuidPattern.test(masterItemBoxId)
   ) {
-    return { error: "Workstation, Master Item, dan Box wajib dipilih." }
+    return { error: "Master Item dan Box wajib dipilih." }
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("start_packing_session", {
     p_master_item_box_id: masterItemBoxId,
     p_master_item_id: masterItemId,
-    p_workstation_id: workstationId,
   })
 
   if (error || !data?.[0]) {

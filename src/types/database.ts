@@ -917,7 +917,7 @@ export type Database = {
         }[]
       }
       create_box: {
-        Args: { p_box_code: string; p_box_name: string; p_layers: Json }
+        Args: { p_box_name: string; p_layers: Json }
         Returns: string
       }
       create_delivery_number: {
@@ -941,7 +941,7 @@ export type Database = {
       create_master_item: {
         Args: {
           p_default_label_qty: number
-          p_item_code: string
+          p_item_code?: string
           p_item_sequence_code?: string
           p_part_name: string
           p_part_no: string
@@ -1085,12 +1085,7 @@ export type Database = {
         }[]
       }
       update_box: {
-        Args: {
-          p_box_code: string
-          p_box_id: string
-          p_box_name: string
-          p_layers: Json
-        }
+        Args: { p_box_id: string; p_box_name: string; p_layers: Json }
         Returns: string
       }
       update_delivery_number: {
@@ -1114,7 +1109,6 @@ export type Database = {
       update_master_item: {
         Args: {
           p_default_label_qty: number
-          p_item_code: string
           p_item_sequence_code?: string
           p_master_item_id: string
           p_part_name: string

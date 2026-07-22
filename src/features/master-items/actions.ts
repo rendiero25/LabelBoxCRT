@@ -33,7 +33,6 @@ export async function createMasterItemAction(
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("create_master_item", {
-    p_item_code: parsed.data.itemCode,
     p_part_no: parsed.data.partNo,
     p_part_name: parsed.data.partName,
     p_unit: parsed.data.unit,
@@ -60,7 +59,6 @@ export async function updateMasterItemAction(
   const supabase = await createClient()
   const { error } = await supabase.rpc("update_master_item", {
     p_master_item_id: masterItemId,
-    p_item_code: parsed.data.itemCode,
     p_part_no: parsed.data.partNo,
     p_part_name: parsed.data.partName,
     p_unit: parsed.data.unit,
