@@ -28,6 +28,7 @@ import {
   startPackingSessionAction,
 } from "@/features/scan/actions"
 import { initialPackingSessionActionState } from "@/features/scan/form-state"
+import { PrintJobCard } from "@/features/print/components/print-job-card"
 import { useScannerListener } from "@/features/scan/use-scanner-listener"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -160,7 +161,6 @@ function StartSessionForm({
   startAction,
   startPending,
   startState,
-  workstationId,
 }: {
   allowedBoxes: ScanBoxDefinitionOption[]
   masterItems: ScanMasterItemOption[]
@@ -172,7 +172,6 @@ function StartSessionForm({
   startAction: (formData: FormData) => void
   startPending: boolean
   startState: { error?: string }
-  workstationId: string | null
 }) {
   return (
     <section className="mx-auto grid max-w-2xl gap-6">
@@ -195,16 +194,7 @@ function StartSessionForm({
           dibuat.
         </p>
       </div>
-      {!workstationId ? (
-        <Alert variant="destructive">
-          <CircleAlertIcon />
-          <AlertTitle>Workstation belum ditetapkan</AlertTitle>
-          <AlertDescription>
-            Akun ini belum memiliki assignment workstation aktif. Hubungi
-            admin untuk mendaftarkan workstation.
-          </AlertDescription>
-        </Alert>
-      ) : masterItems.length === 0 ? (
+      {masterItems.length === 0 ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
           <AlertTitle>Master Item tidak tersedia</AlertTitle>
@@ -221,7 +211,6 @@ function StartSessionForm({
             </Alert>
           ) : null}
           <FieldGroup>
-            <input name="workstationId" type="hidden" value={workstationId} />
             <input
               name="masterItemId"
               type="hidden"
@@ -376,13 +365,11 @@ export function PackingScanConsole({
   boxDefinitions,
   deliveryNumbers,
   masterItems,
-  workstationId,
 }: {
   activeSessions: ActivePackingSessionView[]
   boxDefinitions: ScanBoxDefinitionOption[]
   deliveryNumbers: DeliveryNumberOption[]
   masterItems: ScanMasterItemOption[]
-  workstationId: string | null
 }) {
   const router = useRouter()
   const [startState, startAction, startPending] = useActionState(
@@ -550,6 +537,7 @@ export function PackingScanConsole({
             value={labelFields.deliveryDate}
           />
         </div>
+        <PrintJobCard snapshot={completedSnapshot} />
         <Button
           onClick={() => {
             setCompletedSnapshot(undefined)
@@ -581,7 +569,6 @@ export function PackingScanConsole({
         startAction={startAction}
         startPending={startPending}
         startState={startState}
-        workstationId={workstationId}
       />
     )
   }
