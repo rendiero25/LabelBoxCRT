@@ -467,56 +467,64 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 
 # Phase 7 — QZ Tray dan Zebra ZD220
 
+> **Status 22 Juli 2026:** implementasi kode selesai dan diverifikasi (26 pgTAP
+> assertion baru di `016_phase_7_print_rpcs.test.sql`, regresi 014/015 hijau,
+> 126 unit test, typecheck/lint/build bersih). Desain terkunci di
+> [`docs/superpowers/specs/2026-07-22-phase-7-qz-print-design.md`](docs/superpowers/specs/2026-07-22-phase-7-qz-print-design.md).
+> Hardware terkonfirmasi: `ZDesigner ZD220-203dpi ZPL`, 203 dpi, media
+> 55×75 mm gap 3 mm, thermal transfer. Item yang belum dicentang butuh
+> tindakan fisik user: generate certificate (openssl, lihat
+> [`docs/phase-7/qz-certificate.md`](docs/phase-7/qz-certificate.md)), isi env
+> `QZ_PRIVATE_KEY`/`QZ_CERTIFICATE`, install cert ke Trusted Root, lalu drill
+> print 20 sample + failure tests di printer nyata.
+
 ## 7.1 QZ Client
 
-- [ ] Install dependency.
-- [ ] Connect/disconnect/reconnect.
-- [ ] Connection indicator.
-- [ ] Discover exact configured printer.
-- [ ] No arbitrary fallback.
-- [ ] Handle permission/warning state.
+- [x] Install dependency.
+- [x] Connect/disconnect/reconnect.
+- [x] Connection indicator.
+- [x] Discover exact configured printer.
+- [x] No arbitrary fallback.
+- [x] Handle permission/warning state.
 
 ## 7.2 Signing
 
-- [ ] Dev certificate.
-- [ ] Production certificate/license decision.
-- [ ] Public certificate endpoint.
-- [ ] Authenticated signing endpoint.
-- [ ] Private key server-only.
-- [ ] Origin validation.
-- [ ] Rate limiting.
-- [ ] Audit failures.
+- [ ] Dev certificate. *(user: generate via openssl + isi env)*
+- [x] Production certificate/license decision. *(self-signed company root, D5)*
+- [x] Public certificate endpoint.
+- [x] Authenticated signing endpoint.
+- [x] Private key server-only.
+- [x] Origin validation.
+- [x] Rate limiting.
+- [x] Audit failures.
 - [ ] Test production domain.
 
 ## 7.3 ZPL Template
 
-- [ ] Confirm media dimensions.
-- [ ] Confirm DPI.
-- [ ] Build template v1.
-- [ ] Escape dynamic text.
-- [ ] Text overflow rules.
-- [ ] Delivery Number.
-- [ ] Optional barcode/QR.
+- [x] Confirm media dimensions. *(55×75 mm, gap 3 mm)*
+- [x] Confirm DPI. *(203)*
+- [x] Build template v1.
+- [x] Escape dynamic text.
+- [x] Text overflow rules.
+- [x] Delivery Number.
+- [x] Optional barcode/QR. *(diputuskan skip di v1, spec D7)*
 - [ ] Print 20 samples.
 - [ ] Verify readability.
 - [ ] Verify physical dimensions.
 
 ## 7.4 Browser Print Worker
 
-- [ ] Claim only target job (needs new design now that workstation identity is
-  removed — see forward note in
-  `docs/superpowers/specs/2026-07-21-remove-workstation-design.md`; likely
-  "any browser tab logged in as the finalizing operator may claim their own
-  session's print job").
-- [ ] Set printing.
-- [ ] Create print attempt.
-- [ ] Send raw ZPL.
-- [ ] Mark sent.
-- [ ] Handle fail.
-- [ ] Retry same job.
-- [ ] No new sequence on retry.
-- [ ] Prevent double-click duplicate.
-- [ ] Optional operator confirmation.
+- [x] Claim only target job. *(desain baru: browser tab operator finalizing
+  meng-claim print job session miliknya via `claim_print_job` RPC)*
+- [x] Set printing.
+- [x] Create print attempt.
+- [x] Send raw ZPL.
+- [x] Mark sent.
+- [x] Handle fail.
+- [x] Retry same job.
+- [x] No new sequence on retry.
+- [x] Prevent double-click duplicate.
+- [x] Optional operator confirmation. *(diputuskan auto-confirm, spec D3)*
 
 ## 7.5 Failure Tests
 
@@ -530,6 +538,7 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 - [ ] Workstation restart.
 
 **Gate Phase 7:** label tercetak benar dan recovery tidak membuat duplicate sequence.
+Kode + pgTAP selesai; gate fisik menunggu certificate setup dan drill hardware user.
 
 ---
 
