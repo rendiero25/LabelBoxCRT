@@ -877,6 +877,17 @@ export type Database = {
           total_expected_qty: number
         }[]
       }
+      claim_print_job: {
+        Args: { p_print_job_id: string; p_zpl_payload: string }
+        Returns: {
+          attempt_count: number
+          job_status: Database["public"]["Enums"]["print_job_status"]
+          label_reference: string
+          packing_session_id: string
+          print_job_id: string
+          session_status: Database["public"]["Enums"]["packing_session_status"]
+        }[]
+      }
       clone_master_item_box_version: {
         Args: { p_master_item_box_id: string }
         Returns: string
@@ -887,6 +898,23 @@ export type Database = {
           p_status: Database["public"]["Enums"]["delivery_status"]
         }
         Returns: undefined
+      }
+      complete_print_job: {
+        Args: {
+          p_error_code?: string
+          p_error_message_safe?: string
+          p_print_job_id: string
+          p_printer_name: string
+          p_result: Database["public"]["Enums"]["print_attempt_result"]
+        }
+        Returns: {
+          attempt_no: number
+          job_status: Database["public"]["Enums"]["print_job_status"]
+          label_reference: string
+          packing_session_id: string
+          print_job_id: string
+          session_status: Database["public"]["Enums"]["packing_session_status"]
+        }[]
       }
       create_box: {
         Args: { p_box_code: string; p_box_name: string; p_layers: Json }
@@ -1043,38 +1071,19 @@ export type Database = {
           updated_at: string
         }[]
       }
-      start_packing_session:
-        | {
-            Args: { p_box_definition_id: string; p_master_item_id: string }
-            Returns: {
-              accepted_qty: number
-              box_definition_id: string
-              master_item_id: string
-              operator_id: string
-              session_id: string
-              started_at: string
-              status: Database["public"]["Enums"]["packing_session_status"]
-              total_expected_qty: number
-            }[]
-          }
-        | {
-            Args: {
-              p_master_item_box_id: string
-              p_master_item_id: string
-              p_workstation_id: string
-            }
-            Returns: {
-              accepted_qty: number
-              master_item_box_id: string
-              master_item_id: string
-              operator_id: string
-              session_id: string
-              started_at: string
-              status: Database["public"]["Enums"]["packing_session_status"]
-              total_expected_qty: number
-              workstation_id: string
-            }[]
-          }
+      start_packing_session: {
+        Args: { p_master_item_box_id: string; p_master_item_id: string }
+        Returns: {
+          accepted_qty: number
+          master_item_box_id: string
+          master_item_id: string
+          operator_id: string
+          session_id: string
+          started_at: string
+          status: Database["public"]["Enums"]["packing_session_status"]
+          total_expected_qty: number
+        }[]
+      }
       update_box: {
         Args: {
           p_box_code: string
