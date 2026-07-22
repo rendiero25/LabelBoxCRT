@@ -9,14 +9,19 @@ function configureSecurity(): void {
   // qz-tray treats a plain function as a `(resolve, reject)` promise
   // executor (it wraps it in `new Promise(...)`), so the handlers below
   // must use resolver style rather than returning a promise directly.
-  qz.security.setCertificatePromise((resolve, reject) => {
-    fetch("/api/qz/cert")
-      .then((response) => {
-        if (!response.ok) throw new Error("QZ certificate unavailable")
-        return response.text()
-      })
-      .then(resolve, reject)
-  })
+  qz.security.setCertificatePromise(
+    (resolve, reject) => {
+      fetch("/api/qz/cert")
+        .then((response) => {
+          if (!response.ok) throw new Error("QZ certificate unavailable")
+          return response.text()
+        })
+        .then(resolve, reject)
+    },
+    // Without this, qz-tray resolves a failed fetch with a blank
+    // certificate, downgrading the connection to an untrusted prompt.
+    { rejectOnFailure: true },
+  )
 
   qz.security.setSignatureAlgorithm("SHA512")
   qz.security.setSignaturePromise((toSign: string) => (resolve, reject) => {
@@ -62,6 +67,22 @@ export async function sendZpl(
   ])
 }
 
-export function onQzClosed(handler: () => void): void {
-  qz.websocket.setClosedCallbacks(handler)
+// qz-tray's `setClosedCallbacks` is a plain assignment, so registering a
+// handler directly would replace any previously registered one. Instead we
+// register a single stable dispatcher and fan out to a local Set, letting
+// multiple consumers subscribe and unsubscribe independently.
+const closedHandlers = new Set<() => void>()
+let closedDispatcherRegistered = false
+
+export function onQzClosed(handler: () => void): () => void {
+  if (!closedDispatcherRegistered) {
+    closedDispatcherRegistered = true
+    qz.websocket.setClosedCallbacks(() => {
+      for (const registered of closedHandlers) registered()
+    })
+  }
+  closedHandlers.add(handler)
+  return () => {
+    closedHandlers.delete(handler)
+  }
 }
