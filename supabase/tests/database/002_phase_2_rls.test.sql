@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(22);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data,
@@ -11,13 +11,15 @@ insert into auth.users (
   ('10000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'phase2-admin@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
   ('10000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'phase2-operator@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
   ('10000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'phase2-other@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
-  ('10000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'phase2-inactive@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
+  ('10000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'phase2-inactive@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
+  ('10000000-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'phase2-unassigned@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.profiles (id, display_name, role, is_active) values
   ('10000000-0000-0000-0000-000000000001', 'Phase 2 Admin', 'admin', true),
   ('10000000-0000-0000-0000-000000000002', 'Phase 2 Operator', 'operator', true),
   ('10000000-0000-0000-0000-000000000003', 'Other Operator', 'operator', true),
-  ('10000000-0000-0000-0000-000000000004', 'Inactive Operator', 'operator', false);
+  ('10000000-0000-0000-0000-000000000004', 'Inactive Operator', 'operator', false),
+  ('10000000-0000-0000-0000-000000000005', 'Unassigned Operator', 'operator', true);
 
 insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
   ('20000000-0000-0000-0000-000000000001', 'RLS-ACTIVE', 'RLS Active Supplier', true),
@@ -42,45 +44,29 @@ insert into public.master_item_products (id, master_item_id, product_id, is_acti
   true
 );
 
-insert into public.boxes (id, box_code, box_name, is_active) values
-  ('60000000-0000-0000-0000-000000000001', 'RLS-BOX', 'RLS Box', true);
-
--- Three versions of the same Master Item's adoption of RLS-BOX: v1 active
--- (used by fixture sessions below), v2 a valid draft (has a requirement for
--- the shared layer, so it can be activated), v3 an invalid draft (no
--- requirement for the active layer, so activation must fail).
-insert into public.master_item_boxes (
-  id, master_item_id, box_id, version, is_active
-) values
-  ('63000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 1, true),
-  ('63000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 2, false),
-  ('63000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 3, false);
+insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
+  ('60000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 1, 'RLS-BOX', 'RLS Box');
 
 insert into public.box_layers (
-  id, box_id, layer_no, layer_name, sort_order, is_active
+  id, box_id, layer_no, layer_name, sort_order
 ) values
-  ('61000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 1, 'Layer 1', 1, true);
+  ('61000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 1, 'Layer 1', 1);
 
 insert into public.box_layer_requirements (
-  id, master_item_box_id, box_layer_id, product_id, expected_qty, sort_order
+  id, box_layer_id, product_id, expected_qty, sort_order
 ) values
-  ('62000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 3, 1),
-  ('62000000-0000-0000-0000-000000000002', '63000000-0000-0000-0000-000000000002', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 5, 1);
+  ('62000000-0000-0000-0000-000000000001', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 3, 1);
 
 insert into public.packing_sessions (
-  id, operator_id, master_item_id, master_item_box_id, status
+  id, operator_id, master_item_id, box_id, status
 ) values
-  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001', 'confirmed'),
-  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001', 'confirmed');
+  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed'),
+  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'confirmed');
 
 set local role anon;
 select throws_ok(
   $$ select count(*) from public.suppliers $$,
   '42501', null, 'anonymous cannot read suppliers'
-);
-select throws_ok(
-  $$ select private.activate_master_item_box('63000000-0000-0000-0000-000000000002', gen_random_uuid()) $$,
-  '42501', null, 'anonymous cannot execute box assignment activation'
 );
 reset role;
 
@@ -106,7 +92,7 @@ select throws_ok(
   '42501', null, 'operator cannot create suppliers'
 );
 select throws_ok(
-  $$ insert into public.packing_sessions (operator_id, master_item_id, master_item_box_id) values ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '63000000-0000-0000-0000-000000000001') $$,
+  $$ insert into public.packing_sessions (operator_id, master_item_id, box_id) values ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001') $$,
   '42501', null, 'operator cannot mutate packing sessions directly'
 );
 select throws_ok(
@@ -115,7 +101,7 @@ select throws_ok(
 );
 reset role;
 
-select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000005', true);
 set local role authenticated;
 select is_empty(
   $$ select id from public.packing_sessions $$,
@@ -169,23 +155,15 @@ select throws_ok(
   $$ insert into public.audit_logs (actor_id, action, entity_type) values ('10000000-0000-0000-0000-000000000001', 'test', 'test') $$,
   '42501', null, 'admin cannot append audit directly'
 );
-select lives_ok(
-  $$ select private.activate_master_item_box('63000000-0000-0000-0000-000000000002', '90000000-0000-0000-0000-000000000001') $$,
-  'active admin can activate a valid box assignment version'
-);
 select results_eq(
   $$
-    select assignment.version
-    from public.master_item_boxes assignment
-    join public.boxes box on box.id = assignment.box_id
-    where box.box_code = 'RLS-BOX' and assignment.is_active
+    select box.box_code
+    from public.packing_sessions session
+    join public.boxes box on box.id = session.box_id
+    where session.id = '80000000-0000-0000-0000-000000000001'
   $$,
-  array[2],
-  'activation atomically replaces the active box assignment version'
-);
-select throws_ok(
-  $$ select private.activate_master_item_box('63000000-0000-0000-0000-000000000003', gen_random_uuid()) $$,
-  '22023', null, 'invalid box assignment version cannot be activated'
+  array['RLS-BOX'::text],
+  'packing session box_id joins directly to boxes'
 );
 reset role;
 
@@ -196,18 +174,6 @@ select ok(
 select ok(
   not has_function_privilege('anon', 'private.is_active_admin()', 'EXECUTE'),
   'anonymous cannot execute the admin policy helper'
-);
-select ok(
-  has_function_privilege('authenticated', 'private.activate_master_item_box(uuid,uuid)', 'EXECUTE'),
-  'authenticated may reach the guarded activation entrypoint'
-);
-select ok(
-  not has_function_privilege('anon', 'private.activate_master_item_box(uuid,uuid)', 'EXECUTE'),
-  'anonymous cannot execute the activation entrypoint'
-);
-select ok(
-  not has_function_privilege('authenticated', 'private.validate_master_item_box(uuid)', 'EXECUTE'),
-  'box assignment validation helper is not directly exposed'
 );
 select is(
   (

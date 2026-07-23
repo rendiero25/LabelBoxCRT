@@ -41,14 +41,14 @@ set local role authenticated;
 select has_function(
   'public',
   'create_master_item',
-  array['text', 'text', 'text', 'integer', 'text', 'text'],
-  'create_master_item takes part_no, part_name, unit, qty, sequence code, and an optional item code'
+  array['text', 'text', 'text', 'integer', 'text'],
+  'create_master_item takes part_no, part_name, unit, qty, and an optional item code'
 );
 
 select has_function(
   'public',
   'update_master_item',
-  array['uuid', 'text', 'text', 'text', 'integer', 'text'],
+  array['uuid', 'text', 'text', 'text', 'integer'],
   'update_master_item no longer accepts an item code'
 );
 
@@ -75,7 +75,7 @@ select isnt(
 );
 
 select lives_ok(
-  $$ select public.create_master_item('AUTOGEN-C', 'Autogen Part C', 'Pcs', 100, null, 'manual-csv-code') $$,
+  $$ select public.create_master_item('AUTOGEN-C', 'Autogen Part C', 'Pcs', 100, 'manual-csv-code') $$,
   'admin (simulating CSV import) creates a master item with an explicit code'
 );
 
@@ -86,7 +86,7 @@ select is(
 );
 
 select throws_ok(
-  $$ select public.create_master_item('AUTOGEN-D', 'Autogen Part D', 'Pcs', 100, null, 'manual-csv-code') $$,
+  $$ select public.create_master_item('AUTOGEN-D', 'Autogen Part D', 'Pcs', 100, 'manual-csv-code') $$,
   'P0001', 'MASTER_ITEM_CODE_EXISTS', 'duplicate explicit item codes are still rejected'
 );
 

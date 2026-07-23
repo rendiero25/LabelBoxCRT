@@ -86,7 +86,6 @@ export type Database = {
           created_at: string
           expected_qty: number
           id: string
-          master_item_box_id: string
           product_id: string
           sort_order: number
           updated_at: string
@@ -96,7 +95,6 @@ export type Database = {
           created_at?: string
           expected_qty: number
           id?: string
-          master_item_box_id: string
           product_id: string
           sort_order: number
           updated_at?: string
@@ -106,7 +104,6 @@ export type Database = {
           created_at?: string
           expected_qty?: number
           id?: string
-          master_item_box_id?: string
           product_id?: string
           sort_order?: number
           updated_at?: string
@@ -117,13 +114,6 @@ export type Database = {
             columns: ["box_layer_id"]
             isOneToOne: false
             referencedRelation: "box_layers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "box_layer_requirements_master_item_box_id_fkey"
-            columns: ["master_item_box_id"]
-            isOneToOne: false
-            referencedRelation: "master_item_boxes"
             referencedColumns: ["id"]
           },
           {
@@ -140,7 +130,6 @@ export type Database = {
           box_id: string
           created_at: string
           id: string
-          is_active: boolean
           layer_name: string
           layer_no: number
           sort_order: number
@@ -150,7 +139,6 @@ export type Database = {
           box_id: string
           created_at?: string
           id?: string
-          is_active?: boolean
           layer_name: string
           layer_no: number
           sort_order: number
@@ -160,7 +148,6 @@ export type Database = {
           box_id?: string
           created_at?: string
           id?: string
-          is_active?: boolean
           layer_name?: string
           layer_no?: number
           sort_order?: number
@@ -180,28 +167,39 @@ export type Database = {
         Row: {
           box_code: string
           box_name: string
+          box_no: number
           created_at: string
           id: string
-          is_active: boolean
+          master_item_id: string
           updated_at: string
         }
         Insert: {
           box_code: string
           box_name: string
+          box_no: number
           created_at?: string
           id?: string
-          is_active?: boolean
+          master_item_id: string
           updated_at?: string
         }
         Update: {
           box_code?: string
           box_name?: string
+          box_no?: number
           created_at?: string
           id?: string
-          is_active?: boolean
+          master_item_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "boxes_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_numbers: {
         Row: {
@@ -247,51 +245,6 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      master_item_boxes: {
-        Row: {
-          box_id: string
-          created_at: string
-          id: string
-          is_active: boolean
-          master_item_id: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          box_id: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          master_item_id: string
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          box_id?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          master_item_id?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "master_item_boxes_box_id_fkey"
-            columns: ["box_id"]
-            isOneToOne: false
-            referencedRelation: "boxes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "master_item_boxes_master_item_id_fkey"
-            columns: ["master_item_id"]
-            isOneToOne: false
-            referencedRelation: "master_items"
             referencedColumns: ["id"]
           },
         ]
@@ -345,7 +298,6 @@ export type Database = {
           id: string
           is_active: boolean
           item_code: string
-          item_sequence_code: string | null
           part_name: string
           part_no: string
           unit: string
@@ -357,7 +309,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           item_code: string
-          item_sequence_code?: string | null
           part_name: string
           part_no: string
           unit: string
@@ -369,7 +320,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           item_code?: string
-          item_sequence_code?: string | null
           part_name?: string
           part_no?: string
           unit?: string
@@ -459,66 +409,63 @@ export type Database = {
       }
       packing_sessions: {
         Row: {
+          box_id: string
           cancel_reason: string | null
           cancelled_at: string | null
           created_at: string
           delivery_number_id: string | null
           finalized_at: string | null
           id: string
-          master_item_box_id: string
           master_item_id: string
           operator_id: string
           ready_at: string | null
           started_at: string
           status: Database["public"]["Enums"]["packing_session_status"]
           updated_at: string
-          version: number
         }
         Insert: {
+          box_id: string
           cancel_reason?: string | null
           cancelled_at?: string | null
           created_at?: string
           delivery_number_id?: string | null
           finalized_at?: string | null
           id?: string
-          master_item_box_id: string
           master_item_id: string
           operator_id: string
           ready_at?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["packing_session_status"]
           updated_at?: string
-          version?: number
         }
         Update: {
+          box_id?: string
           cancel_reason?: string | null
           cancelled_at?: string | null
           created_at?: string
           delivery_number_id?: string | null
           finalized_at?: string | null
           id?: string
-          master_item_box_id?: string
           master_item_id?: string
           operator_id?: string
           ready_at?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["packing_session_status"]
           updated_at?: string
-          version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "packing_sessions_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "boxes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "packing_sessions_delivery_number_id_fkey"
             columns: ["delivery_number_id"]
             isOneToOne: false
             referencedRelation: "delivery_numbers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "packing_sessions_master_item_box_id_fkey"
-            columns: ["master_item_box_id"]
-            isOneToOne: false
-            referencedRelation: "master_item_boxes"
             referencedColumns: ["id"]
           },
           {
@@ -888,10 +835,6 @@ export type Database = {
           session_status: Database["public"]["Enums"]["packing_session_status"]
         }[]
       }
-      clone_master_item_box_version: {
-        Args: { p_master_item_box_id: string }
-        Returns: string
-      }
       close_or_cancel_delivery_number: {
         Args: {
           p_delivery_number_id: string
@@ -916,9 +859,15 @@ export type Database = {
           session_status: Database["public"]["Enums"]["packing_session_status"]
         }[]
       }
-      create_box: {
-        Args: { p_box_name: string; p_layers: Json }
-        Returns: string
+      create_box_layer: {
+        Args: { p_box_id: string }
+        Returns: {
+          box_id: string
+          id: string
+          layer_name: string
+          layer_no: number
+          sort_order: number
+        }[]
       }
       create_delivery_number: {
         Args: {
@@ -942,7 +891,6 @@ export type Database = {
         Args: {
           p_default_label_qty: number
           p_item_code?: string
-          p_item_sequence_code?: string
           p_part_name: string
           p_part_no: string
           p_unit: string
@@ -953,7 +901,6 @@ export type Database = {
           id: string
           is_active: boolean
           item_code: string
-          item_sequence_code: string
           part_name: string
           part_no: string
           unit: string
@@ -961,8 +908,14 @@ export type Database = {
         }[]
       }
       create_master_item_box: {
-        Args: { p_box_id: string; p_layers: Json; p_master_item_id: string }
-        Returns: string
+        Args: { p_master_item_id: string }
+        Returns: {
+          box_code: string
+          box_name: string
+          box_no: number
+          id: string
+          master_item_id: string
+        }[]
       }
       create_master_item_product_mapping: {
         Args: { p_master_item_id: string; p_product_id: string }
@@ -999,7 +952,8 @@ export type Database = {
           updated_at: string
         }[]
       }
-      delete_box: { Args: { p_box_id: string }; Returns: undefined }
+      delete_box_layer: { Args: { p_box_layer_id: string }; Returns: undefined }
+      delete_master_item_box: { Args: { p_box_id: string }; Returns: undefined }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
       finalize_packing_session: {
         Args: { p_delivery_number_id: string; p_packing_session_id: string }
@@ -1032,20 +986,8 @@ export type Database = {
           row_number: number
         }[]
       }
-      publish_master_item_box: {
-        Args: { p_master_item_box_id: string }
-        Returns: string
-      }
-      save_master_item_box_requirements: {
-        Args: {
-          p_layers: Json
-          p_master_item_box_id: string
-          p_master_item_id: string
-        }
-        Returns: string
-      }
-      set_box_active: {
-        Args: { p_box_id: string; p_is_active: boolean }
+      save_box_layer_requirements: {
+        Args: { p_box_layer_id: string; p_requirements: Json }
         Returns: undefined
       }
       set_master_item_active: {
@@ -1072,10 +1014,10 @@ export type Database = {
         }[]
       }
       start_packing_session: {
-        Args: { p_master_item_box_id: string; p_master_item_id: string }
+        Args: { p_box_id: string; p_master_item_id: string }
         Returns: {
           accepted_qty: number
-          master_item_box_id: string
+          box_id: string
           master_item_id: string
           operator_id: string
           session_id: string
@@ -1083,10 +1025,6 @@ export type Database = {
           status: Database["public"]["Enums"]["packing_session_status"]
           total_expected_qty: number
         }[]
-      }
-      update_box: {
-        Args: { p_box_id: string; p_box_name: string; p_layers: Json }
-        Returns: string
       }
       update_delivery_number: {
         Args: {
@@ -1109,7 +1047,6 @@ export type Database = {
       update_master_item: {
         Args: {
           p_default_label_qty: number
-          p_item_sequence_code?: string
           p_master_item_id: string
           p_part_name: string
           p_part_no: string
@@ -1121,7 +1058,6 @@ export type Database = {
           id: string
           is_active: boolean
           item_code: string
-          item_sequence_code: string
           part_name: string
           part_no: string
           unit: string

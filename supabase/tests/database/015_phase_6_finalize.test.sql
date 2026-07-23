@@ -46,39 +46,30 @@ insert into public.products (
 insert into public.master_item_products (master_item_id, product_id, is_active) values
   ('a6200000-0000-0000-0000-000000000001', 'a6300000-0000-0000-0000-000000000001', true);
 
-insert into public.boxes (id, box_code, box_name, is_active) values (
-  'a6400000-0000-0000-0000-000000000001', 'B101-T6', 'Phase 6 B101', true
-);
-
-insert into public.master_item_boxes (id, master_item_id, box_id, version, is_active) values (
-  'a6450000-0000-0000-0000-000000000001',
-  'a6200000-0000-0000-0000-000000000001',
+insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values (
   'a6400000-0000-0000-0000-000000000001',
-  1,
-  true
+  'a6200000-0000-0000-0000-000000000001', 1, 'B101-T6', 'Phase 6 B101'
 );
 
 insert into public.box_layers (
-  id, box_id, layer_no, layer_name, sort_order, is_active
+  id, box_id, layer_no, layer_name, sort_order
 ) values
   (
     'a6500000-0000-0000-0000-000000000001',
-    'a6400000-0000-0000-0000-000000000001', 1, 'Layer 1', 1, true
+    'a6400000-0000-0000-0000-000000000001', 1, 'Layer 1', 1
   ),
   (
     'a6500000-0000-0000-0000-000000000002',
-    'a6400000-0000-0000-0000-000000000001', 2, 'Layer 2', 2, true
+    'a6400000-0000-0000-0000-000000000001', 2, 'Layer 2', 2
   );
 
 insert into public.box_layer_requirements (
-  master_item_box_id, box_layer_id, product_id, expected_qty, sort_order
+  box_layer_id, product_id, expected_qty, sort_order
 ) values
   (
-    'a6450000-0000-0000-0000-000000000001',
     'a6500000-0000-0000-0000-000000000001', 'a6300000-0000-0000-0000-000000000001', 3, 1
   ),
   (
-    'a6450000-0000-0000-0000-000000000001',
     'a6500000-0000-0000-0000-000000000002', 'a6300000-0000-0000-0000-000000000001', 5, 1
   );
 
@@ -147,7 +138,7 @@ create temporary table phase6_session_a as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6450000-0000-0000-0000-000000000001'
+  'a6400000-0000-0000-0000-000000000001'
 );
 grant select on phase6_session_a to public;
 
@@ -395,7 +386,7 @@ create temporary table phase6_session_b as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6450000-0000-0000-0000-000000000001'
+  'a6400000-0000-0000-0000-000000000001'
 );
 grant select on phase6_session_b to public;
 
@@ -553,7 +544,7 @@ create temporary table phase6_session_c as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6450000-0000-0000-0000-000000000001'
+  'a6400000-0000-0000-0000-000000000001'
 );
 
 select throws_ok(
