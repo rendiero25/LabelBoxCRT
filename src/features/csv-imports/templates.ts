@@ -16,16 +16,9 @@ export const csvImportTemplates = {
   masterItems: {
     databaseType: "master_item",
     label: "Master Item",
-    headers: [
-      "item_code",
-      "part_no",
-      "part_name",
-      "unit",
-      "default_label_qty",
-      "item_sequence_code",
-    ],
+    headers: ["item_code", "part_no", "part_name", "unit", "default_label_qty"],
     sample:
-      "item_code,part_no,part_name,unit,default_label_qty,item_sequence_code\ndm-0001,3210A-K1Z-NA01-DL,Tube Assy,Pcs,100,\n",
+      "item_code,part_no,part_name,unit,default_label_qty\ndm-0001,3210A-K1Z-NA01-DL,Tube Assy,Pcs,100\n",
   },
   productMappings: {
     databaseType: "product_mapping",
