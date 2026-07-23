@@ -2,9 +2,13 @@
 
 import { useActionState, useMemo, useState } from "react"
 import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
   BanIcon,
   CheckIcon,
   CircleAlertIcon,
+  FilterIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -17,12 +21,17 @@ import {
 } from "@/features/master-items/actions"
 import {
   MasterItemBoxLayerEditor,
-  type BoxOption,
-  type MasterItemBoxAssignment,
+  type MasterItemBox,
   type ProductOption,
 } from "@/features/master-items/components/master-item-box-layer-editor"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
+import { PaginationControls } from "@/components/shared/pagination-controls"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -82,27 +91,43 @@ export type MasterItem = {
   part_name: string
   unit: string
   default_label_qty: number
-  item_sequence_code: string | null
   is_active: boolean
 }
 
+type SortColumn = "item_code" | "part_no" | "is_active"
+type SortDirection = "asc" | "desc"
+
+const PAGE_SIZE = 20
+
 export function MasterItemDirectory({
   boxes,
-  masterItemBoxes,
   masterItems,
   products,
 }: {
-  boxes: BoxOption[]
-  masterItemBoxes: MasterItemBoxAssignment[]
+  boxes: MasterItemBox[]
   masterItems: MasterItem[]
   products: ProductOption[]
 }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
+  const [sortColumn, setSortColumn] = useState<SortColumn>("item_code")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [page, setPage] = useState(1)
+
+  function toggleSort(column: SortColumn) {
+    if (column === sortColumn) {
+      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
+      return
+    }
+    setSortColumn(column)
+    setSortDirection("asc")
+    setPage(1)
+  }
+
   const filteredMasterItems = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("id-ID")
 
-    return masterItems.filter((masterItem) => {
+    const filtered = masterItems.filter((masterItem) => {
       const matchesQuery =
         !normalizedQuery ||
         masterItem.item_code
@@ -120,38 +145,119 @@ export function MasterItemDirectory({
 
       return matchesQuery && matchesStatus
     })
-  }, [masterItems, query, status])
+
+    const direction = sortDirection === "asc" ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      if (sortColumn === "is_active") {
+        return (Number(a.is_active) - Number(b.is_active)) * direction
+      }
+      return (
+        a[sortColumn]
+          .toLocaleLowerCase("id-ID")
+          .localeCompare(b[sortColumn].toLocaleLowerCase("id-ID"), "id-ID") *
+        direction
+      )
+    })
+  }, [masterItems, query, status, sortColumn, sortDirection])
+
+  const pageCount = Math.max(1, Math.ceil(filteredMasterItems.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const pagedMasterItems = filteredMasterItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
+
+  const sortLabels: Record<SortColumn, string> = {
+    item_code: "Kode item",
+    part_no: "Part No",
+    is_active: "Status",
+  }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="grid gap-3 sm:grid-cols-[minmax(16rem,24rem)_10rem]">
-          <div className="relative">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="relative min-w-[16rem] flex-1 sm:max-w-sm">
             <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2 left-2.5 size-4" />
             <Input
               aria-label="Cari Master Item"
               className="pl-8"
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPage(1)
+              }}
               placeholder="Cari kode, Part No, atau nama"
               value={query}
             />
           </div>
-          <Select
-            value={status}
-            onValueChange={(value) => setStatus(value as typeof status)}
-          >
-            <SelectTrigger
-              aria-label="Filter status Master Item"
-              className="w-full"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua status</SelectItem>
-              <SelectItem value="active">Aktif</SelectItem>
-              <SelectItem value="inactive">Nonaktif</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <FilterIcon data-icon="inline-start" />
+                Filter
+                {status !== "all" ? (
+                  <Badge className="ml-1" variant="secondary">
+                    1
+                  </Badge>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64">
+              <div className="flex flex-col gap-2">
+                <p className="text-muted-foreground text-xs font-medium">
+                  Status
+                </p>
+                <Select
+                  value={status}
+                  onValueChange={(value) => {
+                    setStatus(value as typeof status)
+                    setPage(1)
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label="Filter status Master Item"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua status</SelectItem>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="inactive">Nonaktif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <ArrowUpDownIcon data-icon="inline-start" />
+                Urutkan
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56">
+              <div className="flex flex-col gap-1">
+                {(Object.keys(sortLabels) as SortColumn[]).map((column) => {
+                  const isActive = column === sortColumn
+                  const Icon =
+                    sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+                  return (
+                    <Button
+                      className="justify-between"
+                      key={column}
+                      onClick={() => toggleSort(column)}
+                      type="button"
+                      variant={isActive ? "secondary" : "ghost"}
+                    >
+                      {sortLabels[column]}
+                      {isActive ? <Icon className="size-3.5" /> : null}
+                    </Button>
+                  )
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <CreateMasterItemDialog />
       </div>
@@ -173,15 +279,14 @@ export function MasterItemDirectory({
                 <TableHead>No</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead>Unit / Qty</TableHead>
-                <TableHead>Sequence</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMasterItems.map((masterItem, index) => (
+              {pagedMasterItems.map((masterItem, index) => (
                 <TableRow key={masterItem.id}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">{masterItem.part_no}</span>
@@ -192,9 +297,6 @@ export function MasterItemDirectory({
                   </TableCell>
                   <TableCell>
                     {masterItem.unit} · Qty {masterItem.default_label_qty}
-                  </TableCell>
-                  <TableCell className="font-sans text-xs">
-                    {masterItem.item_sequence_code ?? "Belum diatur"}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -209,7 +311,6 @@ export function MasterItemDirectory({
                       <MasterItemBoxLayerEditor
                         boxes={boxes}
                         masterItem={masterItem}
-                        masterItemBoxes={masterItemBoxes}
                         products={products}
                       />
                       <MasterItemActiveAction
@@ -222,6 +323,12 @@ export function MasterItemDirectory({
               ))}
             </TableBody>
           </Table>
+          <PaginationControls
+            currentPage={currentPage}
+            onPageChange={setPage}
+            pageCount={pageCount}
+            totalItems={filteredMasterItems.length}
+          />
         </div>
       )}
     </div>
@@ -390,7 +497,7 @@ function MasterItemForm({
                   : "defaultLabelQty"
               }
             >
-              Default label Qty
+              Packing Qty
             </FieldLabel>
             <Input
               defaultValue={masterItem?.default_label_qty}
@@ -406,32 +513,6 @@ function MasterItemForm({
             />
           </Field>
         </div>
-        <Field>
-          <FieldLabel
-            htmlFor={
-              masterItem
-                ? `itemSequenceCode-${masterItem.id}`
-                : "itemSequenceCode"
-            }
-          >
-            Kode sequence opsional
-          </FieldLabel>
-          <Input
-            defaultValue={masterItem?.item_sequence_code ?? ""}
-            id={
-              masterItem
-                ? `itemSequenceCode-${masterItem.id}`
-                : "itemSequenceCode"
-            }
-            maxLength={64}
-            name="itemSequenceCode"
-            placeholder="LINE-A"
-          />
-          <FieldDescription>
-            Metadata saja. Nomor urut tidak akan dibentuk sebelum scope sequence
-            disetujui.
-          </FieldDescription>
-        </Field>
       </FieldGroup>
       <DialogFooter>
         <Button disabled={isPending} type="submit">
