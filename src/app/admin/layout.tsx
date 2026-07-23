@@ -3,13 +3,11 @@ import Link from "next/link"
 import {
   Building2Icon,
   BoxesIcon,
-  ContainerIcon,
   FileSpreadsheetIcon,
   LayoutDashboardIcon,
   Link2Icon,
   PackageSearchIcon,
   ScanLineIcon,
-  TruckIcon,
 } from "lucide-react"
 
 import {
@@ -78,14 +76,6 @@ export default async function AdminLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/admin/boxes">
-                      <ContainerIcon />
-                      <span>Box</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
                     <Link href="/admin/master-items">
                       <PackageSearchIcon />
                       <span>Master Item</span>
@@ -104,14 +94,6 @@ export default async function AdminLayout({
                     <Link href="/admin/suppliers">
                       <Building2Icon />
                       <span>Supplier</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/delivery-numbers">
-                      <TruckIcon />
-                      <span>Delivery Number</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
