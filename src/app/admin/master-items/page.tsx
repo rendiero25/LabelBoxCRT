@@ -8,37 +8,26 @@ import { createClient } from "@/lib/supabase/server"
 export default async function MasterItemsPage() {
   await requireAdmin()
   const supabase = await createClient()
-  const [masterItemsResult, productsResult, boxesResult, masterItemBoxesResult] =
-    await Promise.all([
-      supabase
-        .from("master_items")
-        .select(
-          "id, item_code, part_no, part_name, unit, default_label_qty, item_sequence_code, is_active",
-        )
-        .order("item_code"),
-      supabase
-        .from("products")
-        .select(
-          "id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions",
-        )
-        .eq("is_active", true)
-        .order("product_code"),
-      supabase
-        .from("boxes")
-        .select("id, box_code, box_name, box_layers(id, layer_no, layer_name)")
-        .eq("is_active", true)
-        .order("box_code"),
-      supabase
-        .from("master_item_boxes")
-        .select(
-          "id, master_item_id, box_id, version, is_active, box_layer_requirements(box_layer_id, product_id, expected_qty), packing_sessions(id)",
-        ),
-    ])
-  const error =
-    masterItemsResult.error ??
-    productsResult.error ??
-    boxesResult.error ??
-    masterItemBoxesResult.error
+  const [masterItemsResult, productsResult, boxesResult] = await Promise.all([
+    supabase
+      .from("master_items")
+      .select("id, item_code, part_no, part_name, unit, default_label_qty, is_active")
+      .order("item_code"),
+    supabase
+      .from("products")
+      .select(
+        "id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions",
+      )
+      .eq("is_active", true)
+      .order("product_code"),
+    supabase
+      .from("boxes")
+      .select(
+        "id, master_item_id, box_no, box_code, box_name, box_layers(id, layer_no, layer_name, box_layer_requirements(product_id, expected_qty)), packing_sessions(id)",
+      )
+      .order("box_no"),
+  ])
+  const error = masterItemsResult.error ?? productsResult.error ?? boxesResult.error
   const masterItems = masterItemsResult.data ?? []
   const products = (productsResult.data ?? []).map((product) => ({
     id: product.id,
@@ -51,51 +40,31 @@ export default async function MasterItemsPage() {
   }))
   const boxes = (boxesResult.data ?? []).map((box) => ({
     id: box.id,
+    masterItemId: box.master_item_id,
+    boxNo: box.box_no,
     boxCode: box.box_code,
     boxName: box.box_name,
+    isUsed: box.packing_sessions.length > 0,
     layers: box.box_layers
       .map((layer) => ({
         id: layer.id,
         layerNo: layer.layer_no,
-        name: layer.layer_name,
+        layerName: layer.layer_name,
+        requirements: layer.box_layer_requirements.map((requirement) => ({
+          productId: requirement.product_id,
+          expectedQty: requirement.expected_qty,
+        })),
       }))
       .sort((first, second) => first.layerNo - second.layerNo),
   }))
-  const masterItemBoxes = (masterItemBoxesResult.data ?? []).map(
-    (assignment) => {
-      const requirementsByLayer: Record<
-        string,
-        { productId: string; expectedQty: number }[]
-      > = {}
-
-      for (const requirement of assignment.box_layer_requirements) {
-        const list = requirementsByLayer[requirement.box_layer_id] ?? []
-        list.push({
-          productId: requirement.product_id,
-          expectedQty: requirement.expected_qty,
-        })
-        requirementsByLayer[requirement.box_layer_id] = list
-      }
-
-      return {
-        id: assignment.id,
-        masterItemId: assignment.master_item_id,
-        boxId: assignment.box_id,
-        version: assignment.version,
-        isActive: assignment.is_active,
-        isUsed: assignment.packing_sessions.length > 0,
-        requirementsByLayer,
-      }
-    },
-  )
 
   return (
     <div className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Master Item</h1>
         <p className="text-muted-foreground text-sm">
-          Part No, unit, dan default Qty menjadi sumber data label. Kode
-          sequence masih metadata hingga scope sequence dikunci.
+          Part No, unit, dan Packing Qty menjadi sumber data label. Tiap Master
+          Item memiliki maksimal 3 Box.
         </p>
       </div>
 
@@ -109,12 +78,7 @@ export default async function MasterItemsPage() {
         </Alert>
       ) : null}
 
-      <MasterItemDirectory
-        boxes={boxes}
-        masterItemBoxes={masterItemBoxes}
-        masterItems={masterItems}
-        products={products}
-      />
+      <MasterItemDirectory boxes={boxes} masterItems={masterItems} products={products} />
     </div>
   )
 }
