@@ -60,8 +60,8 @@ export function parseDeliveryNumberInput(
 
 export function deliveryNumberRpcErrorMessage(message: string): string {
   const messages: Record<string, string> = {
-    DELIVERY_NUMBER_ADMIN_REQUIRED:
-      "Aksi ini hanya tersedia untuk admin aktif.",
+    DELIVERY_NUMBER_FORBIDDEN:
+      "Aksi ini hanya tersedia untuk operator atau admin aktif.",
     DELIVERY_NUMBER_EXISTS:
       "Delivery Number sudah digunakan untuk supplier ini.",
     DELIVERY_NUMBER_INPUT_INVALID: "Data Delivery Number tidak valid.",

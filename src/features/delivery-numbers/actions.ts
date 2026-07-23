@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { requireAdmin } from "@/features/auth/server"
+import { requireOperator } from "@/features/auth/server"
 import type { DeliveryNumberActionState } from "@/features/delivery-numbers/form-state"
 import {
   deliveryNumberRpcErrorMessage,
@@ -21,7 +21,7 @@ export async function createDeliveryNumberAction(
   _previousState: DeliveryNumberActionState,
   formData: FormData,
 ): Promise<DeliveryNumberActionState> {
-  await requireAdmin()
+  await requireOperator()
   const parsed = parseDeliveryNumberInput(formData, { allowStatus: true })
   if ("error" in parsed) return { error: parsed.error }
 
@@ -35,7 +35,7 @@ export async function createDeliveryNumberAction(
 
   if (error) return { error: deliveryNumberRpcErrorMessage(error.message) }
 
-  revalidatePath("/admin/delivery-numbers")
+  revalidatePath("/scan")
   return { success: "Delivery Number dibuat." }
 }
 
@@ -43,7 +43,7 @@ export async function updateDeliveryNumberAction(
   _previousState: DeliveryNumberActionState,
   formData: FormData,
 ): Promise<DeliveryNumberActionState> {
-  await requireAdmin()
+  await requireOperator()
   const deliveryNumberId = deliveryNumberIdFromFormData(formData)
   const parsed = parseDeliveryNumberInput(formData)
   if (!deliveryNumberId) return { error: "Delivery Number tidak valid." }
@@ -59,7 +59,7 @@ export async function updateDeliveryNumberAction(
 
   if (error) return { error: deliveryNumberRpcErrorMessage(error.message) }
 
-  revalidatePath("/admin/delivery-numbers")
+  revalidatePath("/scan")
   return { success: "Delivery Number diperbarui." }
 }
 
@@ -67,7 +67,7 @@ export async function closeOrCancelDeliveryNumberAction(
   _previousState: DeliveryNumberActionState,
   formData: FormData,
 ): Promise<DeliveryNumberActionState> {
-  await requireAdmin()
+  await requireOperator()
   const deliveryNumberId = deliveryNumberIdFromFormData(formData)
   const status = formData.get("status")
   if (!deliveryNumberId) return { error: "Delivery Number tidak valid." }
@@ -83,7 +83,7 @@ export async function closeOrCancelDeliveryNumberAction(
 
   if (error) return { error: deliveryNumberRpcErrorMessage(error.message) }
 
-  revalidatePath("/admin/delivery-numbers")
+  revalidatePath("/scan")
   return {
     success:
       status === "closed"
