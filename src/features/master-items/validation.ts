@@ -1,13 +1,11 @@
 const partNoPattern = /^[A-Z0-9][A-Z0-9_./-]{1,127}$/
 const unitPattern = /^[A-Za-z][A-Za-z ./-]{0,31}$/
-const sequenceCodePattern = /^[A-Z0-9][A-Z0-9_-]{1,63}$/
 
 type MasterItemInput = {
   partNo: string
   partName: string
   unit: string
   defaultLabelQty: number
-  itemSequenceCode: string | null
 }
 
 function normalizeUnit(value: string): string {
@@ -26,9 +24,6 @@ export function parseMasterItemInput(
   const partName = String(formData.get("partName") ?? "").trim()
   const unit = normalizeUnit(String(formData.get("unit") ?? ""))
   const rawQuantity = String(formData.get("defaultLabelQty") ?? "").trim()
-  const sequenceCode = String(formData.get("itemSequenceCode") ?? "")
-    .trim()
-    .toUpperCase()
 
   if (!partNoPattern.test(partNo)) {
     return {
@@ -42,14 +37,7 @@ export function parseMasterItemInput(
   if (!unitPattern.test(unit)) return { error: "Unit tidak valid." }
   if (!/^[1-9]\d{0,5}$/.test(rawQuantity)) {
     return {
-      error:
-        "Default label Qty harus berupa bilangan bulat lebih besar dari 0.",
-    }
-  }
-  if (sequenceCode && !sequenceCodePattern.test(sequenceCode)) {
-    return {
-      error:
-        "Kode sequence harus 2–64 karakter A–Z, angka, garis bawah, atau tanda minus.",
+      error: "Packing Qty harus berupa bilangan bulat lebih besar dari 0.",
     }
   }
 
@@ -59,7 +47,6 @@ export function parseMasterItemInput(
       partName,
       unit,
       defaultLabelQty: Number(rawQuantity),
-      itemSequenceCode: sequenceCode || null,
     },
   }
 }

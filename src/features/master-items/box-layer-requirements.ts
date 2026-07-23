@@ -1,100 +1,74 @@
-export type MasterItemBoxLayerRequirementInput = {
-  boxLayerId: string
-  requirements: { productId: string; expectedQty: number }[]
+export type BoxLayerRequirementInput = {
+  productId: string
+  expectedQty: number
 }
 
 type ParseResult =
-  | { data: MasterItemBoxLayerRequirementInput[] }
+  | { data: BoxLayerRequirementInput[] }
   | { error: string }
 
-export function parseMasterItemBoxLayersInput(
+export function parseBoxLayerRequirementsInput(
   formData: FormData,
 ): ParseResult {
-  const rawLayers = String(formData.get("layers") ?? "")
-  let layers: unknown
+  const rawRequirements = String(formData.get("requirements") ?? "")
+  let requirements: unknown
 
   try {
-    layers = JSON.parse(rawLayers)
+    requirements = JSON.parse(rawRequirements)
   } catch {
-    return { error: "Layer box tidak valid." }
+    return { error: "Requirement produk tidak valid." }
   }
 
-  if (!Array.isArray(layers)) return { error: "Layer box tidak valid." }
-  if (layers.length === 0) return { error: "Minimal satu layer wajib diisi." }
-  if (layers.length > 10) return { error: "Maksimal 10 layer per box." }
+  if (!Array.isArray(requirements)) {
+    return { error: "Requirement produk tidak valid." }
+  }
+  if (requirements.length === 0) {
+    return { error: "Minimal satu requirement wajib diisi." }
+  }
 
-  const parsedLayers: MasterItemBoxLayerRequirementInput[] = []
+  const parsedRequirements: BoxLayerRequirementInput[] = []
+  const productIds = new Set<string>()
 
-  for (const layer of layers) {
-    if (!layer || typeof layer !== "object") {
-      return { error: "Layer box tidak valid." }
+  for (const requirement of requirements) {
+    if (!requirement || typeof requirement !== "object") {
+      return { error: "Produk requirement wajib dipilih." }
     }
 
-    const { boxLayerId, requirements } = layer as {
-      boxLayerId?: unknown
-      requirements?: unknown
+    const { productId, expectedQty } = requirement as {
+      productId?: unknown
+      expectedQty?: unknown
     }
-    const normalizedBoxLayerId =
-      typeof boxLayerId === "string" ? boxLayerId.trim() : ""
+    const normalizedProductId =
+      typeof productId === "string" ? productId.trim() : ""
+    const rawExpectedQty =
+      typeof expectedQty === "string" || typeof expectedQty === "number"
+        ? String(expectedQty).trim()
+        : ""
 
-    if (!normalizedBoxLayerId) return { error: "Layer box tidak valid." }
-    if (!Array.isArray(requirements) || requirements.length === 0) {
-      return { error: "Minimal satu requirement wajib diisi." }
+    if (!normalizedProductId) {
+      return { error: "Produk requirement wajib dipilih." }
     }
-
-    const parsedRequirements: MasterItemBoxLayerRequirementInput["requirements"] =
-      []
-    const productIds = new Set<string>()
-
-    for (const requirement of requirements) {
-      if (!requirement || typeof requirement !== "object") {
-        return { error: "Produk requirement wajib dipilih." }
+    if (productIds.has(normalizedProductId)) {
+      return { error: "Produk requirement tidak boleh duplikat dalam satu layer." }
+    }
+    if (
+      !/^\d+$/.test(rawExpectedQty) ||
+      Number(rawExpectedQty) < 1 ||
+      Number(rawExpectedQty) > 1_000_000
+    ) {
+      return {
+        error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
       }
-
-      const { productId, expectedQty } = requirement as {
-        productId?: unknown
-        expectedQty?: unknown
-      }
-      const normalizedProductId =
-        typeof productId === "string" ? productId.trim() : ""
-      const rawExpectedQty =
-        typeof expectedQty === "string" || typeof expectedQty === "number"
-          ? String(expectedQty).trim()
-          : ""
-
-      if (!normalizedProductId) {
-        return { error: "Produk requirement wajib dipilih." }
-      }
-      if (productIds.has(normalizedProductId)) {
-        return {
-          error: "Produk requirement tidak boleh duplikat dalam satu layer.",
-        }
-      }
-      if (
-        !/^\d+$/.test(rawExpectedQty) ||
-        Number(rawExpectedQty) < 1 ||
-        Number(rawExpectedQty) > 1_000_000
-      ) {
-        return {
-          error:
-            "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
-        }
-      }
-
-      productIds.add(normalizedProductId)
-      parsedRequirements.push({
-        productId: normalizedProductId,
-        expectedQty: Number(rawExpectedQty),
-      })
     }
 
-    parsedLayers.push({
-      boxLayerId: normalizedBoxLayerId,
-      requirements: parsedRequirements,
+    productIds.add(normalizedProductId)
+    parsedRequirements.push({
+      productId: normalizedProductId,
+      expectedQty: Number(rawExpectedQty),
     })
   }
 
-  return { data: parsedLayers }
+  return { data: parsedRequirements }
 }
 
 export function masterItemBoxRpcErrorMessage(message: string): string {
@@ -102,21 +76,20 @@ export function masterItemBoxRpcErrorMessage(message: string): string {
     MASTER_ITEM_BOX_ADMIN_REQUIRED: "Aksi ini hanya tersedia untuk admin aktif.",
     MASTER_ITEM_BOX_MASTER_ITEM_NOT_FOUND:
       "Master Item tidak aktif atau tidak ditemukan.",
-    MASTER_ITEM_BOX_BOX_NOT_FOUND: "Box tidak aktif atau tidak ditemukan.",
-    MASTER_ITEM_BOX_INPUT_INVALID: "Data kebutuhan Box dan Layer tidak valid.",
-    MASTER_ITEM_BOX_LAYER_NOT_ALLOWED: "Layer tidak sesuai dengan box terpilih.",
+    MASTER_ITEM_BOX_LIMIT_REACHED: "Maksimal 3 Box per Master Item.",
+    MASTER_ITEM_BOX_NOT_FOUND: "Box tidak ditemukan.",
+    MASTER_ITEM_BOX_IN_USE: "Box sudah dipakai packing session dan terkunci.",
+    MASTER_ITEM_BOX_INPUT_INVALID: "Data kebutuhan produk tidak valid.",
     MASTER_ITEM_BOX_PRODUCT_NOT_ALLOWED:
       "Produk requirement tidak diizinkan untuk Master Item ini.",
-    MASTER_ITEM_BOX_EXISTS:
-      "Master Item ini sudah memakai box tersebut. Edit assignment yang ada.",
-    MASTER_ITEM_BOX_NOT_FOUND: "Assignment box tidak ditemukan.",
-    MASTER_ITEM_BOX_MISMATCH: "Assignment box tidak sesuai dengan Master Item ini.",
-    MASTER_ITEM_BOX_IN_USE: "Assignment box sudah digunakan dan tidak dapat diubah.",
-    MASTER_ITEM_BOX_INVALID: "Assignment box belum valid untuk diaktifkan.",
+    BOX_LAYER_LIMIT_REACHED: "Maksimal 10 layer per Box.",
+    BOX_LAYER_NOT_FOUND: "Layer tidak ditemukan.",
+    BOX_LAYER_NOT_LAST:
+      "Hanya layer terakhir yang bisa dihapus.",
   }
 
   return (
     messages[message] ??
-    "Aksi kebutuhan box Master Item gagal. Coba lagi atau hubungi admin."
+    "Aksi Box/Layer Master Item gagal. Coba lagi atau hubungi admin."
   )
 }
