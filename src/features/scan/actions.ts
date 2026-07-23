@@ -28,9 +28,8 @@ const safeRpcMessages: Record<string, string> = {
   BARCODE_PAYLOAD_TOO_LONG: "Payload QR melebihi batas yang diizinkan.",
   BARCODE_UNSUPPORTED_ENVELOPE: "Format QR belum didukung.",
   BARCODE_UNSUPPORTED_VERSION: "Versi QR belum didukung.",
-  MASTER_ITEM_BOX_NOT_ACTIVE_OR_MISMATCH:
-    "Assignment box sudah tidak aktif atau tidak sesuai dengan Master Item.",
-  MASTER_ITEM_BOX_EMPTY: "Assignment box ini belum punya requirement produk.",
+  BOX_NOT_FOUND_OR_MISMATCH: "Box tidak ditemukan atau tidak sesuai dengan Master Item.",
+  BOX_EMPTY: "Box ini belum punya requirement produk.",
   LABEL_ALREADY_SCANNED: "Label ini sudah pernah diterima.",
   LABEL_UID_MISSING: "QR tidak memiliki Label UID unik.",
   LAYER_QUANTITY_FULL: "Kebutuhan layer untuk produk ini sudah penuh.",
@@ -57,20 +56,20 @@ export async function startPackingSessionAction(
   formData: FormData,
 ): Promise<PackingSessionActionState> {
   const masterItemId = valueFromFormData(formData, "masterItemId")
-  const masterItemBoxId = valueFromFormData(formData, "boxDefinitionId")
+  const boxId = valueFromFormData(formData, "boxId")
 
   if (
     !masterItemId ||
-    !masterItemBoxId ||
+    !boxId ||
     !uuidPattern.test(masterItemId) ||
-    !uuidPattern.test(masterItemBoxId)
+    !uuidPattern.test(boxId)
   ) {
     return { error: "Master Item dan Box wajib dipilih." }
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("start_packing_session", {
-    p_master_item_box_id: masterItemBoxId,
+    p_box_id: boxId,
     p_master_item_id: masterItemId,
   })
 

@@ -21,6 +21,10 @@ import {
   VolumeOffIcon,
 } from "lucide-react"
 
+import {
+  CreateDeliveryNumberDialog,
+  type CreateDeliveryNumberSupplier,
+} from "@/features/delivery-numbers/components/create-delivery-number-dialog"
 import { finalizePackingSessionAction } from "@/features/finalize/actions"
 import { initialFinalizePackingSessionActionState } from "@/features/finalize/form-state"
 import {
@@ -59,12 +63,11 @@ export type ScanMasterItemOption = {
   partNo: string
 }
 
-export type ScanBoxDefinitionOption = {
+export type ScanBoxOption = {
   boxCode: string
   boxName: string
   id: string
   masterItemId: string
-  version: number
 }
 
 export type ScanLayerProgress = {
@@ -102,7 +105,6 @@ export type ActivePackingSessionView = {
   recentScans: RecentScan[]
   status: string
   totalExpectedQty: number
-  version: number
 }
 
 function percentage(acceptedQty: number, expectedQty: number): number {
@@ -162,7 +164,7 @@ function StartSessionForm({
   startPending,
   startState,
 }: {
-  allowedBoxes: ScanBoxDefinitionOption[]
+  allowedBoxes: ScanBoxOption[]
   masterItems: ScanMasterItemOption[]
   onCancel: (() => void) | null
   selectedBoxDefinitionId: string
@@ -217,7 +219,7 @@ function StartSessionForm({
               value={selectedMasterItemId}
             />
             <input
-              name="boxDefinitionId"
+              name="boxId"
               type="hidden"
               value={selectedBoxDefinitionId}
             />
@@ -261,8 +263,7 @@ function StartSessionForm({
                 <SelectContent>
                   {allowedBoxes.map((boxDefinition) => (
                     <SelectItem key={boxDefinition.id} value={boxDefinition.id}>
-                      {boxDefinition.boxCode} · {boxDefinition.boxName} (v
-                      {boxDefinition.version})
+                      {boxDefinition.boxCode} · {boxDefinition.boxName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -327,8 +328,7 @@ function SessionListView({
                 <div>
                   <p className="font-semibold">{session.masterItemPartNo}</p>
                   <p className="text-muted-foreground text-sm">
-                    {session.masterItemName} · {session.boxCode} ·{" "}
-                    {session.boxName} v{session.version}
+                    {session.masterItemName} · {session.boxCode} · {session.boxName}
                   </p>
                 </div>
                 <Badge
@@ -362,14 +362,16 @@ function SessionListView({
 
 export function PackingScanConsole({
   activeSessions,
-  boxDefinitions,
+  boxes,
   deliveryNumbers,
   masterItems,
+  suppliers,
 }: {
   activeSessions: ActivePackingSessionView[]
-  boxDefinitions: ScanBoxDefinitionOption[]
+  boxes: ScanBoxOption[]
   deliveryNumbers: DeliveryNumberOption[]
   masterItems: ScanMasterItemOption[]
+  suppliers: CreateDeliveryNumberSupplier[]
 }) {
   const router = useRouter()
   const [startState, startAction, startPending] = useActionState(
@@ -479,10 +481,10 @@ export function PackingScanConsole({
   }, [scanner.lastScan, scanner.muted])
   const allowedBoxes = useMemo(
     () =>
-      boxDefinitions.filter(
+      boxes.filter(
         (boxDefinition) => boxDefinition.masterItemId === selectedMasterItemId,
       ),
-    [boxDefinitions, selectedMasterItemId],
+    [boxes, selectedMasterItemId],
   )
 
   const previewLabelFields = useMemo(() => {
@@ -609,8 +611,7 @@ export function PackingScanConsole({
               {activeSession.masterItemPartNo}
             </h1>
             <p className="text-muted-foreground text-sm">
-              {activeSession.masterItemName} · {activeSession.boxCode} ·{" "}
-              {activeSession.boxName} v{activeSession.version}
+              {activeSession.masterItemName} · {activeSession.boxCode} · {activeSession.boxName}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -735,6 +736,12 @@ export function PackingScanConsole({
                 value={selectedDeliveryNumberId}
               />
               <FieldGroup>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-muted-foreground text-sm">
+                    Pilih Delivery Number aktif, atau buat baru.
+                  </p>
+                  <CreateDeliveryNumberDialog suppliers={suppliers} />
+                </div>
                 <Field>
                   <FieldLabel htmlFor="finalize-dn-search">
                     Cari Delivery Number

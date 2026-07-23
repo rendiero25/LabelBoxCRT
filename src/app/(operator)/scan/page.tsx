@@ -13,9 +13,10 @@ export default async function ScanPage() {
   const supabase = await createClient()
   const [
     masterItemsResult,
-    masterItemBoxesResult,
+    boxesResult,
     activeSessionsResult,
     deliveryNumbersResult,
+    suppliersResult,
   ] = await Promise.all([
     supabase
       .from("master_items")
@@ -23,15 +24,12 @@ export default async function ScanPage() {
       .eq("is_active", true)
       .order("part_no"),
     supabase
-      .from("master_item_boxes")
-      .select(
-        "id, master_item_id, box_id, version, boxes(box_code, box_name, is_active)",
-      )
-      .eq("is_active", true),
+      .from("boxes")
+      .select("id, master_item_id, box_no, box_code, box_name"),
     supabase
       .from("packing_sessions")
       .select(
-        "id, status, version, master_item_id, master_item_box_id, master_items(part_no, part_name), master_item_boxes(boxes(box_code, box_name), box_layer_requirements(box_layer_id, expected_qty, sort_order, box_layers(layer_no, layer_name, sort_order))), packing_session_scans(id, box_layer_id, result, error_code, scanned_at)",
+        "id, status, master_item_id, box_id, master_items(part_no, part_name), boxes(box_code, box_name, box_layers(id, layer_no, layer_name, sort_order, box_layer_requirements(expected_qty))), packing_session_scans(id, box_layer_id, result, error_code, scanned_at)",
       )
       .eq("operator_id", auth.userId)
       .in("status", ["scanning", "ready_to_finalize"])
@@ -43,23 +41,23 @@ export default async function ScanPage() {
       )
       .eq("status", "active")
       .order("delivery_number"),
+    supabase
+      .from("suppliers")
+      .select("id, supplier_code, supplier_name")
+      .eq("is_active", true)
+      .order("supplier_code"),
   ])
 
   const dataError =
     masterItemsResult.error ??
-    masterItemBoxesResult.error ??
+    boxesResult.error ??
     activeSessionsResult.error ??
-    deliveryNumbersResult.error
-  const activeMasterItemBoxes = (masterItemBoxesResult.data ?? []).filter(
-    (assignment): assignment is typeof assignment & {
-      boxes: NonNullable<typeof assignment.boxes>
-    } => assignment.boxes !== null && assignment.boxes.is_active,
-  )
+    deliveryNumbersResult.error ??
+    suppliersResult.error
+  const boxesByMasterItem = boxesResult.data ?? []
   const masterItems = (masterItemsResult.data ?? [])
     .filter((item) =>
-      activeMasterItemBoxes.some(
-        (assignment) => assignment.master_item_id === item.id,
-      ),
+      boxesByMasterItem.some((box) => box.master_item_id === item.id),
     )
     .map((item) => ({
       id: item.id,
@@ -67,12 +65,11 @@ export default async function ScanPage() {
       partName: item.part_name,
       partNo: item.part_no,
     }))
-  const boxDefinitions = activeMasterItemBoxes.map((assignment) => ({
-    id: assignment.id,
-    masterItemId: assignment.master_item_id,
-    boxCode: assignment.boxes.box_code,
-    boxName: assignment.boxes.box_name,
-    version: assignment.version,
+  const boxes = boxesByMasterItem.map((box) => ({
+    id: box.id,
+    masterItemId: box.master_item_id,
+    boxCode: box.box_code,
+    boxName: box.box_name,
   }))
   const activeSessions = (activeSessionsResult.data ?? [])
     .map(toActivePackingSession)
@@ -96,6 +93,11 @@ export default async function ScanPage() {
         left.supplierCode.localeCompare(right.supplierCode) ||
         left.deliveryNumber.localeCompare(right.deliveryNumber),
     )
+  const suppliers = (suppliersResult.data ?? []).map((supplier) => ({
+    id: supplier.id,
+    supplierCode: supplier.supplier_code,
+    supplierName: supplier.supplier_name,
+  }))
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -110,9 +112,10 @@ export default async function ScanPage() {
       ) : null}
       <PackingScanConsole
         activeSessions={activeSessions}
-        boxDefinitions={boxDefinitions}
+        boxes={boxes}
         deliveryNumbers={deliveryNumbers}
         masterItems={masterItems}
+        suppliers={suppliers}
       />
     </div>
   )
@@ -129,15 +132,16 @@ type DeliveryNumberQuery = {
 type ActiveSessionQuery = {
   id: string
   status: string
-  version: number
   master_items: { part_name: string; part_no: string } | null
-  master_item_boxes: {
-    boxes: { box_code: string; box_name: string } | null
-    box_layer_requirements: Array<{
-      box_layer_id: string
-      expected_qty: number
+  boxes: {
+    box_code: string
+    box_name: string
+    box_layers: Array<{
+      id: string
+      layer_no: number
+      layer_name: string
       sort_order: number
-      box_layers: { layer_no: number; layer_name: string; sort_order: number } | null
+      box_layer_requirements: Array<{ expected_qty: number }>
     }>
   } | null
   packing_session_scans: Array<{
@@ -152,69 +156,44 @@ type ActiveSessionQuery = {
 function toActivePackingSession(
   session: ActiveSessionQuery | null,
 ): ActivePackingSessionView | null {
-  if (!session?.master_items || !session.master_item_boxes?.boxes) return null
+  if (!session?.master_items || !session.boxes) return null
 
-  const layersById = new Map<
-    string,
-    { id: string; layerNo: number; layerName: string; sortOrder: number; expectedQty: number }
-  >()
-
-  for (const requirement of session.master_item_boxes.box_layer_requirements) {
-    if (!requirement.box_layers) continue
-    const existing = layersById.get(requirement.box_layer_id)
-    if (existing) {
-      existing.expectedQty += requirement.expected_qty
-    } else {
-      layersById.set(requirement.box_layer_id, {
-        id: requirement.box_layer_id,
-        layerNo: requirement.box_layers.layer_no,
-        layerName: requirement.box_layers.layer_name,
-        sortOrder: requirement.box_layers.sort_order,
-        expectedQty: requirement.expected_qty,
-      })
-    }
-  }
-
-  const layers = [...layersById.values()]
-    .sort((left, right) => left.sortOrder - right.sortOrder)
+  const layers = [...session.boxes.box_layers]
+    .sort((left, right) => left.sort_order - right.sort_order)
     .map((layer) => {
+      const expectedQty = layer.box_layer_requirements.reduce(
+        (total, requirement) => total + requirement.expected_qty,
+        0,
+      )
       const acceptedQty = session.packing_session_scans.filter(
         (scan) => scan.result === "accepted" && scan.box_layer_id === layer.id,
       ).length
 
       return {
         id: layer.id,
-        layerNo: layer.layerNo,
-        layerName: layer.layerName,
-        expectedQty: layer.expectedQty,
+        layerNo: layer.layer_no,
+        layerName: layer.layer_name,
+        expectedQty,
         acceptedQty,
       }
     })
-  const totalExpectedQty = layers.reduce(
-    (total, layer) => total + layer.expectedQty,
-    0,
-  )
-  const acceptedQty = layers.reduce(
-    (total, layer) => total + layer.acceptedQty,
-    0,
-  )
+  const totalExpectedQty = layers.reduce((total, layer) => total + layer.expectedQty, 0)
+  const acceptedQty = layers.reduce((total, layer) => total + layer.acceptedQty, 0)
 
   return {
     id: session.id,
     status: session.status,
-    version: session.version,
     masterItemPartNo: session.master_items.part_no,
     masterItemName: session.master_items.part_name,
-    boxCode: session.master_item_boxes.boxes.box_code,
-    boxName: session.master_item_boxes.boxes.box_name,
+    boxCode: session.boxes.box_code,
+    boxName: session.boxes.box_name,
     acceptedQty,
     totalExpectedQty,
     layers,
     recentScans: [...session.packing_session_scans]
       .sort(
         (left, right) =>
-          new Date(right.scanned_at).getTime() -
-          new Date(left.scanned_at).getTime(),
+          new Date(right.scanned_at).getTime() - new Date(left.scanned_at).getTime(),
       )
       .slice(0, 5)
       .map((scan) => ({
