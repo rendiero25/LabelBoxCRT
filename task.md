@@ -472,11 +472,16 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 > 126 unit test, typecheck/lint/build bersih). Desain terkunci di
 > [`docs/superpowers/specs/2026-07-22-phase-7-qz-print-design.md`](docs/superpowers/specs/2026-07-22-phase-7-qz-print-design.md).
 > Hardware terkonfirmasi: `ZDesigner ZD220-203dpi ZPL`, 203 dpi, media
-> 55×75 mm gap 3 mm, thermal transfer. Item yang belum dicentang butuh
-> tindakan fisik user: generate certificate (openssl, lihat
-> [`docs/phase-7/qz-certificate.md`](docs/phase-7/qz-certificate.md)), isi env
-> `QZ_PRIVATE_KEY`/`QZ_CERTIFICATE`, install cert ke Trusted Root, lalu drill
-> print 20 sample + failure tests di printer nyata.
+> 55×75 mm gap 3 mm, thermal transfer. Update 23 Juli 2026: dev certificate
+> RSA-2048/SHA-512 sudah di-generate (openssl, lihat
+> [`docs/phase-7/qz-certificate.md`](docs/phase-7/qz-certificate.md)) dan
+> `QZ_PRIVATE_KEY`/`QZ_CERTIFICATE` sudah terisi di `.env.local`; sign/verify
+> roundtrip dites via Node crypto langsung (cocok dengan parsing
+> `route.ts`), hasil valid. Private key PEM sudah dihapus dari disk sesuai
+> dokumentasi. Item yang belum dicentang tetap butuh tindakan fisik user:
+> install cert ke Trusted Root tiap workstation (`certmgr.msc`), test di
+> production domain, lalu drill print 20 sample + failure tests di printer
+> nyata.
 
 ## 7.1 QZ Client
 
@@ -489,7 +494,7 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 
 ## 7.2 Signing
 
-- [ ] Dev certificate. *(user: generate via openssl + isi env)*
+- [x] Dev certificate. *(self-signed generated 23 Juli 2026, `.env.local` diisi)*
 - [x] Production certificate/license decision. *(self-signed company root, D5)*
 - [x] Public certificate endpoint.
 - [x] Authenticated signing endpoint.
