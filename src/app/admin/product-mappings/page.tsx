@@ -25,7 +25,7 @@ export default async function ProductMappingsPage() {
       supabase
         .from("master_item_products")
         .select(
-          "id, is_active, master_items(id, item_code, part_no, part_name, is_active), products(id, product_code, part_name, normalized_dimensions, is_active)",
+          "id, is_active, master_items(id, item_code, part_no, part_name, is_active), products(id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions, is_active)",
         )
         .order("created_at", { ascending: false }),
       supabase
@@ -35,7 +35,9 @@ export default async function ProductMappingsPage() {
         .order("part_no"),
       supabase
         .from("products")
-        .select("id, product_code, part_name, normalized_dimensions, is_active")
+        .select(
+          "id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions, is_active",
+        )
         .eq("is_active", true)
         .order("product_code"),
     ],

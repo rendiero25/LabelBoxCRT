@@ -22,7 +22,10 @@ import {
   updateProductAction,
 } from "@/features/products/actions"
 import { initialProductActionState } from "@/features/products/form-state"
-import { useActionStateToast } from "@/components/shared/action-state-toast"
+import {
+  useActionStateToast,
+  useCloseOnActionSuccess,
+} from "@/components/shared/action-state-toast"
 import { PaginationControls } from "@/components/shared/pagination-controls"
 import {
   formatProductPreview,
@@ -395,9 +398,11 @@ function CreateProductDialog({ products }: { products: Product[] }) {
     initialProductActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button>
           <PlusIcon data-icon="inline-start" />
@@ -435,9 +440,11 @@ function EditProductDialog({
     initialProductActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <PencilIcon data-icon="inline-start" />
@@ -508,11 +515,14 @@ function ProductForm({
       candidate.id !== product?.id &&
       candidate.product_code === productCode.trim().toLowerCase(),
   )
+  const normalizedPartName = partName.trim().toLocaleLowerCase("id-ID")
   const duplicateDimensions = normalizedDimensions
     ? products.find(
         (candidate) =>
           candidate.id !== product?.id &&
-          candidate.normalized_dimensions === normalizedDimensions,
+          candidate.normalized_dimensions === normalizedDimensions &&
+          candidate.part_name.trim().toLocaleLowerCase("id-ID") ===
+            normalizedPartName,
       )
     : undefined
 
@@ -675,11 +685,13 @@ function ProductActiveAction({
     initialProductActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <AlertDialog>
+      <AlertDialog onOpenChange={setOpen} open={open}>
         <AlertDialogTrigger asChild>
           <Button size="sm" variant={isActive ? "destructive" : "outline"}>
             {isActive ? (
@@ -736,10 +748,12 @@ function DeleteProductAction({
     initialProductActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <AlertDialog>
+      <AlertDialog onOpenChange={setOpen} open={open}>
         <AlertDialogTrigger asChild>
           <Button size="sm" variant="destructive">
             <Trash2Icon data-icon="inline-start" />

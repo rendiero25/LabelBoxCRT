@@ -14,7 +14,11 @@ import {
   setProductMappingActiveAction,
 } from "@/features/product-mappings/actions"
 import { initialProductMappingActionState } from "@/features/product-mappings/form-state"
-import { useActionStateToast } from "@/components/shared/action-state-toast"
+import { formatProductPreview } from "@/features/products/validation"
+import {
+  useActionStateToast,
+  useCloseOnActionSuccess,
+} from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -74,8 +78,20 @@ export type ProductMappingProduct = {
   id: string
   product_code: string
   part_name: string
+  outer_diameter: number
+  inner_diameter: number
+  length: number
   normalized_dimensions: string | null
   is_active: boolean
+}
+
+function productPreviewLabel(product: ProductMappingProduct) {
+  return formatProductPreview(
+    product.part_name,
+    product.outer_diameter,
+    product.inner_diameter,
+    product.length,
+  )
 }
 
 export type ProductMapping = {
@@ -214,7 +230,7 @@ export function ProductMappingDirectory({
                     </div>
                   </TableCell>
                   <TableCell className="font-sans text-xs">
-                    {mapping.product.normalized_dimensions ?? "-"}
+                    {productPreviewLabel(mapping.product)}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -255,8 +271,33 @@ function CreateProductMappingDialog({
     initialProductMappingActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
   const [masterItemId, setMasterItemId] = useState("")
   const [productId, setProductId] = useState("")
+  useCloseOnActionSuccess(state, () => setOpen(false))
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      // Always start from a blank pick, even if the last session was closed
+      // after a successful create -- avoids the Selects visibly resetting to
+      // placeholder text while the dialog is still animating shut.
+      setMasterItemId("")
+      setProductId("")
+    }
+  }
+
+  const sortedProducts = useMemo(
+    () =>
+      [...products].sort(
+        (a, b) =>
+          a.part_name.localeCompare(b.part_name, "id-ID") ||
+          a.outer_diameter - b.outer_diameter ||
+          a.inner_diameter - b.inner_diameter ||
+          a.length - b.length,
+      ),
+    [products],
+  )
   const existingMapping = mappings.find(
     (mapping) =>
       mapping.masterItem.id === masterItemId &&
@@ -265,7 +306,7 @@ function CreateProductMappingDialog({
   const isDuplicate = existingMapping?.is_active ?? false
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button>
           <Link2Icon data-icon="inline-start" />
@@ -327,9 +368,9 @@ function CreateProductMappingDialog({
                   <SelectValue placeholder="Pilih produk aktif" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((product) => (
+                  {sortedProducts.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.product_code} - {product.part_name}
+                      {productPreviewLabel(product)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -363,11 +404,13 @@ function ProductMappingActiveAction({
     initialProductMappingActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <AlertDialog>
+      <AlertDialog onOpenChange={setOpen} open={open}>
         <AlertDialogTrigger asChild>
           <Button size="sm" variant={isActive ? "destructive" : "outline"}>
             {isActive ? (
@@ -477,8 +520,7 @@ function ReverseUsageView({ mappings }: { mappings: ProductMapping[] }) {
                           {product.product_code}
                         </span>
                         <span className="text-muted-foreground text-xs">
-                          {product.part_name} -{" "}
-                          {product.normalized_dimensions ?? "-"}
+                          {productPreviewLabel(product)}
                         </span>
                       </div>
                     </TableCell>
