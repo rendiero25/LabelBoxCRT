@@ -17,8 +17,8 @@ export default async function OperatorLayout({
           <Image
             src="/logo-crt.png"
             alt="CRT"
-            width={112}
-            height={42}
+            width={56}
+            height={21}
             priority
           />
           <div className="flex items-center gap-3">
