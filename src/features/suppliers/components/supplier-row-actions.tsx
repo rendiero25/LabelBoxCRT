@@ -1,11 +1,14 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { BanIcon, CheckIcon, CircleAlertIcon } from "lucide-react"
 
 import { setSupplierActiveAction } from "@/features/suppliers/actions"
 import { initialSupplierActionState } from "@/features/suppliers/form-state"
-import { useActionStateToast } from "@/components/shared/action-state-toast"
+import {
+  useActionStateToast,
+  useCloseOnActionSuccess,
+} from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -32,11 +35,13 @@ export function SupplierRowActions({
     initialSupplierActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <AlertDialog>
+      <AlertDialog onOpenChange={setOpen} open={open}>
         <AlertDialogTrigger asChild>
           <Button size="sm" variant={isActive ? "destructive" : "outline"}>
             {isActive ? (

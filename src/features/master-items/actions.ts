@@ -6,7 +6,7 @@ import { requireAdmin } from "@/features/auth/server"
 import type { MasterItemActionState } from "@/features/master-items/form-state"
 import {
   masterItemBoxRpcErrorMessage,
-  parseBoxLayerRequirementsInput,
+  parseLayerRequirementsPayload,
 } from "@/features/master-items/box-layer-requirements"
 import {
   masterItemRpcErrorMessage,
@@ -34,6 +34,7 @@ export async function createMasterItemAction(
     p_part_name: parsed.data.partName,
     p_unit: parsed.data.unit,
     p_default_label_qty: parsed.data.defaultLabelQty,
+    p_supplier_id: parsed.data.supplierId ?? undefined,
   })
 
   if (error) return { error: masterItemRpcErrorMessage(error.message) }
@@ -51,6 +52,8 @@ export async function updateMasterItemAction(
   const parsed = parseMasterItemInput(formData)
   if (!masterItemId) return { error: "Master Item tidak valid." }
   if ("error" in parsed) return { error: parsed.error }
+  const layerRequirements = parseLayerRequirementsPayload(formData)
+  if ("error" in layerRequirements) return { error: layerRequirements.error }
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("update_master_item", {
@@ -59,9 +62,26 @@ export async function updateMasterItemAction(
     p_part_name: parsed.data.partName,
     p_unit: parsed.data.unit,
     p_default_label_qty: parsed.data.defaultLabelQty,
+    p_supplier_id: parsed.data.supplierId ?? undefined,
   })
 
   if (error) return { error: masterItemRpcErrorMessage(error.message) }
+
+  for (const layer of layerRequirements.data) {
+    const { error: layerError } = await supabase.rpc(
+      "save_box_layer_requirements",
+      {
+        p_box_layer_id: layer.boxLayerId,
+        p_requirements: layer.requirements.map((requirement) => ({
+          product_id: requirement.productId,
+          expected_qty: requirement.expectedQty,
+        })) as Json,
+      },
+    )
+    if (layerError) {
+      return { error: masterItemBoxRpcErrorMessage(layerError.message) }
+    }
+  }
 
   revalidatePath("/admin/master-items")
   return { success: "Master Item diperbarui." }
@@ -90,6 +110,25 @@ export async function setMasterItemActiveAction(
       ? "Master Item diaktifkan."
       : "Master Item dinonaktifkan.",
   }
+}
+
+export async function deleteMasterItemAction(
+  _previousState: MasterItemActionState,
+  formData: FormData,
+): Promise<MasterItemActionState> {
+  await requireAdmin()
+  const masterItemId = masterItemIdFromFormData(formData)
+  if (!masterItemId) return { error: "Master Item tidak valid." }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_master_item", {
+    p_master_item_id: masterItemId,
+  })
+
+  if (error) return { error: masterItemRpcErrorMessage(error.message) }
+
+  revalidatePath("/admin/master-items")
+  return { success: "Master Item dihapus." }
 }
 
 function revalidateMasterItems() {
@@ -170,29 +209,4 @@ export async function deleteBoxLayerAction(
 
   revalidateMasterItems()
   return { success: "Layer dihapus." }
-}
-
-export async function saveBoxLayerRequirementsAction(
-  _previousState: MasterItemActionState,
-  formData: FormData,
-): Promise<MasterItemActionState> {
-  await requireAdmin()
-  const boxLayerId = String(formData.get("boxLayerId") ?? "").trim()
-  const parsed = parseBoxLayerRequirementsInput(formData)
-  if (!boxLayerId) return { error: "Layer tidak valid." }
-  if ("error" in parsed) return { error: parsed.error }
-
-  const supabase = await createClient()
-  const { error } = await supabase.rpc("save_box_layer_requirements", {
-    p_box_layer_id: boxLayerId,
-    p_requirements: parsed.data.map((requirement) => ({
-      product_id: requirement.productId,
-      expected_qty: requirement.expectedQty,
-    })) as Json,
-  })
-
-  if (error) return { error: masterItemBoxRpcErrorMessage(error.message) }
-
-  revalidateMasterItems()
-  return { success: "Produk per layer disimpan." }
 }

@@ -41,15 +41,15 @@ set local role authenticated;
 select has_function(
   'public',
   'create_master_item',
-  array['text', 'text', 'text', 'integer', 'text'],
-  'create_master_item takes part_no, part_name, unit, qty, and an optional item code'
+  array['text', 'text', 'text', 'integer', 'text', 'uuid'],
+  'create_master_item takes part_no, part_name, unit, qty, an optional item code, and an optional supplier'
 );
 
 select has_function(
   'public',
   'update_master_item',
-  array['uuid', 'text', 'text', 'text', 'integer'],
-  'update_master_item no longer accepts an item code'
+  array['uuid', 'text', 'text', 'text', 'integer', 'uuid'],
+  'update_master_item no longer accepts an item code but does accept an optional supplier'
 );
 
 select lives_ok(

@@ -300,6 +300,7 @@ export type Database = {
           item_code: string
           part_name: string
           part_no: string
+          supplier_id: string | null
           unit: string
           updated_at: string
         }
@@ -311,6 +312,7 @@ export type Database = {
           item_code: string
           part_name: string
           part_no: string
+          supplier_id?: string | null
           unit: string
           updated_at?: string
         }
@@ -322,10 +324,19 @@ export type Database = {
           item_code?: string
           part_name?: string
           part_no?: string
+          supplier_id?: string | null
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "master_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       packing_session_scans: {
         Row: {
@@ -893,6 +904,7 @@ export type Database = {
           p_item_code?: string
           p_part_name: string
           p_part_no: string
+          p_supplier_id?: string
           p_unit: string
         }
         Returns: {
@@ -903,6 +915,7 @@ export type Database = {
           item_code: string
           part_name: string
           part_no: string
+          supplier_id: string | null
           unit: string
           updated_at: string
         }[]
@@ -953,6 +966,10 @@ export type Database = {
         }[]
       }
       delete_box_layer: { Args: { p_box_layer_id: string }; Returns: undefined }
+      delete_master_item: {
+        Args: { p_master_item_id: string }
+        Returns: undefined
+      }
       delete_master_item_box: { Args: { p_box_id: string }; Returns: undefined }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
       finalize_packing_session: {
@@ -1050,6 +1067,7 @@ export type Database = {
           p_master_item_id: string
           p_part_name: string
           p_part_no: string
+          p_supplier_id?: string
           p_unit: string
         }
         Returns: {
@@ -1060,6 +1078,7 @@ export type Database = {
           item_code: string
           part_name: string
           part_no: string
+          supplier_id: string | null
           unit: string
           updated_at: string
         }[]

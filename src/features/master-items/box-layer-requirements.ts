@@ -3,72 +3,65 @@ export type BoxLayerRequirementInput = {
   expectedQty: number
 }
 
-type ParseResult =
-  | { data: BoxLayerRequirementInput[] }
-  | { error: string }
+export type LayerRequirementsEntry = {
+  boxLayerId: string
+  requirements: BoxLayerRequirementInput[]
+}
 
-export function parseBoxLayerRequirementsInput(
+type ParseAllResult = { data: LayerRequirementsEntry[] } | { error: string }
+
+export function parseLayerRequirementsPayload(
   formData: FormData,
-): ParseResult {
-  const rawRequirements = String(formData.get("requirements") ?? "")
-  let requirements: unknown
+): ParseAllResult {
+  const raw = String(formData.get("layerRequirements") ?? "").trim()
+  if (!raw) return { data: [] }
 
+  let payload: unknown
   try {
-    requirements = JSON.parse(rawRequirements)
+    payload = JSON.parse(raw)
   } catch {
-    return { error: "Requirement produk tidak valid." }
+    return { error: "Data requirement layer tidak valid." }
+  }
+  if (!Array.isArray(payload)) {
+    return { error: "Data requirement layer tidak valid." }
   }
 
-  if (!Array.isArray(requirements)) {
-    return { error: "Requirement produk tidak valid." }
-  }
-  if (requirements.length === 0) {
-    return { error: "Minimal satu requirement wajib diisi." }
-  }
+  const entries: LayerRequirementsEntry[] = []
 
-  const parsedRequirements: BoxLayerRequirementInput[] = []
-  const productIds = new Set<string>()
-
-  for (const requirement of requirements) {
-    if (!requirement || typeof requirement !== "object") {
-      return { error: "Produk requirement wajib dipilih." }
+  for (const entry of payload) {
+    if (!entry || typeof entry !== "object") {
+      return { error: "Data requirement layer tidak valid." }
+    }
+    const { boxLayerId, productIds } = entry as {
+      boxLayerId?: unknown
+      productIds?: unknown
+    }
+    const normalizedBoxLayerId =
+      typeof boxLayerId === "string" ? boxLayerId.trim() : ""
+    if (!normalizedBoxLayerId || !Array.isArray(productIds)) {
+      return { error: "Data requirement layer tidak valid." }
     }
 
-    const { productId, expectedQty } = requirement as {
-      productId?: unknown
-      expectedQty?: unknown
-    }
-    const normalizedProductId =
-      typeof productId === "string" ? productId.trim() : ""
-    const rawExpectedQty =
-      typeof expectedQty === "string" || typeof expectedQty === "number"
-        ? String(expectedQty).trim()
-        : ""
+    const normalizedProductIds = Array.from(
+      new Set(
+        productIds.filter(
+          (productId): productId is string =>
+            typeof productId === "string" && productId.trim().length > 0,
+        ),
+      ),
+    )
+    if (normalizedProductIds.length === 0) continue
 
-    if (!normalizedProductId) {
-      return { error: "Produk requirement wajib dipilih." }
-    }
-    if (productIds.has(normalizedProductId)) {
-      return { error: "Produk requirement tidak boleh duplikat dalam satu layer." }
-    }
-    if (
-      !/^\d+$/.test(rawExpectedQty) ||
-      Number(rawExpectedQty) < 1 ||
-      Number(rawExpectedQty) > 1_000_000
-    ) {
-      return {
-        error: "Qty requirement harus berupa bilangan bulat lebih besar dari 0.",
-      }
-    }
-
-    productIds.add(normalizedProductId)
-    parsedRequirements.push({
-      productId: normalizedProductId,
-      expectedQty: Number(rawExpectedQty),
+    entries.push({
+      boxLayerId: normalizedBoxLayerId,
+      requirements: normalizedProductIds.map((productId) => ({
+        productId,
+        expectedQty: 1,
+      })),
     })
   }
 
-  return { data: parsedRequirements }
+  return { data: entries }
 }
 
 export function masterItemBoxRpcErrorMessage(message: string): string {

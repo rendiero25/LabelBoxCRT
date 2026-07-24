@@ -12,20 +12,28 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import {
   createMasterItemAction,
+  deleteMasterItemAction,
   setMasterItemActiveAction,
   updateMasterItemAction,
 } from "@/features/master-items/actions"
 import {
-  MasterItemBoxLayerEditor,
+  initialLayerProductSelections,
+  layerProductSelectionsToPayload,
+  MasterItemBoxLayerFields,
+  type LayerProductSelections,
   type MasterItemBox,
   type ProductOption,
 } from "@/features/master-items/components/master-item-box-layer-editor"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
-import { useActionStateToast } from "@/components/shared/action-state-toast"
+import {
+  useActionStateToast,
+  useCloseOnActionSuccess,
+} from "@/components/shared/action-state-toast"
 import { PaginationControls } from "@/components/shared/pagination-controls"
 import {
   Popover,
@@ -60,12 +68,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -91,10 +94,17 @@ export type MasterItem = {
   part_name: string
   unit: string
   default_label_qty: number
+  supplier_id: string | null
   is_active: boolean
 }
 
-type SortColumn = "item_code" | "part_no" | "is_active"
+export type SupplierOption = {
+  id: string
+  supplier_code: string
+  supplier_name: string
+}
+
+type SortColumn = "part_no" | "is_active"
 type SortDirection = "asc" | "desc"
 
 const PAGE_SIZE = 20
@@ -103,14 +113,16 @@ export function MasterItemDirectory({
   boxes,
   masterItems,
   products,
+  suppliers,
 }: {
   boxes: MasterItemBox[]
   masterItems: MasterItem[]
   products: ProductOption[]
+  suppliers: SupplierOption[]
 }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
-  const [sortColumn, setSortColumn] = useState<SortColumn>("item_code")
+  const [sortColumn, setSortColumn] = useState<SortColumn>("part_no")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [page, setPage] = useState(1)
 
@@ -168,7 +180,6 @@ export function MasterItemDirectory({
   )
 
   const sortLabels: Record<SortColumn, string> = {
-    item_code: "Kode item",
     part_no: "Part No",
     is_active: "Status",
   }
@@ -259,7 +270,7 @@ export function MasterItemDirectory({
             </PopoverContent>
           </Popover>
         </div>
-        <CreateMasterItemDialog />
+        <CreateMasterItemDialog suppliers={suppliers} />
       </div>
 
       {filteredMasterItems.length === 0 ? (
@@ -291,7 +302,7 @@ export function MasterItemDirectory({
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">{masterItem.part_no}</span>
                       <span className="text-muted-foreground text-xs">
-                        {masterItem.item_code} · {masterItem.part_name}
+                        {masterItem.part_name}
                       </span>
                     </div>
                   </TableCell>
@@ -307,15 +318,19 @@ export function MasterItemDirectory({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-start gap-2">
-                      <EditMasterItemDialog masterItem={masterItem} />
-                      <MasterItemBoxLayerEditor
+                      <EditMasterItemDialog
                         boxes={boxes}
                         masterItem={masterItem}
                         products={products}
+                        suppliers={suppliers}
                       />
                       <MasterItemActiveAction
                         isActive={masterItem.is_active}
                         masterItemId={masterItem.id}
+                      />
+                      <DeleteMasterItemAction
+                        masterItemId={masterItem.id}
+                        partNo={masterItem.part_no}
                       />
                     </div>
                   </TableCell>
@@ -335,15 +350,17 @@ export function MasterItemDirectory({
   )
 }
 
-function CreateMasterItemDialog() {
+function CreateMasterItemDialog({ suppliers }: { suppliers: SupplierOption[] }) {
   const [state, formAction, isPending] = useActionState(
     createMasterItemAction,
     initialMasterItemActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button>
           <PlusIcon data-icon="inline-start" />
@@ -363,28 +380,57 @@ function CreateMasterItemDialog() {
           error={state.error}
           isPending={isPending}
           submitLabel="Buat Master Item"
+          suppliers={suppliers}
         />
       </DialogContent>
     </Dialog>
   )
 }
 
-function EditMasterItemDialog({ masterItem }: { masterItem: MasterItem }) {
+function EditMasterItemDialog({
+  boxes,
+  masterItem,
+  products,
+  suppliers,
+}: {
+  boxes: MasterItemBox[]
+  masterItem: MasterItem
+  products: ProductOption[]
+  suppliers: SupplierOption[]
+}) {
   const [state, formAction, isPending] = useActionState(
     updateMasterItemAction,
     initialMasterItemActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
+
+  const [selections, setSelections] = useState<LayerProductSelections>(() =>
+    initialLayerProductSelections(boxes, masterItem.id),
+  )
+
+  function toggleProduct(boxLayerId: string, productId: string) {
+    setSelections((previous) => {
+      const current = previous[boxLayerId] ?? []
+      const next = current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [...current, productId]
+      return { ...previous, [boxLayerId]: next }
+    })
+  }
+
+  const formId = `master-item-edit-form-${masterItem.id}`
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <PencilIcon data-icon="inline-start" />
           Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Edit Master Item</DialogTitle>
           <DialogDescription>
@@ -394,10 +440,27 @@ function EditMasterItemDialog({ masterItem }: { masterItem: MasterItem }) {
         <MasterItemForm
           action={formAction}
           error={state.error}
-          isPending={isPending}
+          formId={formId}
+          layerRequirementsJson={layerProductSelectionsToPayload(selections)}
           masterItem={masterItem}
-          submitLabel="Simpan perubahan"
+          showFooter={false}
+          suppliers={suppliers}
         />
+        <div className="border-t pt-5">
+          <MasterItemBoxLayerFields
+            boxes={boxes}
+            masterItem={masterItem}
+            onToggleProduct={toggleProduct}
+            products={products}
+            selections={selections}
+          />
+        </div>
+        <DialogFooter>
+          <Button disabled={isPending} form={formId} type="submit">
+            {isPending ? <Spinner data-icon="inline-start" /> : null}
+            Simpan perubahan
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -406,20 +469,40 @@ function EditMasterItemDialog({ masterItem }: { masterItem: MasterItem }) {
 function MasterItemForm({
   action,
   error,
+  formId,
   isPending,
+  layerRequirementsJson,
   masterItem,
+  showFooter = true,
   submitLabel,
+  suppliers,
 }: {
   action: (formData: FormData) => void
   error?: string
-  isPending: boolean
+  formId?: string
+  isPending?: boolean
+  layerRequirementsJson?: string
   masterItem?: MasterItem
-  submitLabel: string
+  showFooter?: boolean
+  submitLabel?: string
+  suppliers: SupplierOption[]
 }) {
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form
+      action={action}
+      className="flex flex-col gap-5"
+      id={formId}
+      noValidate
+    >
       {masterItem ? (
         <input name="masterItemId" type="hidden" value={masterItem.id} />
+      ) : null}
+      {layerRequirementsJson !== undefined ? (
+        <input
+          name="layerRequirements"
+          type="hidden"
+          value={layerRequirementsJson}
+        />
       ) : null}
       {error ? (
         <Alert variant="destructive">
@@ -428,38 +511,47 @@ function MasterItemForm({
         </Alert>
       ) : null}
       <FieldGroup>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field>
-            <FieldLabel
-              htmlFor={masterItem ? `itemCode-${masterItem.id}` : "itemCode"}
+        <Field>
+          <FieldLabel
+            htmlFor={masterItem ? `partNo-${masterItem.id}` : "partNo"}
+          >
+            Part No
+          </FieldLabel>
+          <Input
+            defaultValue={masterItem?.part_no}
+            id={masterItem ? `partNo-${masterItem.id}` : "partNo"}
+            maxLength={128}
+            name="partNo"
+            placeholder="3210A-K1Z-NA01-DL"
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel
+            htmlFor={masterItem ? `supplierId-${masterItem.id}` : "supplierId"}
+          >
+            Supplier
+          </FieldLabel>
+          <Select
+            defaultValue={masterItem?.supplier_id ?? "none"}
+            name="supplierId"
+          >
+            <SelectTrigger
+              className="w-full"
+              id={masterItem ? `supplierId-${masterItem.id}` : "supplierId"}
             >
-              Kode item
-            </FieldLabel>
-            <Input
-              disabled
-              id={masterItem ? `itemCode-${masterItem.id}` : "itemCode"}
-              value={masterItem?.item_code ?? "Dibuat otomatis setelah disimpan"}
-            />
-            <FieldDescription>
-              Kode item dibuat otomatis oleh sistem dan tidak bisa diubah.
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel
-              htmlFor={masterItem ? `partNo-${masterItem.id}` : "partNo"}
-            >
-              Part No
-            </FieldLabel>
-            <Input
-              defaultValue={masterItem?.part_no}
-              id={masterItem ? `partNo-${masterItem.id}` : "partNo"}
-              maxLength={128}
-              name="partNo"
-              placeholder="3210A-K1Z-NA01-DL"
-              required
-            />
-          </Field>
-        </div>
+              <SelectValue placeholder="Tanpa supplier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Tanpa supplier</SelectItem>
+              {suppliers.map((supplier) => (
+                <SelectItem key={supplier.id} value={supplier.id}>
+                  {supplier.supplier_code} — {supplier.supplier_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         <Field>
           <FieldLabel
             htmlFor={masterItem ? `partName-${masterItem.id}` : "partName"}
@@ -514,12 +606,14 @@ function MasterItemForm({
           </Field>
         </div>
       </FieldGroup>
-      <DialogFooter>
-        <Button disabled={isPending} type="submit">
-          {isPending ? <Spinner data-icon="inline-start" /> : null}
-          {submitLabel}
-        </Button>
-      </DialogFooter>
+      {showFooter ? (
+        <DialogFooter>
+          <Button disabled={isPending} type="submit">
+            {isPending ? <Spinner data-icon="inline-start" /> : null}
+            {submitLabel}
+          </Button>
+        </DialogFooter>
+      ) : null}
     </form>
   )
 }
@@ -536,11 +630,13 @@ function MasterItemActiveAction({
     initialMasterItemActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
   const actionLabel = isActive ? "Nonaktifkan" : "Aktifkan"
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <AlertDialog>
+      <AlertDialog onOpenChange={setOpen} open={open}>
         <AlertDialogTrigger asChild>
           <Button size="sm" variant={isActive ? "destructive" : "outline"}>
             {isActive ? (
@@ -571,6 +667,60 @@ function MasterItemActiveAction({
               >
                 {isPending ? <Spinner data-icon="inline-start" /> : null}
                 {actionLabel}
+              </Button>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+      {state.error ? (
+        <Alert className="max-w-xs" variant="destructive">
+          <CircleAlertIcon />
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </div>
+  )
+}
+
+function DeleteMasterItemAction({
+  masterItemId,
+  partNo,
+}: {
+  masterItemId: string
+  partNo: string
+}) {
+  const [state, formAction, isPending] = useActionState(
+    deleteMasterItemAction,
+    initialMasterItemActionState,
+  )
+  useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
+
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <AlertDialog onOpenChange={setOpen} open={open}>
+        <AlertDialogTrigger asChild>
+          <Button size="sm" variant="destructive">
+            <Trash2Icon data-icon="inline-start" />
+            Hapus
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Master Item {partNo}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini permanen. Master Item yang masih dipakai Box,
+              Product Mapping, atau riwayat packing tidak dapat dihapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <form action={formAction}>
+            <input name="masterItemId" type="hidden" value={masterItemId} />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <Button disabled={isPending} type="submit" variant="destructive">
+                {isPending ? <Spinner data-icon="inline-start" /> : null}
+                Hapus
               </Button>
             </AlertDialogFooter>
           </form>

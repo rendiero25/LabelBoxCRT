@@ -1,11 +1,14 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { CircleAlertIcon, PlusIcon } from "lucide-react"
 
 import { createDeliveryNumberAction } from "@/features/delivery-numbers/actions"
 import { initialDeliveryNumberActionState } from "@/features/delivery-numbers/form-state"
-import { useActionStateToast } from "@/components/shared/action-state-toast"
+import {
+  useActionStateToast,
+  useCloseOnActionSuccess,
+} from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -44,9 +47,11 @@ export function CreateDeliveryNumberDialog({
     initialDeliveryNumberActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button disabled={suppliers.length === 0} type="button" variant="outline">
           <PlusIcon data-icon="inline-start" />

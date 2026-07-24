@@ -1,37 +1,26 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { CircleAlertIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CircleAlertIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react"
 
 import {
   createBoxLayerAction,
   createMasterItemBoxAction,
   deleteBoxLayerAction,
   deleteMasterItemBoxAction,
-  saveBoxLayerRequirementsAction,
 } from "@/features/master-items/actions"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
+import { formatProductPreview } from "@/features/products/validation"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 
 export type MasterItem = {
@@ -76,18 +65,64 @@ export type MasterItemBox = {
   layers: BoxLayer[]
 }
 
-function productLabel(product: ProductOption) {
-  return `${product.productCode} - ${product.partName}${product.normalizedDimensions ? ` (${product.normalizedDimensions})` : ""}`
+/** boxLayerId -> selected product ids (checked = requirement, qty always 1) */
+export type LayerProductSelections = Record<string, string[]>
+
+export function initialLayerProductSelections(
+  boxes: MasterItemBox[],
+  masterItemId: string,
+): LayerProductSelections {
+  const selections: LayerProductSelections = {}
+  for (const box of boxes) {
+    if (box.masterItemId !== masterItemId) continue
+    for (const layer of box.layers) {
+      selections[layer.id] = layer.requirements.map(
+        (requirement) => requirement.productId,
+      )
+    }
+  }
+  return selections
 }
 
-export function MasterItemBoxLayerEditor({
+export function layerProductSelectionsToPayload(
+  selections: LayerProductSelections,
+) {
+  return JSON.stringify(
+    Object.entries(selections).map(([boxLayerId, productIds]) => ({
+      boxLayerId,
+      productIds,
+    })),
+  )
+}
+
+function productLabel(product: ProductOption) {
+  if (
+    product.outerDiameter === null ||
+    product.innerDiameter === null ||
+    product.length === null
+  ) {
+    return product.partName
+  }
+  return formatProductPreview(
+    product.partName,
+    product.outerDiameter,
+    product.innerDiameter,
+    product.length,
+  )
+}
+
+export function MasterItemBoxLayerFields({
   masterItem,
   boxes,
   products,
+  selections,
+  onToggleProduct,
 }: {
   masterItem: MasterItem
   boxes: MasterItemBox[]
   products: ProductOption[]
+  selections: LayerProductSelections
+  onToggleProduct: (boxLayerId: string, productId: string) => void
 }) {
   const ownBoxes = boxes
     .filter((box) => box.masterItemId === masterItem.id)
@@ -100,59 +135,54 @@ export function MasterItemBoxLayerEditor({
   useActionStateToast(createBoxState)
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Kelola Box
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="text-sm font-medium">Box dan Layer</h3>
+        <p className="text-muted-foreground text-xs">
+          Maksimal 3 Box per Master Item. Centang produk untuk menambahkan ke
+          layer.
+        </p>
+      </div>
+
+      {ownBoxes.map((box) => (
+        <BoxCard
+          box={box}
+          key={box.id}
+          onToggleProduct={onToggleProduct}
+          products={products}
+          selections={selections}
+        />
+      ))}
+
+      <form action={createBoxAction}>
+        <input name="masterItemId" type="hidden" value={masterItem.id} />
+        <Button
+          disabled={isCreatingBox || ownBoxes.length >= 3}
+          type="submit"
+          variant="outline"
+        >
+          {isCreatingBox ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <PlusIcon data-icon="inline-start" />
+          )}
+          Tambah Box {ownBoxes.length >= 3 ? "(maksimal 3)" : ""}
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Box dan Layer</DialogTitle>
-          <DialogDescription>
-            {masterItem.item_code} · {masterItem.part_no} · {masterItem.part_name}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-4">
-          {ownBoxes.map((box) => (
-            <BoxCard
-              box={box}
-              itemCode={masterItem.item_code}
-              key={box.id}
-              products={products}
-            />
-          ))}
-
-          <form action={createBoxAction}>
-            <input name="masterItemId" type="hidden" value={masterItem.id} />
-            <Button
-              disabled={isCreatingBox || ownBoxes.length >= 3}
-              type="submit"
-              variant="outline"
-            >
-              {isCreatingBox ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <PlusIcon data-icon="inline-start" />
-              )}
-              Tambah Box {ownBoxes.length >= 3 ? "(maksimal 3)" : ""}
-            </Button>
-          </form>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </form>
+    </div>
   )
 }
 
 function BoxCard({
   box,
-  itemCode,
+  onToggleProduct,
   products,
+  selections,
 }: {
   box: MasterItemBox
-  itemCode: string
+  onToggleProduct: (boxLayerId: string, productId: string) => void
   products: ProductOption[]
+  selections: LayerProductSelections
 }) {
   const [deleteBoxState, deleteBoxAction, isDeletingBox] = useActionState(
     deleteMasterItemBoxAction,
@@ -171,14 +201,7 @@ function BoxCard({
   return (
     <section className="flex flex-col gap-4 rounded-lg border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="font-medium">
-            {itemCode} - {box.boxName}
-          </h3>
-          <p className="text-muted-foreground text-xs">
-            ID: {box.boxCode}
-          </p>
-        </div>
+        <h3 className="font-medium">{box.boxName}</h3>
         <div className="flex items-center gap-2">
           {box.isUsed ? <Badge variant="secondary">Terpakai</Badge> : null}
           {!box.isUsed ? (
@@ -212,10 +235,11 @@ function BoxCard({
           <LayerCard
             box={box}
             highestLayerNo={highestLayerNo}
-            itemCode={itemCode}
             key={layer.id}
             layer={layer}
+            onToggleProduct={onToggleProduct}
             products={products}
+            selectedProductIds={selections[layer.id] ?? []}
           />
         ))}
       </div>
@@ -251,70 +275,34 @@ function BoxCard({
 function LayerCard({
   box,
   highestLayerNo,
-  itemCode,
   layer,
+  onToggleProduct,
   products,
+  selectedProductIds,
 }: {
   box: MasterItemBox
   highestLayerNo: number
-  itemCode: string
   layer: BoxLayer
+  onToggleProduct: (boxLayerId: string, productId: string) => void
   products: ProductOption[]
+  selectedProductIds: string[]
 }) {
-  const [requirements, setRequirements] = useState<BoxLayerRequirement[]>(
-    layer.requirements.length > 0
-      ? layer.requirements
-      : [{ productId: "", expectedQty: 1 }],
-  )
   const [deleteLayerState, deleteLayerAction, isDeletingLayer] = useActionState(
     deleteBoxLayerAction,
     initialMasterItemActionState,
   )
-  const [saveState, saveAction, isSaving] = useActionState(
-    saveBoxLayerRequirementsAction,
-    initialMasterItemActionState,
-  )
   useActionStateToast(deleteLayerState)
-  useActionStateToast(saveState)
 
   const canDeleteLayer = !box.isUsed && layer.layerNo === highestLayerNo
-
-  function updateRequirement(
-    index: number,
-    update: Partial<{ productId: string; expectedQty: number }>,
-  ) {
-    setRequirements(
-      requirements.map((requirement, requirementIndex) =>
-        requirementIndex === index
-          ? { ...requirement, ...update }
-          : requirement,
-      ),
-    )
-  }
-
-  function addRequirement() {
-    setRequirements([...requirements, { productId: "", expectedQty: 1 }])
-  }
-
-  function removeRequirement(index: number) {
-    if (requirements.length <= 1) return
-    setRequirements(requirements.filter((_, requirementIndex) => requirementIndex !== index))
-  }
-
-  const selectedElsewhere = (indexToKeep: number) =>
-    new Set(
-      requirements
-        .filter((_, index) => index !== indexToKeep)
-        .map((requirement) => requirement.productId)
-        .filter(Boolean),
-    )
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const selectedProducts = products.filter((product) =>
+    selectedProductIds.includes(product.id),
+  )
 
   return (
     <div className="rounded-md border p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h4 className="text-sm font-medium">
-          {itemCode} - {layer.layerName}
-        </h4>
+        <h4 className="text-sm font-medium">{layer.layerName}</h4>
         {canDeleteLayer ? (
           <form action={deleteLayerAction}>
             <input name="boxLayerId" type="hidden" value={layer.id} />
@@ -339,94 +327,59 @@ function LayerCard({
           <AlertDescription>{deleteLayerState.error}</AlertDescription>
         </Alert>
       ) : null}
-      {saveState.error ? (
-        <Alert className="mb-3" variant="destructive">
-          <CircleAlertIcon />
-          <AlertDescription>{saveState.error}</AlertDescription>
-        </Alert>
-      ) : null}
 
-      <form action={saveAction} className="flex flex-col gap-3">
-        <input name="boxLayerId" type="hidden" value={layer.id} />
-        <input
-          name="requirements"
-          type="hidden"
-          value={JSON.stringify(requirements)}
-        />
-        {requirements.map((requirement, index) => (
-          <div
-            className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto]"
-            key={`${layer.id}-${index}`}
-          >
-            <Field>
-              <FieldLabel>Produk</FieldLabel>
-              <Select
+      {/* Bagian 1: preview produk terpilih */}
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {selectedProducts.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Belum ada produk dipilih.
+          </p>
+        ) : (
+          selectedProducts.map((product) => (
+            <span
+              className="rounded-md border bg-secondary px-2 py-1 text-sm text-secondary-foreground"
+              key={product.id}
+            >
+              {productLabel(product)}
+            </span>
+          ))
+        )}
+      </div>
+
+      {/* Bagian 2: checklist produk, kolaps */}
+      <Button
+        className="w-full justify-between"
+        onClick={() => setIsPickerOpen((open) => !open)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        Pilih produk
+        {isPickerOpen ? (
+          <ChevronUpIcon className="size-4" />
+        ) : (
+          <ChevronDownIcon className="size-4" />
+        )}
+      </Button>
+
+      {isPickerOpen ? (
+        <div className="mt-2 max-h-80 columns-2 gap-x-4 overflow-y-auto rounded-md border p-2">
+          {products.map((product) => (
+            <label
+              className="mb-2 flex items-center gap-1.5 break-inside-avoid text-sm"
+              key={product.id}
+            >
+              <input
+                checked={selectedProductIds.includes(product.id)}
                 disabled={box.isUsed}
-                onValueChange={(productId) =>
-                  updateRequirement(index, { productId })
-                }
-                value={requirement.productId}
-              >
-                <SelectTrigger aria-label={`Pilih produk ${layer.layerName}`}>
-                  <SelectValue placeholder="Pilih produk aktif" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products
-                    .filter(
-                      (product) => !selectedElsewhere(index).has(product.id),
-                    )
-                    .map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {productLabel(product)}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`qty-${layer.id}-${index}`}>Qty</FieldLabel>
-              <Input
-                disabled={box.isUsed}
-                id={`qty-${layer.id}-${index}`}
-                min={1}
-                onChange={(event) =>
-                  updateRequirement(index, {
-                    expectedQty: Number(event.target.value),
-                  })
-                }
-                type="number"
-                value={requirement.expectedQty}
+                onChange={() => onToggleProduct(layer.id, product.id)}
+                type="checkbox"
               />
-            </Field>
-            {!box.isUsed ? (
-              <Button
-                aria-label="Hapus requirement"
-                className="self-end"
-                disabled={requirements.length === 1}
-                onClick={() => removeRequirement(index)}
-                size="icon"
-                type="button"
-                variant="outline"
-              >
-                <Trash2Icon />
-              </Button>
-            ) : null}
-          </div>
-        ))}
-
-        {!box.isUsed ? (
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={addRequirement} type="button" variant="outline">
-              <PlusIcon data-icon="inline-start" />
-              Tambah produk
-            </Button>
-            <Button disabled={isSaving} type="submit">
-              {isSaving ? <Spinner data-icon="inline-start" /> : null}
-              Simpan produk layer ini
-            </Button>
-          </div>
-        ) : null}
-      </form>
+              <span className="truncate">{productLabel(product)}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

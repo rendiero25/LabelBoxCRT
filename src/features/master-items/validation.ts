@@ -6,6 +6,7 @@ type MasterItemInput = {
   partName: string
   unit: string
   defaultLabelQty: number
+  supplierId: string | null
 }
 
 function normalizeUnit(value: string): string {
@@ -24,6 +25,9 @@ export function parseMasterItemInput(
   const partName = String(formData.get("partName") ?? "").trim()
   const unit = normalizeUnit(String(formData.get("unit") ?? ""))
   const rawQuantity = String(formData.get("defaultLabelQty") ?? "").trim()
+  const rawSupplierId = String(formData.get("supplierId") ?? "").trim()
+  const supplierId =
+    rawSupplierId && rawSupplierId !== "none" ? rawSupplierId : null
 
   if (!partNoPattern.test(partNo)) {
     return {
@@ -47,6 +51,7 @@ export function parseMasterItemInput(
       partName,
       unit,
       defaultLabelQty: Number(rawQuantity),
+      supplierId,
     },
   }
 }
@@ -56,10 +61,11 @@ export function masterItemRpcErrorMessage(message: string): string {
     MASTER_ITEM_ADMIN_REQUIRED: "Aksi ini hanya tersedia untuk admin aktif.",
     MASTER_ITEM_CODE_EXISTS: "Kode item sudah digunakan.",
     MASTER_ITEM_IN_USE:
-      "Master Item sudah memiliki session dan tidak dapat diubah.",
+      "Master Item masih dipakai (session packing, box, atau product mapping) dan tidak dapat diubah/dihapus.",
     MASTER_ITEM_INPUT_INVALID: "Data Master Item tidak valid.",
     MASTER_ITEM_NOT_FOUND: "Master Item tidak ditemukan.",
     MASTER_ITEM_PART_NO_EXISTS: "Part No sudah digunakan.",
+    MASTER_ITEM_SUPPLIER_NOT_FOUND: "Supplier tidak aktif atau tidak ditemukan.",
   }
 
   return (

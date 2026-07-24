@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { CircleAlertIcon, PencilIcon, PlusIcon } from "lucide-react"
 
 import {
@@ -8,7 +8,10 @@ import {
   updateSupplierAction,
 } from "@/features/suppliers/actions"
 import { initialSupplierActionState } from "@/features/suppliers/form-state"
-import { useActionStateToast } from "@/components/shared/action-state-toast"
+import {
+  useActionStateToast,
+  useCloseOnActionSuccess,
+} from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,9 +39,11 @@ export function CreateSupplierDialog() {
     initialSupplierActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button>
           <PlusIcon data-icon="inline-start" />
@@ -69,9 +74,11 @@ export function EditSupplierDialog({ supplier }: { supplier: Supplier }) {
     initialSupplierActionState,
   )
   useActionStateToast(state)
+  const [open, setOpen] = useState(false)
+  useCloseOnActionSuccess(state, () => setOpen(false))
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <PencilIcon data-icon="inline-start" />
