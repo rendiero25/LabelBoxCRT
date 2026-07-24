@@ -20,7 +20,7 @@ type CountResult = { count: number | null; error: { message: string } | null }
 
 async function activeCount(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  table: "suppliers" | "products" | "master_items" | "boxes",
+  table: "suppliers" | "products" | "master_items",
 ): Promise<CountResult> {
   const { count, error } = await supabase
     .from(table)
@@ -48,7 +48,7 @@ async function statusCount(
 
 async function totalCount(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  table: "audit_logs" | "packing_sessions" | "print_jobs",
+  table: "audit_logs" | "packing_sessions" | "print_jobs" | "boxes",
 ): Promise<CountResult> {
   const { count, error } = await supabase
     .from(table)
@@ -96,7 +96,7 @@ export default async function AdminPage() {
     statusCount(supabase, "delivery_numbers", "status", "active"),
     activeCount(supabase, "products"),
     activeCount(supabase, "master_items"),
-    activeCount(supabase, "boxes"),
+    totalCount(supabase, "boxes"),
     statusCount(supabase, "packing_sessions", "status", "scanning"),
     statusCount(supabase, "packing_sessions", "status", "ready_to_finalize"),
     statusCount(supabase, "print_jobs", "status", "pending"),
@@ -135,7 +135,7 @@ export default async function AdminPage() {
         {
           label: "Delivery Number aktif",
           value: formatCount(deliveryNumbers),
-          href: "/admin/delivery-numbers",
+          href: "/scan",
           icon: TruckIcon,
         },
         {
@@ -151,9 +151,9 @@ export default async function AdminPage() {
           icon: PackageIcon,
         },
         {
-          label: "Box aktif",
+          label: "Box terdaftar",
           value: formatCount(boxes),
-          href: "/admin/boxes",
+          href: "/admin/master-items",
           icon: FileStackIcon,
         },
       ],
