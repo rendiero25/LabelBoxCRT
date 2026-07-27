@@ -2,8 +2,10 @@ import type { FinalizedLabelSnapshot } from "@/lib/label/formatter"
 
 export type FinalizeSnapshot = FinalizedLabelSnapshot & {
   alreadyFinalized: boolean
+  lotNo: string
   packingSessionId: string
   printJobId: string
+  qtyDelivery: number
   sessionStatus: string
 }
 

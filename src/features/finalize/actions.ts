@@ -12,9 +12,8 @@ const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const safeRpcMessages: Record<string, string> = {
-  DELIVERY_NUMBER_INVALID: "Delivery Number tidak aktif atau tidak valid.",
-  DELIVERY_SUPPLIER_MISMATCH:
-    "Delivery Number tidak sesuai dengan supplier session ini.",
+  DELIVERY_NUMBER_INVALID:
+    "Delivery Number session ini sudah tidak aktif. Hubungi admin.",
   PACKING_SESSION_NOT_FOUND: "Packing session tidak ditemukan.",
   PACKING_SESSION_OPERATOR_MISMATCH:
     "Packing session ini bukan milik operator aktif.",
@@ -37,20 +36,13 @@ export async function finalizePackingSessionAction(
   formData: FormData,
 ): Promise<FinalizePackingSessionActionState> {
   const packingSessionId = valueFromFormData(formData, "packingSessionId")
-  const deliveryNumberId = valueFromFormData(formData, "deliveryNumberId")
 
-  if (
-    !packingSessionId ||
-    !deliveryNumberId ||
-    !uuidPattern.test(packingSessionId) ||
-    !uuidPattern.test(deliveryNumberId)
-  ) {
-    return { error: "Packing session dan Delivery Number wajib dipilih." }
+  if (!packingSessionId || !uuidPattern.test(packingSessionId)) {
+    return { error: "Packing session tidak valid." }
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("finalize_packing_session", {
-    p_delivery_number_id: deliveryNumberId,
     p_packing_session_id: packingSessionId,
   })
 
@@ -66,11 +58,14 @@ export async function finalizePackingSessionAction(
     deliveryDate: row.delivery_date,
     deliveryNumber: row.delivery_number,
     labelReference: row.label_reference,
+    lotNo: row.lot_no,
     packingSessionId: row.packing_session_id,
     partName: row.part_name,
     partNo: row.part_no,
     printJobId: row.print_job_id,
+    qrGeneratedAt: row.qr_generated_at,
     qty: row.qty,
+    qtyDelivery: row.qty_delivery,
     sequenceNo: row.sequence_no,
     sessionStatus: row.session_status,
     supplierCode: row.supplier_code,
