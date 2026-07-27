@@ -208,3 +208,175 @@ revoke execute on function public.start_packing_session(uuid, uuid, uuid, date, 
   from public, anon;
 grant execute on function public.start_packing_session(uuid, uuid, uuid, date, integer, text)
   to authenticated;
+
+drop function public.finalize_packing_session(uuid, uuid);
+
+create function public.finalize_packing_session(
+  p_packing_session_id uuid
+)
+returns table (
+  print_job_id uuid,
+  packing_session_id uuid,
+  session_status public.packing_session_status,
+  sequence_no bigint,
+  label_reference text,
+  supplier_code text,
+  supplier_name text,
+  part_no text,
+  part_name text,
+  qty integer,
+  delivery_number text,
+  delivery_date date,
+  box_code text,
+  box_name text,
+  qty_delivery integer,
+  lot_no text,
+  qr_generated_at timestamptz,
+  already_finalized boolean
+)
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+declare
+  target_session public.packing_sessions%rowtype;
+  target_item public.master_items%rowtype;
+  target_box public.boxes%rowtype;
+  target_dn public.delivery_numbers%rowtype;
+  target_supplier public.suppliers%rowtype;
+  existing_job public.print_jobs%rowtype;
+  new_job public.print_jobs%rowtype;
+  expected_total integer;
+  accepted_total integer;
+  new_sequence_no bigint;
+  new_label_reference text;
+  new_qr_generated_at timestamptz := statement_timestamp();
+  resulting_status public.packing_session_status;
+  finalize_correlation_id uuid := gen_random_uuid();
+begin
+  select * into target_session
+  from public.packing_sessions session
+  where session.id = p_packing_session_id
+  for update;
+
+  if target_session.id is null then
+    raise exception using errcode = 'P0001', message = 'PACKING_SESSION_NOT_FOUND';
+  end if;
+
+  if target_session.operator_id <> auth.uid() then
+    raise exception using errcode = 'P0001', message = 'PACKING_SESSION_OPERATOR_MISMATCH';
+  end if;
+
+  if target_session.status in ('print_pending', 'printing', 'sent_to_printer', 'confirmed') then
+    select * into existing_job
+    from public.print_jobs job
+    where job.packing_session_id = target_session.id
+      and job.parent_print_job_id is null;
+
+    if existing_job.id is null then
+      raise exception using errcode = 'P0001', message = 'SESSION_NOT_COMPLETE';
+    end if;
+
+    return query
+    select
+      existing_job.id, target_session.id, target_session.status,
+      existing_job.sequence_no, existing_job.label_reference,
+      existing_job.supplier_code_snapshot, existing_job.supplier_name_snapshot,
+      existing_job.part_no_snapshot, existing_job.part_name_snapshot,
+      existing_job.qty_snapshot, existing_job.delivery_number_snapshot,
+      existing_job.delivery_date_snapshot, existing_job.box_code_snapshot,
+      existing_job.box_name_snapshot, existing_job.qty_delivery_snapshot,
+      existing_job.lot_no_snapshot, existing_job.qr_generated_at_snapshot, true;
+    return;
+  end if;
+
+  if target_session.status <> 'ready_to_finalize' then
+    raise exception using errcode = 'P0001', message = 'SESSION_NOT_COMPLETE';
+  end if;
+
+  select * into target_item from public.master_items item where item.id = target_session.master_item_id;
+  select * into target_box from public.boxes box where box.id = target_session.box_id;
+
+  select coalesce(sum(requirement.expected_qty), 0)::integer into expected_total
+  from public.box_layer_requirements requirement
+  join public.box_layers layer on layer.id = requirement.box_layer_id
+  where layer.box_id = target_session.box_id;
+
+  select count(*)::integer into accepted_total
+  from public.packing_session_scans scan
+  where scan.packing_session_id = target_session.id
+    and scan.result = 'accepted';
+
+  if expected_total <= 0 or accepted_total <> expected_total then
+    raise exception using errcode = 'P0001', message = 'SESSION_NOT_COMPLETE';
+  end if;
+
+  -- The DN was resolved at session start. It can still have been closed or
+  -- cancelled by an admin while the operator was scanning, so re-check
+  -- rather than trusting the stored id.
+  select * into target_dn from public.delivery_numbers dn
+  where dn.id = target_session.delivery_number_id and dn.status = 'active';
+
+  if target_dn.id is null then
+    raise exception using errcode = 'P0001', message = 'DELIVERY_NUMBER_INVALID';
+  end if;
+
+  select * into target_supplier from public.suppliers supplier where supplier.id = target_dn.supplier_id;
+
+  if target_supplier.id is null then
+    raise exception using errcode = 'P0001', message = 'DELIVERY_NUMBER_INVALID';
+  end if;
+
+  select nextval('public.print_job_sequence') into new_sequence_no;
+
+  new_label_reference := new_sequence_no::text || '-'
+    || to_char(target_dn.delivery_date, 'DDMMYY') || '-' || target_box.box_code;
+
+  insert into public.print_jobs (
+    packing_session_id, status, supplier_code_snapshot, supplier_name_snapshot,
+    part_no_snapshot, part_name_snapshot, qty_snapshot, delivery_number_snapshot,
+    delivery_date_snapshot, box_code_snapshot, box_name_snapshot,
+    qty_delivery_snapshot, lot_no_snapshot, qr_generated_at_snapshot,
+    sequence_no, label_reference, template_version, zpl_payload, created_by
+  ) values (
+    target_session.id, 'pending', target_supplier.supplier_code, target_supplier.supplier_name,
+    target_item.part_no, target_item.part_name, target_item.default_label_qty,
+    target_dn.delivery_number, target_dn.delivery_date, target_box.box_code, target_box.box_name,
+    target_session.qty_delivery, target_session.lot_no, new_qr_generated_at,
+    new_sequence_no, new_label_reference, 'v2', 'PENDING_ZPL_GENERATION', auth.uid()
+  )
+  returning * into new_job;
+
+  update public.packing_sessions session
+  set status = 'print_pending', finalized_at = statement_timestamp()
+  where session.id = target_session.id
+  returning session.status into resulting_status;
+
+  insert into public.audit_logs (actor_id, action, entity_type, entity_id, metadata, correlation_id)
+  values (
+    auth.uid(), 'packing_session.finalized', 'packing_session', target_session.id::text,
+    jsonb_build_object(
+      'print_job_id', new_job.id, 'sequence_no', new_sequence_no,
+      'label_reference', new_label_reference,
+      'delivery_number_id', target_session.delivery_number_id,
+      'master_item_id', target_session.master_item_id, 'box_id', target_session.box_id,
+      'qty_snapshot', target_item.default_label_qty,
+      'qty_delivery_snapshot', target_session.qty_delivery
+    ),
+    finalize_correlation_id
+  );
+
+  return query
+  select
+    new_job.id, target_session.id, resulting_status, new_sequence_no, new_label_reference,
+    target_supplier.supplier_code, target_supplier.supplier_name, target_item.part_no,
+    target_item.part_name, target_item.default_label_qty, target_dn.delivery_number,
+    target_dn.delivery_date, target_box.box_code, target_box.box_name,
+    target_session.qty_delivery, target_session.lot_no, new_qr_generated_at, false;
+end;
+$$;
+
+revoke execute on function public.finalize_packing_session(uuid) from public, anon;
+grant execute on function public.finalize_packing_session(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
