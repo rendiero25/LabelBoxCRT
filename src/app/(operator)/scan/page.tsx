@@ -11,48 +11,35 @@ import { createClient } from "@/lib/supabase/server"
 export default async function ScanPage() {
   const auth = await requireOperator()
   const supabase = await createClient()
-  const [
-    masterItemsResult,
-    boxesResult,
-    activeSessionsResult,
-    deliveryNumbersResult,
-    suppliersResult,
-  ] = await Promise.all([
-    supabase
-      .from("master_items")
-      .select("id, item_code, part_no, part_name")
-      .eq("is_active", true)
-      .order("part_no"),
-    supabase
-      .from("boxes")
-      .select("id, master_item_id, box_no, box_code, box_name"),
-    supabase
-      .from("packing_sessions")
-      .select(
-        "id, status, master_item_id, box_id, master_items(part_no, part_name), boxes(box_code, box_name, box_layers(id, layer_no, layer_name, sort_order, box_layer_requirements(expected_qty))), packing_session_scans(id, box_layer_id, result, error_code, scanned_at)",
-      )
-      .eq("operator_id", auth.userId)
-      .in("status", ["scanning", "ready_to_finalize"])
-      .order("started_at", { ascending: false }),
-    supabase
-      .from("delivery_numbers")
-      .select(
-        "id, delivery_number, delivery_date, supplier_id, suppliers(supplier_code, supplier_name)",
-      )
-      .eq("status", "active")
-      .order("delivery_number"),
-    supabase
-      .from("suppliers")
-      .select("id, supplier_code, supplier_name")
-      .eq("is_active", true)
-      .order("supplier_code"),
-  ])
+  const [masterItemsResult, boxesResult, activeSessionsResult, suppliersResult] =
+    await Promise.all([
+      supabase
+        .from("master_items")
+        .select("id, item_code, part_no, part_name, default_label_qty, supplier_id")
+        .eq("is_active", true)
+        .order("part_no"),
+      supabase
+        .from("boxes")
+        .select("id, master_item_id, box_no, box_code, box_name"),
+      supabase
+        .from("packing_sessions")
+        .select(
+          "id, status, master_item_id, box_id, master_items(part_no, part_name), boxes(box_code, box_name, box_layers(id, layer_no, layer_name, sort_order, box_layer_requirements(expected_qty))), packing_session_scans(id, box_layer_id, result, error_code, scanned_at)",
+        )
+        .eq("operator_id", auth.userId)
+        .in("status", ["scanning", "ready_to_finalize"])
+        .order("started_at", { ascending: false }),
+      supabase
+        .from("suppliers")
+        .select("id, supplier_code, supplier_name")
+        .eq("is_active", true)
+        .order("supplier_code"),
+    ])
 
   const dataError =
     masterItemsResult.error ??
     boxesResult.error ??
     activeSessionsResult.error ??
-    deliveryNumbersResult.error ??
     suppliersResult.error
   const boxesByMasterItem = boxesResult.data ?? []
   const masterItems = (masterItemsResult.data ?? [])
@@ -61,9 +48,11 @@ export default async function ScanPage() {
     )
     .map((item) => ({
       id: item.id,
+      defaultLabelQty: item.default_label_qty,
       itemCode: item.item_code,
       partName: item.part_name,
       partNo: item.part_no,
+      supplierId: item.supplier_id,
     }))
   const boxes = boxesByMasterItem.map((box) => ({
     id: box.id,
@@ -74,25 +63,6 @@ export default async function ScanPage() {
   const activeSessions = (activeSessionsResult.data ?? [])
     .map(toActivePackingSession)
     .filter((session): session is ActivePackingSessionView => session !== null)
-  const deliveryNumbers = (deliveryNumbersResult.data ?? [])
-    .filter(
-      (deliveryNumber): deliveryNumber is DeliveryNumberQuery & {
-        suppliers: NonNullable<DeliveryNumberQuery["suppliers"]>
-      } => deliveryNumber.suppliers !== null,
-    )
-    .map((deliveryNumber) => ({
-      id: deliveryNumber.id,
-      deliveryDate: deliveryNumber.delivery_date,
-      deliveryNumber: deliveryNumber.delivery_number,
-      supplierCode: deliveryNumber.suppliers.supplier_code,
-      supplierId: deliveryNumber.supplier_id,
-      supplierName: deliveryNumber.suppliers.supplier_name,
-    }))
-    .sort(
-      (left, right) =>
-        left.supplierCode.localeCompare(right.supplierCode) ||
-        left.deliveryNumber.localeCompare(right.deliveryNumber),
-    )
   const suppliers = (suppliersResult.data ?? []).map((supplier) => ({
     id: supplier.id,
     supplierCode: supplier.supplier_code,
@@ -113,20 +83,11 @@ export default async function ScanPage() {
       <PackingScanConsole
         activeSessions={activeSessions}
         boxes={boxes}
-        deliveryNumbers={deliveryNumbers}
         masterItems={masterItems}
         suppliers={suppliers}
       />
     </div>
   )
-}
-
-type DeliveryNumberQuery = {
-  delivery_date: string
-  delivery_number: string
-  id: string
-  supplier_id: string
-  suppliers: { supplier_code: string; supplier_name: string } | null
 }
 
 type ActiveSessionQuery = {
