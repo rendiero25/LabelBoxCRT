@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(42);
+select plan(41);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -29,11 +29,15 @@ insert into public.profiles (id, display_name, role, is_active) values
   ('a6100000-0000-0000-0000-000000000001', 'Phase 6 Operator', 'operator', true),
   ('a6100000-0000-0000-0000-000000000002', 'Phase 6 Other Operator', 'operator', true);
 
+insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
+  ('a6700000-0000-0000-0000-000000000001', 'PH6SUP', 'Phase 6 Supplier', true);
+
 insert into public.master_items (
-  id, item_code, part_no, part_name, unit, default_label_qty, is_active
+  id, item_code, part_no, part_name, unit, default_label_qty, supplier_id, is_active
 ) values (
   'a6200000-0000-0000-0000-000000000001',
-  'phase6-item', 'PHASE6-PART', 'Phase 6 Part', 'Pcs', 40, true
+  'phase6-item', 'PHASE6-PART', 'Phase 6 Part', 'Pcs', 40,
+  'a6700000-0000-0000-0000-000000000001', true
 );
 
 insert into public.products (
@@ -73,9 +77,6 @@ insert into public.box_layer_requirements (
     'a6500000-0000-0000-0000-000000000002', 'a6300000-0000-0000-0000-000000000001', 5, 1
   );
 
-insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
-  ('a6700000-0000-0000-0000-000000000001', 'PH6SUP', 'Phase 6 Supplier', true);
-
 insert into public.delivery_numbers (
   id, supplier_id, delivery_number, delivery_date, status, created_by
 ) values
@@ -84,23 +85,15 @@ insert into public.delivery_numbers (
     'DN-PHASE6-ACTIVE', date '2026-05-15', 'active', 'a6100000-0000-0000-0000-000000000001'
   ),
   (
-    'a6800000-0000-0000-0000-000000000002', 'a6700000-0000-0000-0000-000000000001',
-    'DN-PHASE6-DRAFT', date '2026-05-15', 'draft', 'a6100000-0000-0000-0000-000000000001'
-  ),
-  (
-    'a6800000-0000-0000-0000-000000000003', 'a6700000-0000-0000-0000-000000000001',
-    'DN-PHASE6-CLOSED', date '2026-05-15', 'closed', 'a6100000-0000-0000-0000-000000000001'
-  ),
-  (
-    'a6800000-0000-0000-0000-000000000004', 'a6700000-0000-0000-0000-000000000001',
-    'DN-PHASE6-CANCELLED', date '2026-05-15', 'cancelled', 'a6100000-0000-0000-0000-000000000001'
+    'a6800000-0000-0000-0000-000000000005', 'a6700000-0000-0000-0000-000000000001',
+    'DN-PHASE6-LATER', date '2026-06-20', 'active', 'a6100000-0000-0000-0000-000000000001'
   );
 
 select has_function(
   'public',
   'finalize_packing_session',
-  array['uuid', 'uuid'],
-  'finalize_packing_session RPC exists'
+  array['uuid'],
+  'finalize_packing_session RPC takes only the session id'
 );
 
 select has_sequence(
@@ -121,7 +114,7 @@ select ok(
 
 select ok(
   not has_function_privilege(
-    'anon', 'public.finalize_packing_session(uuid, uuid)', 'EXECUTE'
+    'anon', 'public.finalize_packing_session(uuid)', 'EXECUTE'
   ),
   'anon has no execute privilege on finalize_packing_session'
 );
@@ -138,7 +131,11 @@ create temporary table phase6_session_a as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6400000-0000-0000-0000-000000000001'
+  'a6400000-0000-0000-0000-000000000001',
+  'a6700000-0000-0000-0000-000000000001',
+  date '2026-05-15',
+  25,
+  'LOT-P6-A'
 );
 grant select on phase6_session_a to public;
 
@@ -234,8 +231,7 @@ select set_config(
 select throws_ok(
   $$
     select public.finalize_packing_session(
-      (select session_id from phase6_session_a),
-      'a6800000-0000-0000-0000-000000000001'
+      (select session_id from phase6_session_a)
     )
   $$,
   'P0001',
@@ -255,8 +251,7 @@ set local role anon;
 select throws_ok(
   $$
     select public.finalize_packing_session(
-      (select session_id from phase6_session_a),
-      'a6800000-0000-0000-0000-000000000001'
+      (select session_id from phase6_session_a)
     )
   $$,
   '42501',
@@ -276,8 +271,7 @@ select set_config(
 create temporary table phase6_finalize_a1 as
 select *
 from public.finalize_packing_session(
-  (select session_id from phase6_session_a),
-  'a6800000-0000-0000-0000-000000000001'
+  (select session_id from phase6_session_a)
 );
 grant select on phase6_finalize_a1 to public;
 
@@ -315,13 +309,24 @@ select is(
   'finalize snapshots supplier, part, DN, and box fields onto the print job'
 );
 
+select is(
+  (select qty_delivery::text || ':' || lot_no from phase6_finalize_a1),
+  '25:LOT-P6-A',
+  'finalize snapshots the manual qty delivery and lot no'
+);
+
+select isnt(
+  (select qr_generated_at from phase6_finalize_a1),
+  null,
+  'finalize stamps the QR generation timestamp'
+);
+
 -- Idempotent replay: a second finalize call (retry, or the loser of a
 -- concurrent race after waiting on the row lock) returns the same job.
 create temporary table phase6_finalize_a2 as
 select *
 from public.finalize_packing_session(
-  (select session_id from phase6_session_a),
-  'a6800000-0000-0000-0000-000000000001'
+  (select session_id from phase6_session_a)
 );
 grant select on phase6_finalize_a2 to public;
 
@@ -386,7 +391,11 @@ create temporary table phase6_session_b as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6400000-0000-0000-0000-000000000001'
+  'a6400000-0000-0000-0000-000000000001',
+  'a6700000-0000-0000-0000-000000000001',
+  date '2026-06-20',
+  30,
+  'LOT-P6-B'
 );
 grant select on phase6_session_b to public;
 
@@ -466,52 +475,30 @@ select is(
   'eighth session B scan transitions to ready_to_finalize'
 );
 
-select throws_ok(
-  $$
-    select public.finalize_packing_session(
-      (select session_id from phase6_session_b),
-      'a6800000-0000-0000-0000-000000000002'
-    )
-  $$,
-  'P0001',
-  'DELIVERY_NUMBER_INVALID',
-  'a draft Delivery Number is rejected'
+-- The DN was valid when session B started. An admin closing it mid-session
+-- must block finalize rather than let a box print against a closed DN.
+reset role;
+
+update public.delivery_numbers
+set status = 'closed'
+where id = 'a6800000-0000-0000-0000-000000000005';
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'a6100000-0000-0000-0000-000000000001',
+  true
 );
 
 select throws_ok(
   $$
     select public.finalize_packing_session(
-      (select session_id from phase6_session_b),
-      'a6800000-0000-0000-0000-000000000003'
+      (select session_id from phase6_session_b)
     )
   $$,
   'P0001',
   'DELIVERY_NUMBER_INVALID',
-  'a closed Delivery Number is rejected'
-);
-
-select throws_ok(
-  $$
-    select public.finalize_packing_session(
-      (select session_id from phase6_session_b),
-      'a6800000-0000-0000-0000-000000000004'
-    )
-  $$,
-  'P0001',
-  'DELIVERY_NUMBER_INVALID',
-  'a cancelled Delivery Number is rejected'
-);
-
-select throws_ok(
-  $$
-    select public.finalize_packing_session(
-      (select session_id from phase6_session_b),
-      'a6800000-0000-0000-0000-000000000099'
-    )
-  $$,
-  'P0001',
-  'DELIVERY_NUMBER_INVALID',
-  'a nonexistent Delivery Number is rejected'
+  'a Delivery Number closed mid-session blocks finalize'
 );
 
 select is(
@@ -544,14 +531,17 @@ create temporary table phase6_session_c as
 select *
 from public.start_packing_session(
   'a6200000-0000-0000-0000-000000000001',
-  'a6400000-0000-0000-0000-000000000001'
+  'a6400000-0000-0000-0000-000000000001',
+  'a6700000-0000-0000-0000-000000000001',
+  date '2026-05-15',
+  15,
+  'LOT-P6-C'
 );
 
 select throws_ok(
   $$
     select public.finalize_packing_session(
-      (select session_id from phase6_session_c),
-      'a6800000-0000-0000-0000-000000000001'
+      (select session_id from phase6_session_c)
     )
   $$,
   'P0001',
