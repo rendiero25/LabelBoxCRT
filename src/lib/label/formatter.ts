@@ -15,6 +15,8 @@ export type FinalizedLabelSnapshot = {
   deliveryDate: string
   boxCode: string
   boxName: string
+  /** ISO timestamp stamped when the print job (and its QR) was created. */
+  qrGeneratedAt: string
 }
 
 export type FormattedLabelFields = {
@@ -25,6 +27,7 @@ export type FormattedLabelFields = {
   deliveryNumber: string
   boxName: string
   deliveryDate: string
+  qrPayload: string
 }
 
 const isoDatePattern = /^(\d{4})-(\d{2})-(\d{2})/
@@ -61,6 +64,33 @@ function formatDeliveryDate(isoDate: string): string {
   return `${dayText.padStart(2, "0")}-${monthName}-${yearText}`
 }
 
+function formatQrDate(isoTimestamp: string): string {
+  const match = isoDatePattern.exec(isoTimestamp)
+  if (!match) {
+    throw new Error(
+      `formatQrDate: expected an ISO timestamp (YYYY-MM-DD...), received "${isoTimestamp}"`,
+    )
+  }
+
+  const [, yearText, monthText, dayText] = match
+  return `${dayText}-${monthText}-${yearText}`
+}
+
+/**
+ * Pipe-separated QR content, locked by the 2026-07-24 scan-page spec:
+ * supplier code, Part No, packing qty, label reference, QR generation date.
+ * The label reference already encodes {sequence}-{DDMMYY}-{box code}.
+ */
+function buildQrPayload(snapshot: FinalizedLabelSnapshot): string {
+  return [
+    snapshot.supplierCode,
+    snapshot.partNo,
+    String(snapshot.qty),
+    snapshot.labelReference,
+    formatQrDate(snapshot.qrGeneratedAt),
+  ].join("|")
+}
+
 export function formatLabelFields(
   snapshot: FinalizedLabelSnapshot,
 ): FormattedLabelFields {
@@ -72,5 +102,6 @@ export function formatLabelFields(
     deliveryNumber: snapshot.deliveryNumber,
     boxName: snapshot.boxName,
     deliveryDate: formatDeliveryDate(snapshot.deliveryDate),
+    qrPayload: buildQrPayload(snapshot),
   }
 }

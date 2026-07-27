@@ -16,6 +16,7 @@ const baseSnapshot: FinalizedLabelSnapshot = {
   deliveryDate: "2026-05-15",
   boxCode: "B101",
   boxName: "Standard Box",
+  qrGeneratedAt: "2026-07-24T09:15:00.000Z",
 }
 
 describe("formatLabelFields", () => {
@@ -28,6 +29,7 @@ describe("formatLabelFields", () => {
       deliveryNumber: "DN-2026-0042",
       boxName: "Standard Box",
       deliveryDate: "15-May-2026",
+      qrPayload: "10015|PN-0001|100|1-150526-B101|24-07-2026",
     })
   })
 
@@ -96,6 +98,26 @@ describe("formatLabelFields", () => {
   it("throws when deliveryDate is not a parseable ISO date", () => {
     expect(() =>
       formatLabelFields({ ...baseSnapshot, deliveryDate: "15-05-2026" }),
+    ).toThrow()
+  })
+
+  it("builds the QR payload as five pipe-separated fields", () => {
+    expect(formatLabelFields(baseSnapshot).qrPayload).toBe(
+      "10015|PN-0001|100|1-150526-B101|24-07-2026",
+    )
+  })
+
+  it("formats the QR date as DD-MM-YYYY from a full timestamp", () => {
+    const result = formatLabelFields({
+      ...baseSnapshot,
+      qrGeneratedAt: "2026-12-31T23:59:59.123Z",
+    })
+    expect(result.qrPayload.endsWith("|31-12-2026")).toBe(true)
+  })
+
+  it("throws when qrGeneratedAt is not a parseable ISO timestamp", () => {
+    expect(() =>
+      formatLabelFields({ ...baseSnapshot, qrGeneratedAt: "24/07/2026" }),
     ).toThrow()
   })
 })
