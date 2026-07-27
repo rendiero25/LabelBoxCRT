@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(35);
+select plan(42);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -23,8 +23,12 @@ insert into public.profiles (id, display_name, role, is_active) values
   ('95100000-0000-0000-0000-000000000001', 'Phase 5 Operator', 'operator', true),
   ('95100000-0000-0000-0000-000000000002', 'Phase 5 Other Operator', 'operator', true);
 
+insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
+  ('95900000-0000-0000-0000-000000000001', 'PH5SUP', 'Phase 5 Supplier', true),
+  ('95900000-0000-0000-0000-000000000002', 'PH5OFF', 'Phase 5 Inactive Supplier', false);
+
 insert into public.master_items (
-  id, item_code, part_no, part_name, unit, default_label_qty, is_active
+  id, item_code, part_no, part_name, unit, default_label_qty, supplier_id, is_active
 ) values
   (
     '96100000-0000-0000-0000-000000000001',
@@ -33,6 +37,7 @@ insert into public.master_items (
     'Phase 5 Part',
     'Pcs',
     100,
+    '95900000-0000-0000-0000-000000000001',
     true
   ),
   (
@@ -42,6 +47,7 @@ insert into public.master_items (
     'Phase 5 Other Part',
     'Pcs',
     100,
+    '95900000-0000-0000-0000-000000000001',
     true
   );
 
@@ -121,8 +127,8 @@ insert into public.box_layer_requirements (
 select has_function(
   'public',
   'start_packing_session',
-  array['uuid', 'uuid'],
-  'start packing-session RPC exists'
+  array['uuid', 'uuid', 'uuid', 'date', 'integer', 'text'],
+  'start packing-session RPC takes master item, box, supplier, delivery date, qty delivery, and lot no'
 );
 
 select has_function(
@@ -167,7 +173,11 @@ select throws_ok(
   $$
     select public.start_packing_session(
       '96100000-0000-0000-0000-000000000099',
-      '98100000-0000-0000-0000-000000000001'
+      '98100000-0000-0000-0000-000000000001',
+      '95900000-0000-0000-0000-000000000001',
+      date '2026-05-15',
+      40,
+      'LOT-P5-A'
     )
   $$,
   'P0001',
@@ -179,7 +189,11 @@ select throws_ok(
   $$
     select public.start_packing_session(
       '96100000-0000-0000-0000-000000000002',
-      '98100000-0000-0000-0000-000000000001'
+      '98100000-0000-0000-0000-000000000001',
+      '95900000-0000-0000-0000-000000000001',
+      date '2026-05-15',
+      40,
+      'LOT-P5-A'
     )
   $$,
   'P0001',
@@ -187,13 +201,87 @@ select throws_ok(
   'start requires the selected Box to belong to its Master Item'
 );
 
+select throws_ok(
+  $$
+    select public.start_packing_session(
+      '96100000-0000-0000-0000-000000000001',
+      '98100000-0000-0000-0000-000000000001',
+      '95900000-0000-0000-0000-000000000002',
+      date '2026-05-15',
+      40,
+      'LOT-P5-A'
+    )
+  $$,
+  'P0001',
+  'DELIVERY_NUMBER_SUPPLIER_INVALID',
+  'start rejects an inactive supplier'
+);
+
+select throws_ok(
+  $$
+    select public.start_packing_session(
+      '96100000-0000-0000-0000-000000000001',
+      '98100000-0000-0000-0000-000000000001',
+      '95900000-0000-0000-0000-000000000001',
+      date '2026-05-15',
+      0,
+      'LOT-P5-A'
+    )
+  $$,
+  'P0001',
+  'QTY_DELIVERY_INVALID',
+  'start rejects a non-positive qty delivery'
+);
+
+select throws_ok(
+  $$
+    select public.start_packing_session(
+      '96100000-0000-0000-0000-000000000001',
+      '98100000-0000-0000-0000-000000000001',
+      '95900000-0000-0000-0000-000000000001',
+      date '2026-05-15',
+      40,
+      '   '
+    )
+  $$,
+  'P0001',
+  'LOT_NO_INVALID',
+  'start rejects a blank lot no'
+);
+
 create temporary table phase5_b101_session as
 select *
 from public.start_packing_session(
   '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000001'
+  '98100000-0000-0000-0000-000000000001',
+  '95900000-0000-0000-0000-000000000001',
+  date '2026-05-15',
+  40,
+  'LOT-P5-A'
 );
 grant select on phase5_b101_session to public;
+
+select isnt(
+  (select delivery_number_id from phase5_b101_session),
+  null,
+  'start resolves a Delivery Number onto the session'
+);
+
+select matches(
+  (select delivery_number from phase5_b101_session),
+  '^DN-[0-9]{6}$',
+  'an auto-created Delivery Number uses the generated code format'
+);
+
+select is(
+  (
+    select qty_delivery::text || ':' || lot_no
+    from public.packing_sessions
+    where id = (select session_id from phase5_b101_session)
+  ),
+  '40:LOT-P5-A',
+  'start persists the manual qty delivery and lot no'
+);
 
 select is(
   (select status::text from phase5_b101_session),
@@ -374,7 +462,17 @@ create temporary table phase5_second_session as
 select *
 from public.start_packing_session(
   '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000001'
+  '98100000-0000-0000-0000-000000000001',
+  '95900000-0000-0000-0000-000000000001',
+  date '2026-05-15',
+  40,
+  'LOT-P5-B'
+);
+
+select is(
+  (select delivery_number_id from phase5_second_session),
+  (select delivery_number_id from phase5_b101_session),
+  'a second session on the same supplier and date reuses the same Delivery Number'
 );
 
 select is(
@@ -409,7 +507,11 @@ create temporary table phase5_overflow_session as
 select *
 from public.start_packing_session(
   '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000002'
+  '98100000-0000-0000-0000-000000000002',
+  '95900000-0000-0000-0000-000000000001',
+  date '2026-05-15',
+  40,
+  'LOT-P5-C'
 );
 
 select is(
@@ -600,7 +702,11 @@ select throws_ok(
   $$
     select public.start_packing_session(
       '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001'
+      '98100000-0000-0000-0000-000000000001',
+      '95900000-0000-0000-0000-000000000001',
+      date '2026-05-15',
+      40,
+      'LOT-P5-A'
     )
   $$,
   '42501',
