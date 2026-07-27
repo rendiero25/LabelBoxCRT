@@ -1,26 +1,40 @@
 import type { FormattedLabelFields } from "@/lib/label/formatter"
 
 /**
- * ZPL template v1 for Zebra ZD220 (203 dpi), media 55 mm x 75 mm with 3 mm
+ * ZPL template v2 for Zebra ZD220 (203 dpi), media 55 mm x 75 mm with 3 mm
  * gap, thermal-transfer wax ribbon. Layout locked by
- * docs/superpowers/specs/2026-07-22-phase-7-qz-print-design.md — no barcode
- * in v1.
+ * docs/superpowers/specs/2026-07-24-scan-page-consolidated-form-design.md.
+ *
+ * v2 tightens the seven text rows (pitch 80 -> 52 dots, fonts one step
+ * smaller) so the bottom third of the label is free for the QR block. Text
+ * ends at y=374; the QR occupies y=392..557 of the 600 available dots.
  */
-export const TEMPLATE_VERSION = "v1"
+export const TEMPLATE_VERSION = "v2"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 55 * DOTS_PER_MM // 440
 export const LABEL_LENGTH_DOTS = 75 * DOTS_PER_MM // 600
 
 const MARGIN_DOTS = 16
-const ROW_HEIGHT_DOTS = 80
-const FIRST_ROW_Y = 24
-const LABEL_FONT = "^A0N,20,20"
-const VALUE_FONT = "^A0N,28,28"
-const VALUE_FONT_LARGE = "^A0N,34,34"
+const ROW_HEIGHT_DOTS = 52
+const FIRST_ROW_Y = 16
+const VALUE_OFFSET_Y = 22
+const LABEL_FONT = "^A0N,18,18"
+const VALUE_FONT = "^A0N,24,24"
+const VALUE_FONT_LARGE = "^A0N,30,30"
 const MAX_CHARS = 28
 const MAX_CHARS_LARGE = 22
 const ELLIPSIS = "..."
+
+/**
+ * Model 2 QR at magnification 5. A ~52-character byte-mode payload needs
+ * version 4 (33 modules), so 33 x 5 = 165 dots wide — centred horizontally
+ * and clear of the text rows above.
+ */
+const QR_MAGNIFICATION = 5
+const QR_MODULES = 33
+const QR_Y = 392
+const QR_X = Math.floor((LABEL_WIDTH_DOTS - QR_MODULES * QR_MAGNIFICATION) / 2)
 
 /**
  * ^FH hex-escape (underscore prefix). Underscore itself must be replaced
@@ -65,9 +79,15 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
     const value = escapeZplText(truncate(row.value, maxChars))
     commands.push(
       `^FO${MARGIN_DOTS},${y}${LABEL_FONT}^FD${row.label}^FS`,
-      `^FO${MARGIN_DOTS},${y + 26}${font}^FH^FD${value}^FS`,
+      `^FO${MARGIN_DOTS},${y + VALUE_OFFSET_Y}${font}^FH^FD${value}^FS`,
     )
   })
+
+  // ^BQ data is prefixed with the error-correction level (M) and input mode
+  // (A, auto). The prefix must not be hex-escaped; only the payload is.
+  commands.push(
+    `^FO${QR_X},${QR_Y}^BQN,2,${QR_MAGNIFICATION}^FH^FDMA,${escapeZplText(fields.qrPayload)}^FS`,
+  )
 
   commands.push("^XZ")
   return commands.join("\n")

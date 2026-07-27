@@ -17,6 +17,7 @@ const sampleFields: FormattedLabelFields = {
   deliveryNumber: "DN-2026-0001",
   boxName: "Box Utama",
   deliveryDate: "15-May-2026",
+  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-150526-B101|24-07-2026",
 }
 
 describe("escapeZplText", () => {
@@ -36,8 +37,8 @@ describe("escapeZplText", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v1 and 203dpi 55x75mm dot dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v1")
+  it("exports template version v2 and 203dpi 55x75mm dot dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v2")
     expect(LABEL_WIDTH_DOTS).toBe(440)
     expect(LABEL_LENGTH_DOTS).toBe(600)
   })
@@ -78,5 +79,29 @@ describe("buildLabelZpl", () => {
 
   it("matches the golden sample layout", () => {
     expect(zpl).toMatchSnapshot()
+  })
+
+  it("emits a QR block with the payload after the text rows", () => {
+    expect(zpl).toContain("^BQN,2,5")
+    expect(zpl).toContain(
+      "^FDMA,10015|3210A-K1Z-NA01-DL|100|1-150526-B101|24-07-2026^FS",
+    )
+  })
+
+  it("keeps every element inside the 440x600 dot media area", () => {
+    const origins = [...zpl.matchAll(/\^FO(\d+),(\d+)/g)]
+    expect(origins.length).toBeGreaterThan(0)
+    for (const [, x, y] of origins) {
+      expect(Number(x)).toBeLessThan(LABEL_WIDTH_DOTS)
+      expect(Number(y)).toBeLessThan(LABEL_LENGTH_DOTS)
+    }
+  })
+
+  it("escapes ZPL control characters inside the QR payload", () => {
+    const zplEscaped = buildLabelZpl({
+      ...sampleFields,
+      qrPayload: "A^B~C_D",
+    })
+    expect(zplEscaped).toContain("^FDMA,A_5eB_7eC_5fD^FS")
   })
 })
