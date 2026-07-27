@@ -427,8 +427,10 @@ export type Database = {
           delivery_number_id: string | null
           finalized_at: string | null
           id: string
+          lot_no: string | null
           master_item_id: string
           operator_id: string
+          qty_delivery: number | null
           ready_at: string | null
           started_at: string
           status: Database["public"]["Enums"]["packing_session_status"]
@@ -442,8 +444,10 @@ export type Database = {
           delivery_number_id?: string | null
           finalized_at?: string | null
           id?: string
+          lot_no?: string | null
           master_item_id: string
           operator_id: string
+          qty_delivery?: number | null
           ready_at?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["packing_session_status"]
@@ -457,8 +461,10 @@ export type Database = {
           delivery_number_id?: string | null
           finalized_at?: string | null
           id?: string
+          lot_no?: string | null
           master_item_id?: string
           operator_id?: string
+          qty_delivery?: number | null
           ready_at?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["packing_session_status"]
@@ -548,10 +554,13 @@ export type Database = {
           delivery_number_snapshot: string
           id: string
           label_reference: string
+          lot_no_snapshot: string | null
           packing_session_id: string
           parent_print_job_id: string | null
           part_name_snapshot: string
           part_no_snapshot: string
+          qr_generated_at_snapshot: string | null
+          qty_delivery_snapshot: number | null
           qty_snapshot: number
           sent_at: string | null
           sequence_no: number
@@ -573,10 +582,13 @@ export type Database = {
           delivery_number_snapshot: string
           id?: string
           label_reference: string
+          lot_no_snapshot?: string | null
           packing_session_id: string
           parent_print_job_id?: string | null
           part_name_snapshot: string
           part_no_snapshot: string
+          qr_generated_at_snapshot?: string | null
+          qty_delivery_snapshot?: number | null
           qty_snapshot: number
           sent_at?: string | null
           sequence_no: number
@@ -598,10 +610,13 @@ export type Database = {
           delivery_number_snapshot?: string
           id?: string
           label_reference?: string
+          lot_no_snapshot?: string | null
           packing_session_id?: string
           parent_print_job_id?: string | null
           part_name_snapshot?: string
           part_no_snapshot?: string
+          qr_generated_at_snapshot?: string | null
+          qty_delivery_snapshot?: number | null
           qty_snapshot?: number
           sent_at?: string | null
           sequence_no?: number
@@ -915,7 +930,7 @@ export type Database = {
           item_code: string
           part_name: string
           part_no: string
-          supplier_id: string | null
+          supplier_id: string
           unit: string
           updated_at: string
         }[]
@@ -973,7 +988,7 @@ export type Database = {
       delete_master_item_box: { Args: { p_box_id: string }; Returns: undefined }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
       finalize_packing_session: {
-        Args: { p_delivery_number_id: string; p_packing_session_id: string }
+        Args: { p_packing_session_id: string }
         Returns: {
           already_finalized: boolean
           box_code: string
@@ -981,11 +996,14 @@ export type Database = {
           delivery_date: string
           delivery_number: string
           label_reference: string
+          lot_no: string
           packing_session_id: string
           part_name: string
           part_no: string
           print_job_id: string
+          qr_generated_at: string
           qty: number
+          qty_delivery: number
           sequence_no: number
           session_status: Database["public"]["Enums"]["packing_session_status"]
           supplier_code: string
@@ -1031,10 +1049,19 @@ export type Database = {
         }[]
       }
       start_packing_session: {
-        Args: { p_box_id: string; p_master_item_id: string }
+        Args: {
+          p_box_id: string
+          p_delivery_date: string
+          p_lot_no: string
+          p_master_item_id: string
+          p_qty_delivery: number
+          p_supplier_id: string
+        }
         Returns: {
           accepted_qty: number
           box_id: string
+          delivery_number: string
+          delivery_number_id: string
           master_item_id: string
           operator_id: string
           session_id: string
@@ -1078,7 +1105,7 @@ export type Database = {
           item_code: string
           part_name: string
           part_no: string
-          supplier_id: string | null
+          supplier_id: string
           unit: string
           updated_at: string
         }[]
