@@ -19,7 +19,12 @@ vi.mock("@/features/print/use-qz-connection", () => ({
   useQzConnection: mocks.useQzConnection,
 }))
 
-vi.mock("@/features/print/printer-preference", () => ({
+// resolvePrinter stays real: deciding that a stored printer which QZ no longer
+// reports does not count as ready is the behaviour these tests exercise.
+vi.mock("@/features/print/printer-preference", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/features/print/printer-preference")
+  >()),
   readPreferredPrinter: mocks.readPreferredPrinter,
   savePreferredPrinter: vi.fn(),
 }))
@@ -41,42 +46,73 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function renderAppStatus(): string {
+function renderAppStatus({
+  printers,
+  status,
+  storedPrinter,
+}: {
+  printers: string[]
+  status: "connected" | "connecting" | "disconnected" | "error"
+  storedPrinter: string | null
+}): string {
+  mocks.useQzConnection.mockReturnValue({
+    connect: vi.fn(),
+    printers,
+    refreshPrinters: vi.fn(),
+    status: status as never,
+  })
+  mocks.readPreferredPrinter.mockReturnValue(storedPrinter)
+
   act(() => {
     root.render(<AppStatus />)
   })
   return container.innerHTML
 }
 
+/**
+ * The checklist itself lives in a Radix popover that only mounts once opened,
+ * so these assertions target the always-visible summary pill — the thing an
+ * operator actually glances at before scanning.
+ */
 describe("AppStatus", () => {
-  it("shows disconnected QZ and no printer by default", () => {
-    mocks.useQzConnection.mockReturnValue({
-      connect: vi.fn(),
-      printers: [],
-      refreshPrinters: vi.fn(),
-      status: "disconnected",
+  it("reports ready when QZ is connected and the stored printer is discovered", () => {
+    const html = renderAppStatus({
+      printers: ["ZDesigner ZD220-203dpi ZPL"],
+      status: "connected",
+      storedPrinter: "ZDesigner ZD220-203dpi ZPL",
     })
-    mocks.readPreferredPrinter.mockReturnValue(null)
 
-    const html = renderAppStatus()
-
-    expect(html).toContain("Aplikasi siap")
-    expect(html).toContain("QZ belum terhubung")
-    expect(html).toContain("Printer belum dipilih")
+    expect(html).toContain("Sistem siap")
   })
 
-  it("shows connected QZ and the stored printer name", () => {
-    mocks.useQzConnection.mockReturnValue({
-      connect: vi.fn(),
-      printers: ["ZDesigner ZD220-203dpi ZPL"],
-      refreshPrinters: vi.fn(),
-      status: "connected" as never,
+  it("reports attention needed when QZ is down and no printer is chosen", () => {
+    const html = renderAppStatus({
+      printers: [],
+      status: "disconnected",
+      storedPrinter: null,
     })
-    mocks.readPreferredPrinter.mockReturnValue("ZDesigner ZD220-203dpi ZPL")
 
-    const html = renderAppStatus()
+    expect(html).toContain("Perlu perhatian")
+  })
 
-    expect(html).toContain("QZ terhubung")
-    expect(html).toContain("Printer: ZDesigner ZD220-203dpi ZPL")
+  it("reports attention needed when the stored printer is no longer discovered", () => {
+    const html = renderAppStatus({
+      printers: ["Some Other Printer"],
+      status: "connected",
+      storedPrinter: "ZDesigner ZD220-203dpi ZPL",
+    })
+
+    expect(html).toContain("Perlu perhatian")
+    expect(html).not.toContain("Sistem siap")
+  })
+
+  it("reports still checking while QZ is connecting", () => {
+    const html = renderAppStatus({
+      printers: [],
+      status: "connecting",
+      storedPrinter: "ZDesigner ZD220-203dpi ZPL",
+    })
+
+    expect(html).toContain("Memeriksa sistem")
   })
 })

@@ -22,8 +22,30 @@ describe("parseMasterItemInput", () => {
         partName: "Tube Assy",
         unit: "Pcs",
         defaultLabelQty: 100,
+        supplierId: null,
       },
     })
+  })
+
+  it("treats a missing or placeholder supplier as no supplier", () => {
+    const blank = parseMasterItemInput(validFormData())
+    expect("data" in blank && blank.data.supplierId).toBe(null)
+
+    const placeholder = validFormData()
+    placeholder.set("supplierId", "none")
+    const parsedPlaceholder = parseMasterItemInput(placeholder)
+    expect("data" in parsedPlaceholder && parsedPlaceholder.data.supplierId).toBe(
+      null,
+    )
+  })
+
+  it("keeps a real supplier id", () => {
+    const formData = validFormData()
+    formData.set("supplierId", "0d5e6b1a-8f2c-4a3d-9e7b-1c2d3e4f5a6b")
+    const parsed = parseMasterItemInput(formData)
+    expect("data" in parsed && parsed.data.supplierId).toBe(
+      "0d5e6b1a-8f2c-4a3d-9e7b-1c2d3e4f5a6b",
+    )
   })
 
   it("no longer reads or requires itemSequenceCode", () => {
