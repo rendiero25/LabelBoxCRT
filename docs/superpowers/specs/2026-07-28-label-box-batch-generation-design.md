@@ -22,7 +22,7 @@
 - `set_no` maksimal 99 karena format 2 digit → `qty_delivery ≤ 99 × packing_qty`
 - `packing_qty` disnapshot dari `master_items.default_label_qty` saat generate
 - `master_item_row_no` = `row_number() over (order by item_code)` saat generate, disimpan permanen
-- DN dicari dengan `supplier_id` + nomor (unique index yang ada). Ketemu → dipakai ulang, tanggal wajib sama; belum ada → dibuat dengan `status = 'active'`
+- DN dicari dengan `supplier_id` + nomor (unique index yang ada). Ketemu → dipakai ulang, statusnya wajib `active` dan tanggalnya wajib sama; belum ada → dibuat dengan `status = 'active'`. Tabrakan penyisipan bersamaan ditangkap sebagai pemakaian ulang, bukan error mentah
 - QR payload 7 field pipe: `kodeSupplier|partNo|packingQty|masterItemRowNo|lotNo|boxNumber|tglDelivery(DD-MM-YYYY)`
   Contoh: `10015|PN-0001|100|1|LOT-A|B101|24-07-2026`
 
@@ -84,7 +84,7 @@ create_label_box_batch(
 6. Insert batch, lalu label box untuk tiap (set × box), rakit `qr_payload` di SQL
 7. Stempel `qr_generated_at`, tulis `audit_logs`
 
-Kode error: `LABEL_BOX_OPERATOR_REQUIRED` · `SUPPLIER_INVALID` · `MASTER_ITEM_NOT_ACTIVE` · `MASTER_ITEM_SUPPLIER_MISMATCH` · `MASTER_ITEM_HAS_NO_BOX` · `DELIVERY_NUMBER_INVALID` · `DELIVERY_NUMBER_DATE_MISMATCH` · `DELIVERY_DATE_INVALID` · `QTY_DELIVERY_INVALID` · `QTY_DELIVERY_NOT_MULTIPLE` · `LOT_NO_INVALID`
+Kode error: `LABEL_BOX_OPERATOR_REQUIRED` · `SUPPLIER_INVALID` · `MASTER_ITEM_NOT_ACTIVE` · `MASTER_ITEM_SUPPLIER_MISMATCH` · `MASTER_ITEM_HAS_NO_BOX` · `DELIVERY_NUMBER_INVALID` · `DELIVERY_NUMBER_NOT_ACTIVE` · `DELIVERY_NUMBER_DATE_MISMATCH` · `DELIVERY_DATE_INVALID` · `QTY_DELIVERY_INVALID` · `QTY_DELIVERY_NOT_MULTIPLE` · `LOT_NO_INVALID`
 
 ## UI
 

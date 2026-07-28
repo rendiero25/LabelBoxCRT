@@ -384,7 +384,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(16);
+select plan(17);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -621,6 +621,37 @@ select throws_ok(
   'lot no kosong ditolak'
 );
 
+-- Admin bisa menutup DN kapan saja; label tidak boleh dibuat setelahnya.
+reset role;
+
+update public.delivery_numbers
+set status = 'closed'
+where supplier_id = '95190000-0000-0000-0000-000000000001'
+  and delivery_number = 'DN-LABELBOX-1';
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '91190000-0000-0000-0000-000000000001',
+  true
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-1',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-E'
+    )
+  $$,
+  'P0001',
+  'DELIVERY_NUMBER_NOT_ACTIVE',
+  'Delivery Number yang sudah ditutup ditolak'
+);
+
 reset role;
 set local role anon;
 
@@ -652,7 +683,7 @@ rollback;
 Run: `node scripts/run-pgtap.mjs supabase/tests/database/019_label_box_batch.test.sql`
 Diharapkan: `PASS  supabase/tests/database/019_label_box_batch.test.sql`, exit code 0.
 
-Baris `# Looks like you failed N tests of 16` berarti ada assertion yang salah; `HTTP 400` dengan error Postgres berarti SQL-nya sendiri rusak. Perbaiki lalu jalankan ulang.
+Baris `# Looks like you failed N tests of 17` berarti ada assertion yang salah; `HTTP 400` dengan error Postgres berarti SQL-nya sendiri rusak. Perbaiki lalu jalankan ulang.
 
 - [ ] **Step 3: Commit**
 
@@ -954,6 +985,8 @@ const safeRpcMessages: Record<string, string> = {
     "Delivery Number ini sudah terdaftar dengan tanggal berbeda.",
   DELIVERY_NUMBER_INVALID:
     "Delivery Number wajib diisi (maksimal 100 karakter).",
+  DELIVERY_NUMBER_NOT_ACTIVE:
+    "Delivery Number ini sudah ditutup atau dibatalkan admin.",
   LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk operator aktif.",
   LOT_NO_INVALID: "Lot No wajib diisi (maksimal 100 karakter).",
   MASTER_ITEM_HAS_NO_BOX: "Master Item ini belum punya Box.",
