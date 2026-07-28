@@ -17,7 +17,7 @@ export default async function ScanPage() {
       supabase
         .from("label_box_batches")
         .select(
-          "id, master_item_row_no, packing_qty, qty_delivery, lot_no, label_count, qr_generated_at, created_at, delivery_numbers(delivery_number, delivery_date), suppliers(supplier_code), master_items(item_code), label_boxes(box_number, set_no, box_no)",
+          "id, packing_qty, qty_delivery, lot_no, label_count, qr_generated_at, created_at, supplier_code_snapshot, item_code_snapshot, delivery_number_snapshot, delivery_date_snapshot, label_boxes(box_number, set_no, box_no)",
         )
         .order("created_at", { ascending: false }),
       supabase
@@ -55,9 +55,7 @@ export default async function ScanPage() {
     supplierCode: supplier.supplier_code,
   }))
 
-  const batches = (batchesResult.data ?? [])
-    .map(toLabelBoxBatchRow)
-    .filter((batch): batch is LabelBoxBatchRow => batch !== null)
+  const batches = (batchesResult.data ?? []).map(toLabelBoxBatchRow)
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -86,19 +84,14 @@ type LabelBoxBatchQuery = {
   lot_no: string
   label_count: number
   qr_generated_at: string | null
-  delivery_numbers: { delivery_number: string; delivery_date: string } | null
-  suppliers: { supplier_code: string } | null
-  master_items: { item_code: string } | null
+  supplier_code_snapshot: string
+  item_code_snapshot: string
+  delivery_number_snapshot: string
+  delivery_date_snapshot: string
   label_boxes: Array<{ box_number: string; set_no: number; box_no: number }>
 }
 
-function toLabelBoxBatchRow(
-  batch: LabelBoxBatchQuery | null,
-): LabelBoxBatchRow | null {
-  if (!batch?.delivery_numbers || !batch.suppliers || !batch.master_items) {
-    return null
-  }
-
+function toLabelBoxBatchRow(batch: LabelBoxBatchQuery): LabelBoxBatchRow {
   return {
     boxNumbers: [...batch.label_boxes]
       .sort((left, right) =>
@@ -107,15 +100,15 @@ function toLabelBoxBatchRow(
           : left.set_no - right.set_no,
       )
       .map((labelBox) => labelBox.box_number),
-    deliveryDate: batch.delivery_numbers.delivery_date,
-    deliveryNumber: batch.delivery_numbers.delivery_number,
+    deliveryDate: batch.delivery_date_snapshot,
+    deliveryNumber: batch.delivery_number_snapshot,
     id: batch.id,
-    itemCode: batch.master_items.item_code,
+    itemCode: batch.item_code_snapshot,
     labelCount: batch.label_count,
     lotNo: batch.lot_no,
     packingQty: batch.packing_qty,
     qrGenerated: batch.qr_generated_at !== null,
     qtyDelivery: batch.qty_delivery,
-    supplierCode: batch.suppliers.supplier_code,
+    supplierCode: batch.supplier_code_snapshot,
   }
 }

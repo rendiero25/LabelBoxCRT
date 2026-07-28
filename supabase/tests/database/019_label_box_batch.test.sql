@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(19);
+select plan(20);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -100,6 +100,23 @@ select isnt(
   (select qr_generated_at from labelbox_batch_a),
   null,
   'batch menyimpan waktu generate QR'
+);
+
+-- Snapshot field tampilan disimpan di batch itu sendiri, supaya baris ini
+-- tidak hilang dari tabel operator ketika DN ditutup atau supplier/master
+-- item dinonaktifkan (RLS suppliers/master_items/delivery_numbers hanya
+-- mengizinkan baris aktif).
+select is(
+  (
+    select concat_ws(
+      '|', supplier_code_snapshot, item_code_snapshot,
+      delivery_number_snapshot, delivery_date_snapshot::text
+    )
+    from public.label_box_batches
+    where id = (select batch_id from labelbox_batch_a)
+  ),
+  'LB1SUP|labelbox-item|DN-LABELBOX-1|2026-07-28',
+  'batch menyimpan snapshot supplier code, item code, DN, dan tanggal delivery'
 );
 
 -- Dihitung ulang tanpa membaca batch, supaya kesalahan pada row_number()

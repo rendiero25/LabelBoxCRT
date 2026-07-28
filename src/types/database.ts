@@ -253,8 +253,11 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          delivery_date_snapshot: string
           delivery_number_id: string
+          delivery_number_snapshot: string
           id: string
+          item_code_snapshot: string
           label_count: number
           lot_no: string
           master_item_id: string
@@ -262,14 +265,18 @@ export type Database = {
           packing_qty: number
           qr_generated_at: string | null
           qty_delivery: number
+          supplier_code_snapshot: string
           supplier_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by: string
+          delivery_date_snapshot: string
           delivery_number_id: string
+          delivery_number_snapshot: string
           id?: string
+          item_code_snapshot: string
           label_count: number
           lot_no: string
           master_item_id: string
@@ -277,14 +284,18 @@ export type Database = {
           packing_qty: number
           qr_generated_at?: string | null
           qty_delivery: number
+          supplier_code_snapshot: string
           supplier_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string
+          delivery_date_snapshot?: string
           delivery_number_id?: string
+          delivery_number_snapshot?: string
           id?: string
+          item_code_snapshot?: string
           label_count?: number
           lot_no?: string
           master_item_id?: string
@@ -292,6 +303,7 @@ export type Database = {
           packing_qty?: number
           qr_generated_at?: string | null
           qty_delivery?: number
+          supplier_code_snapshot?: string
           supplier_id?: string
           updated_at?: string
         }
