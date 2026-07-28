@@ -1456,6 +1456,7 @@ export const Constants = {
   public: {
     Enums: {
       delivery_status: ["draft", "active", "closed", "cancelled"],
+      label_box_status: ["generated", "verified"],
       packing_session_status: [
         "draft",
         "scanning",
