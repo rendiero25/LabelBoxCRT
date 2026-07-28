@@ -249,6 +249,134 @@ export type Database = {
           },
         ]
       }
+      label_box_batches: {
+        Row: {
+          created_at: string
+          created_by: string
+          delivery_number_id: string
+          id: string
+          label_count: number
+          lot_no: string
+          master_item_id: string
+          master_item_row_no: number
+          packing_qty: number
+          qr_generated_at: string | null
+          qty_delivery: number
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          delivery_number_id: string
+          id?: string
+          label_count: number
+          lot_no: string
+          master_item_id: string
+          master_item_row_no: number
+          packing_qty: number
+          qr_generated_at?: string | null
+          qty_delivery: number
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          delivery_number_id?: string
+          id?: string
+          label_count?: number
+          lot_no?: string
+          master_item_id?: string
+          master_item_row_no?: number
+          packing_qty?: number
+          qr_generated_at?: string | null
+          qty_delivery?: number
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_box_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_box_batches_delivery_number_id_fkey"
+            columns: ["delivery_number_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_numbers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_box_batches_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_box_batches_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_boxes: {
+        Row: {
+          batch_id: string
+          box_id: string
+          box_no: number
+          box_number: string
+          created_at: string
+          id: string
+          qr_payload: string
+          set_no: number
+          status: Database["public"]["Enums"]["label_box_status"]
+        }
+        Insert: {
+          batch_id: string
+          box_id: string
+          box_no: number
+          box_number: string
+          created_at?: string
+          id?: string
+          qr_payload: string
+          set_no: number
+          status?: Database["public"]["Enums"]["label_box_status"]
+        }
+        Update: {
+          batch_id?: string
+          box_id?: string
+          box_no?: number
+          box_number?: string
+          created_at?: string
+          id?: string
+          qr_payload?: string
+          set_no?: number
+          status?: Database["public"]["Enums"]["label_box_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_boxes_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "label_box_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_boxes_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_item_products: {
         Row: {
           created_at: string
@@ -913,6 +1041,29 @@ export type Database = {
           updated_at: string
         }[]
       }
+      create_label_box_batch: {
+        Args: {
+          p_delivery_date: string
+          p_delivery_number: string
+          p_lot_no: string
+          p_master_item_id: string
+          p_qty_delivery: number
+          p_supplier_id: string
+        }
+        Returns: {
+          batch_id: string
+          delivery_date: string
+          delivery_number: string
+          item_code: string
+          label_count: number
+          lot_no: string
+          master_item_row_no: number
+          packing_qty: number
+          qr_generated_at: string
+          qty_delivery: number
+          supplier_code: string
+        }[]
+      }
       create_master_item: {
         Args: {
           p_default_label_qty: number
@@ -1150,6 +1301,7 @@ export type Database = {
     }
     Enums: {
       delivery_status: "draft" | "active" | "closed" | "cancelled"
+      label_box_status: "generated" | "verified"
       packing_session_status:
         | "draft"
         | "scanning"
