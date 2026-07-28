@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(18);
+select plan(19);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -100,6 +100,18 @@ select isnt(
   (select qr_generated_at from labelbox_batch_a),
   null,
   'batch menyimpan waktu generate QR'
+);
+
+-- Dihitung ulang tanpa membaca batch, supaya kesalahan pada row_number()
+-- di RPC benar-benar tertangkap.
+select is(
+  (select master_item_row_no from labelbox_batch_a),
+  (
+    select count(*)::integer
+    from public.master_items item
+    where item.item_code <= 'labelbox-item'
+  ),
+  'nomor urut master item sama dengan posisi barisnya saat diurutkan item_code'
 );
 
 -- Qty 200 = 2 set = 6 label, set kedua berakhiran 02.
