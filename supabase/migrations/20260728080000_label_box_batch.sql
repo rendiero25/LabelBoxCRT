@@ -170,24 +170,46 @@ begin
     and lower(btrim(dn.delivery_number)) = lower(normalized_dn);
 
   if target_dn.id is null then
-    insert into public.delivery_numbers (
-      supplier_id, delivery_number, delivery_date, status, created_by
-    ) values (
-      p_supplier_id, normalized_dn, p_delivery_date, 'active', auth.uid()
-    )
-    returning * into target_dn;
-
-    insert into public.audit_logs (actor_id, action, entity_type, entity_id, metadata)
-    values (
-      auth.uid(), 'delivery_number.created', 'delivery_number', target_dn.id::text,
-      jsonb_build_object(
-        'supplier_id', target_dn.supplier_id,
-        'delivery_number', target_dn.delivery_number,
-        'delivery_date', target_dn.delivery_date,
-        'source', 'label_box_batch'
+    begin
+      insert into public.delivery_numbers (
+        supplier_id, delivery_number, delivery_date, status, created_by
+      ) values (
+        p_supplier_id, normalized_dn, p_delivery_date, 'active', auth.uid()
       )
-    );
-  elsif target_dn.delivery_date <> p_delivery_date then
+      returning * into target_dn;
+
+      insert into public.audit_logs (actor_id, action, entity_type, entity_id, metadata)
+      values (
+        auth.uid(), 'delivery_number.created', 'delivery_number', target_dn.id::text,
+        jsonb_build_object(
+          'supplier_id', target_dn.supplier_id,
+          'delivery_number', target_dn.delivery_number,
+          'delivery_date', target_dn.delivery_date,
+          'status', target_dn.status,
+          'source', 'label_box_batch'
+        )
+      );
+    exception when unique_violation then
+      -- Operator lain menyisipkan nomor yang sama sepersekian detik lebih
+      -- dulu. Ambil barisnya dan perlakukan sebagai pemakaian ulang.
+      select * into target_dn
+      from public.delivery_numbers dn
+      where dn.supplier_id = p_supplier_id
+        and lower(btrim(dn.delivery_number)) = lower(normalized_dn);
+    end;
+  end if;
+
+  if target_dn.id is null then
+    raise exception using errcode = 'P0001', message = 'DELIVERY_NUMBER_INVALID';
+  end if;
+
+  -- Admin bisa menutup atau membatalkan DN kapan saja; label tidak boleh
+  -- dibuat terhadap DN yang sudah tidak aktif.
+  if target_dn.status <> 'active' then
+    raise exception using errcode = 'P0001', message = 'DELIVERY_NUMBER_NOT_ACTIVE';
+  end if;
+
+  if target_dn.delivery_date <> p_delivery_date then
     raise exception using errcode = 'P0001', message = 'DELIVERY_NUMBER_DATE_MISMATCH';
   end if;
 
