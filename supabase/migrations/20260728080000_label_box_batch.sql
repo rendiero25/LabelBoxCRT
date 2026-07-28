@@ -48,7 +48,9 @@ before update on public.label_box_batches
 for each row execute function private.set_updated_at();
 
 alter table public.label_box_batches enable row level security;
+alter table public.label_box_batches force row level security;
 alter table public.label_boxes enable row level security;
+alter table public.label_boxes force row level security;
 
 -- Hanya baca lewat RLS; semua tulis lewat RPC SECURITY DEFINER.
 grant select on table public.label_box_batches, public.label_boxes to authenticated;
