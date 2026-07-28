@@ -384,7 +384,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(17);
+select plan(19);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -481,6 +481,18 @@ select isnt(
   (select qr_generated_at from labelbox_batch_a),
   null,
   'batch menyimpan waktu generate QR'
+);
+
+-- Dihitung ulang tanpa membaca batch, supaya kesalahan pada row_number()
+-- di RPC benar-benar tertangkap.
+select is(
+  (select master_item_row_no from labelbox_batch_a),
+  (
+    select count(*)::integer
+    from public.master_items item
+    where item.item_code <= 'labelbox-item'
+  ),
+  'nomor urut master item sama dengan posisi barisnya saat diurutkan item_code'
 );
 
 -- Qty 200 = 2 set = 6 label, set kedua berakhiran 02.
@@ -683,7 +695,7 @@ rollback;
 Run: `node scripts/run-pgtap.mjs supabase/tests/database/019_label_box_batch.test.sql`
 Diharapkan: `PASS  supabase/tests/database/019_label_box_batch.test.sql`, exit code 0.
 
-Baris `# Looks like you failed N tests of 17` berarti ada assertion yang salah; `HTTP 400` dengan error Postgres berarti SQL-nya sendiri rusak. Perbaiki lalu jalankan ulang.
+Baris `# Looks like you failed N tests of 19` berarti ada assertion yang salah; `HTTP 400` dengan error Postgres berarti SQL-nya sendiri rusak. Perbaiki lalu jalankan ulang.
 
 - [ ] **Step 3: Commit**
 
