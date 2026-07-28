@@ -64,11 +64,15 @@ function formatDeliveryDate(isoDate: string): string {
   return `${dayText.padStart(2, "0")}-${monthName}-${yearText}`
 }
 
-function formatQrDate(isoTimestamp: string): string {
+/**
+ * Tanggal ringkas DD-MM-YYYY. Dipakai QR payload label dan kolom tanggal di
+ * tabel batch label box.
+ */
+export function formatShortDate(isoTimestamp: string): string {
   const match = isoDatePattern.exec(isoTimestamp)
   if (!match) {
     throw new Error(
-      `formatQrDate: expected an ISO timestamp (YYYY-MM-DD...), received "${isoTimestamp}"`,
+      `formatShortDate: expected an ISO timestamp (YYYY-MM-DD...), received "${isoTimestamp}"`,
     )
   }
 
@@ -87,7 +91,7 @@ function buildQrPayload(snapshot: FinalizedLabelSnapshot): string {
     snapshot.partNo,
     String(snapshot.qty),
     snapshot.labelReference,
-    formatQrDate(snapshot.qrGeneratedAt),
+    formatShortDate(snapshot.qrGeneratedAt),
   ].join("|")
 }
 

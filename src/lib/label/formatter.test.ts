@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   formatLabelFields,
+  formatShortDate,
   type FinalizedLabelSnapshot,
 } from "@/lib/label/formatter"
 
@@ -119,5 +120,19 @@ describe("formatLabelFields", () => {
     expect(() =>
       formatLabelFields({ ...baseSnapshot, qrGeneratedAt: "24/07/2026" }),
     ).toThrow()
+  })
+})
+
+describe("formatShortDate", () => {
+  it("formats an ISO date as DD-MM-YYYY", () => {
+    expect(formatShortDate("2026-07-28")).toBe("28-07-2026")
+  })
+
+  it("accepts a full ISO timestamp", () => {
+    expect(formatShortDate("2026-12-31T23:59:59.123Z")).toBe("31-12-2026")
+  })
+
+  it("throws when the value is not an ISO date", () => {
+    expect(() => formatShortDate("28/07/2026")).toThrow()
   })
 })
