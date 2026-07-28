@@ -9,6 +9,7 @@ import {
   useState,
 } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   ArrowLeftIcon,
   CircleAlertIcon,
@@ -16,15 +17,10 @@ import {
   PackageCheckIcon,
   PlusIcon,
   ScanLineIcon,
-  SearchIcon,
   Volume2Icon,
   VolumeOffIcon,
 } from "lucide-react"
 
-import {
-  CreateDeliveryNumberDialog,
-  type CreateDeliveryNumberSupplier,
-} from "@/features/delivery-numbers/components/create-delivery-number-dialog"
 import { finalizePackingSessionAction } from "@/features/finalize/actions"
 import { initialFinalizePackingSessionActionState } from "@/features/finalize/form-state"
 import {
@@ -57,10 +53,18 @@ import { Spinner } from "@/components/ui/spinner"
 import { formatLabelFields } from "@/lib/label/formatter"
 
 export type ScanMasterItemOption = {
+  defaultLabelQty: number
   id: string
   itemCode: string
   partName: string
   partNo: string
+  supplierId: string | null
+}
+
+export type ScanSupplierOption = {
+  id: string
+  supplierCode: string
+  supplierName: string
 }
 
 export type ScanBoxOption = {
@@ -83,15 +87,6 @@ export type RecentScan = {
   id: string
   result: "accepted" | "duplicate" | "invalid" | "over_qty"
   scannedAt: string
-}
-
-export type DeliveryNumberOption = {
-  deliveryDate: string
-  deliveryNumber: string
-  id: string
-  supplierCode: string
-  supplierId: string
-  supplierName: string
 }
 
 export type ActivePackingSessionView = {
@@ -154,26 +149,34 @@ function playScanTone(
 
 function StartSessionForm({
   allowedBoxes,
-  masterItems,
+  filteredMasterItems,
   onCancel,
-  selectedBoxDefinitionId,
+  selectedBoxId,
+  selectedMasterItem,
   selectedMasterItemId,
-  setSelectedBoxDefinitionId,
+  selectedSupplierId,
+  setSelectedBoxId,
   setSelectedMasterItemId,
+  setSelectedSupplierId,
   startAction,
   startPending,
   startState,
+  suppliers,
 }: {
   allowedBoxes: ScanBoxOption[]
-  masterItems: ScanMasterItemOption[]
+  filteredMasterItems: ScanMasterItemOption[]
   onCancel: (() => void) | null
-  selectedBoxDefinitionId: string
+  selectedBoxId: string
+  selectedMasterItem: ScanMasterItemOption | null
   selectedMasterItemId: string
-  setSelectedBoxDefinitionId: (value: string) => void
+  selectedSupplierId: string
+  setSelectedBoxId: (value: string) => void
   setSelectedMasterItemId: (value: string) => void
+  setSelectedSupplierId: (value: string) => void
   startAction: (formData: FormData) => void
   startPending: boolean
   startState: { error?: string }
+  suppliers: ScanSupplierOption[]
 }) {
   return (
     <section className="mx-auto grid max-w-2xl gap-6">
@@ -189,20 +192,17 @@ function StartSessionForm({
             Kembali ke daftar session
           </Button>
         ) : null}
-        <p className="text-muted-foreground text-sm font-medium">Phase 5</p>
         <h1 className="text-2xl font-semibold">Mulai packing session</h1>
         <p className="text-muted-foreground text-sm">
-          Pilih Part No dan Box aktif. Scanner hanya aktif setelah session
+          Isi data delivery dan pilih Box. Scanner hanya aktif setelah session
           dibuat.
         </p>
       </div>
-      {masterItems.length === 0 ? (
+      {suppliers.length === 0 ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertTitle>Master Item tidak tersedia</AlertTitle>
-          <AlertDescription>
-            Tidak ada Master Item aktif yang memiliki Box aktif.
-          </AlertDescription>
+          <AlertTitle>Supplier tidak tersedia</AlertTitle>
+          <AlertDescription>Tidak ada supplier aktif.</AlertDescription>
         </Alert>
       ) : (
         <form action={startAction} className="rounded-xl border p-5" noValidate>
@@ -213,24 +213,46 @@ function StartSessionForm({
             </Alert>
           ) : null}
           <FieldGroup>
+            <input name="supplierId" type="hidden" value={selectedSupplierId} />
             <input
               name="masterItemId"
               type="hidden"
               value={selectedMasterItemId}
             />
-            <input
-              name="boxId"
-              type="hidden"
-              value={selectedBoxDefinitionId}
-            />
+            <input name="boxId" type="hidden" value={selectedBoxId} />
+
+            <Field>
+              <FieldLabel htmlFor="scan-supplier">Kode supplier</FieldLabel>
+              <Select
+                onValueChange={(value) => {
+                  setSelectedSupplierId(value)
+                  setSelectedMasterItemId("")
+                  setSelectedBoxId("")
+                }}
+                value={selectedSupplierId}
+              >
+                <SelectTrigger id="scan-supplier" className="w-full">
+                  <SelectValue placeholder="Pilih supplier aktif" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.supplierCode} · {supplier.supplierName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
             <Field>
               <FieldLabel htmlFor="scan-master-item">
                 Master Item / Part No
               </FieldLabel>
               <Select
+                key={selectedSupplierId}
                 onValueChange={(value) => {
                   setSelectedMasterItemId(value)
-                  setSelectedBoxDefinitionId("")
+                  setSelectedBoxId("")
                 }}
                 value={selectedMasterItemId}
               >
@@ -238,41 +260,109 @@ function StartSessionForm({
                   <SelectValue placeholder="Pilih Part No" />
                 </SelectTrigger>
                 <SelectContent>
-                  {masterItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.partNo} · {item.partName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="scan-box-definition">
-                Box Definition
-              </FieldLabel>
-              <Select
-                key={selectedMasterItemId}
-                onValueChange={(value) => {
-                  setSelectedBoxDefinitionId(value)
-                }}
-                value={selectedBoxDefinitionId}
-              >
-                <SelectTrigger id="scan-box-definition" className="w-full">
-                  <SelectValue placeholder="Pilih Box aktif" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allowedBoxes.map((boxDefinition) => (
-                    <SelectItem key={boxDefinition.id} value={boxDefinition.id}>
-                      {boxDefinition.boxCode} · {boxDefinition.boxName}
-                    </SelectItem>
-                  ))}
+                  {filteredMasterItems.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-sm">
+                      Tidak ada Master Item aktif untuk supplier ini.
+                    </div>
+                  ) : (
+                    filteredMasterItems.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.partNo} · {item.partName}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Hanya Box aktif yang sesuai Master Item dapat dipilih.
+                Hanya Master Item milik supplier terpilih yang memiliki Box.
               </FieldDescription>
             </Field>
-            <Button disabled={startPending} type="submit">
+
+            <Field>
+              <FieldLabel htmlFor="scan-packing-qty">
+                Packing Qty (Master Item)
+              </FieldLabel>
+              <Input
+                disabled
+                id="scan-packing-qty"
+                value={
+                  selectedMasterItem
+                    ? String(selectedMasterItem.defaultLabelQty)
+                    : "Pilih Master Item terlebih dahulu"
+                }
+              />
+              <FieldDescription>
+                Nilai ini berasal dari master data dan tercetak di label.
+              </FieldDescription>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="scan-box">Box</FieldLabel>
+              <Select
+                key={selectedMasterItemId}
+                onValueChange={setSelectedBoxId}
+                value={selectedBoxId}
+              >
+                <SelectTrigger id="scan-box" className="w-full">
+                  <SelectValue placeholder="Pilih Box" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowedBoxes.map((box) => (
+                    <SelectItem key={box.id} value={box.id}>
+                      {box.boxCode} · {box.boxName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="scan-qty-delivery">Qty Delivery</FieldLabel>
+                <Input
+                  id="scan-qty-delivery"
+                  inputMode="numeric"
+                  name="qtyDelivery"
+                  placeholder="100"
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="scan-lot-no">Lot No</FieldLabel>
+                <Input
+                  id="scan-lot-no"
+                  maxLength={100}
+                  name="lotNo"
+                  placeholder="LOT-2026-07-001"
+                  required
+                />
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="scan-delivery-date">
+                Tanggal Delivery
+              </FieldLabel>
+              <Input
+                id="scan-delivery-date"
+                name="deliveryDate"
+                required
+                type="date"
+              />
+              <FieldDescription>
+                Delivery Number dibuat otomatis dari supplier dan tanggal ini.
+              </FieldDescription>
+            </Field>
+
+            <Button
+              disabled={
+                startPending ||
+                !selectedSupplierId ||
+                !selectedMasterItemId ||
+                !selectedBoxId
+              }
+              type="submit"
+            >
               {startPending ? (
                 <Spinner data-icon="inline-start" />
               ) : (
@@ -300,7 +390,6 @@ function SessionListView({
     <section className="mx-auto grid max-w-3xl gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          <p className="text-muted-foreground text-sm font-medium">Phase 5</p>
           <h1 className="text-2xl font-semibold">Session packing aktif</h1>
           <p className="text-muted-foreground text-sm">
             Pilih session untuk melanjutkan scan, atau mulai session baru.
@@ -363,23 +452,22 @@ function SessionListView({
 export function PackingScanConsole({
   activeSessions,
   boxes,
-  deliveryNumbers,
   masterItems,
   suppliers,
 }: {
   activeSessions: ActivePackingSessionView[]
   boxes: ScanBoxOption[]
-  deliveryNumbers: DeliveryNumberOption[]
   masterItems: ScanMasterItemOption[]
-  suppliers: CreateDeliveryNumberSupplier[]
+  suppliers: ScanSupplierOption[]
 }) {
   const router = useRouter()
   const [startState, startAction, startPending] = useActionState(
     startPackingSessionAction,
     initialPackingSessionActionState,
   )
+  const [selectedSupplierId, setSelectedSupplierId] = useState("")
   const [selectedMasterItemId, setSelectedMasterItemId] = useState("")
-  const [selectedBoxDefinitionId, setSelectedBoxDefinitionId] = useState("")
+  const [selectedBoxId, setSelectedBoxId] = useState("")
   const startSucceeded = useRef(false)
   useActionStateToast(startState)
 
@@ -398,8 +486,6 @@ export function PackingScanConsole({
     finalizePackingSessionAction,
     initialFinalizePackingSessionActionState,
   )
-  const [selectedDeliveryNumberId, setSelectedDeliveryNumberId] = useState("")
-  const [deliveryNumberQuery, setDeliveryNumberQuery] = useState("")
   const [completedSnapshot, setCompletedSnapshot] = useState<
     typeof finalizeState.snapshot
   >(undefined)
@@ -419,24 +505,6 @@ export function PackingScanConsole({
     setCompletedSnapshot(finalizeState.snapshot)
     router.refresh()
   }, [finalizeState.snapshot, router])
-
-  const filteredDeliveryNumbers = useMemo(() => {
-    const query = deliveryNumberQuery.trim().toLowerCase()
-    if (!query) return deliveryNumbers
-    return deliveryNumbers.filter(
-      (deliveryNumber) =>
-        deliveryNumber.supplierCode.toLowerCase().includes(query) ||
-        deliveryNumber.deliveryNumber.toLowerCase().includes(query),
-    )
-  }, [deliveryNumbers, deliveryNumberQuery])
-
-  const selectedDeliveryNumber = useMemo(
-    () =>
-      deliveryNumbers.find(
-        (deliveryNumber) => deliveryNumber.id === selectedDeliveryNumberId,
-      ) ?? null,
-    [deliveryNumbers, selectedDeliveryNumberId],
-  )
 
   const activeSession = useMemo(
     () =>
@@ -478,30 +546,53 @@ export function PackingScanConsole({
 
     playedScanAt.current = scan.scannedAt.getTime()
     playScanTone(scan.status, scanner.muted)
+
+    // A rejected scan must not scroll away behind the next one: hold the
+    // toast until the operator dismisses it.
+    if (scan.status === "error") {
+      toast.error(scan.message, { closeButton: true, duration: Infinity })
+    }
   }, [scanner.lastScan, scanner.muted])
-  const allowedBoxes = useMemo(
+
+  const filteredMasterItems = useMemo(
     () =>
-      boxes.filter(
-        (boxDefinition) => boxDefinition.masterItemId === selectedMasterItemId,
+      masterItems.filter(
+        (item) =>
+          item.supplierId === null || item.supplierId === selectedSupplierId,
       ),
+    [masterItems, selectedSupplierId],
+  )
+
+  const selectedMasterItem = useMemo(
+    () => masterItems.find((item) => item.id === selectedMasterItemId) ?? null,
+    [masterItems, selectedMasterItemId],
+  )
+
+  const allowedBoxes = useMemo(
+    () => boxes.filter((box) => box.masterItemId === selectedMasterItemId),
     [boxes, selectedMasterItemId],
   )
 
-  const previewLabelFields = useMemo(() => {
-    if (!activeSession || !selectedDeliveryNumber) return null
-    return formatLabelFields({
-      boxCode: activeSession.boxCode,
-      boxName: activeSession.boxName,
-      deliveryDate: selectedDeliveryNumber.deliveryDate,
-      deliveryNumber: selectedDeliveryNumber.deliveryNumber,
-      labelReference: "—",
-      partName: activeSession.masterItemName,
-      partNo: activeSession.masterItemPartNo,
-      qty: activeSession.totalExpectedQty,
-      sequenceNo: 0,
-      supplierCode: selectedDeliveryNumber.supplierCode,
-    })
-  }, [activeSession, selectedDeliveryNumber])
+  const autoFinalizedSessionId = useRef<string | null>(null)
+
+  // Every layer is full, so finalize without asking. The Delivery Number was
+  // already resolved when the session started; PrintJobCard then auto-prints
+  // once QZ and a printer are ready.
+  useEffect(() => {
+    if (
+      !activeSession ||
+      activeSession.status !== "ready_to_finalize" ||
+      autoFinalizedSessionId.current === activeSession.id ||
+      finalizePending
+    ) {
+      return
+    }
+
+    autoFinalizedSessionId.current = activeSession.id
+    const payload = new FormData()
+    payload.set("packingSessionId", activeSession.id)
+    finalizeFormAction(payload)
+  }, [activeSession, finalizeFormAction, finalizePending])
 
   if (completedSnapshot) {
     const labelFields = formatLabelFields(completedSnapshot)
@@ -538,13 +629,19 @@ export function PackingScanConsole({
             label="Tanggal Delivery"
             value={labelFields.deliveryDate}
           />
+          <SummaryRow
+            label="Qty Delivery"
+            value={String(completedSnapshot.qtyDelivery)}
+          />
+          <SummaryRow label="Lot No" value={completedSnapshot.lotNo} />
         </div>
         <PrintJobCard snapshot={completedSnapshot} />
         <Button
           onClick={() => {
             setCompletedSnapshot(undefined)
-            setSelectedDeliveryNumberId("")
-            setDeliveryNumberQuery("")
+            setSelectedSupplierId("")
+            setSelectedMasterItemId("")
+            setSelectedBoxId("")
             setView(activeSessions.length > 1 ? { type: "list" } : { type: "start" })
           }}
           type="button"
@@ -560,17 +657,21 @@ export function PackingScanConsole({
     return (
       <StartSessionForm
         allowedBoxes={allowedBoxes}
-        masterItems={masterItems}
+        filteredMasterItems={filteredMasterItems}
         onCancel={
           activeSessions.length > 0 ? () => setView({ type: "list" }) : null
         }
-        selectedBoxDefinitionId={selectedBoxDefinitionId}
+        selectedBoxId={selectedBoxId}
+        selectedMasterItem={selectedMasterItem}
         selectedMasterItemId={selectedMasterItemId}
-        setSelectedBoxDefinitionId={setSelectedBoxDefinitionId}
+        selectedSupplierId={selectedSupplierId}
+        setSelectedBoxId={setSelectedBoxId}
         setSelectedMasterItemId={setSelectedMasterItemId}
+        setSelectedSupplierId={setSelectedSupplierId}
         startAction={startAction}
         startPending={startPending}
         startState={startState}
+        suppliers={suppliers}
       />
     )
   }
@@ -711,141 +812,28 @@ export function PackingScanConsole({
 
         {activeSession.status === "ready_to_finalize" ? (
           <div className="rounded-xl border p-5">
-            <div className="mb-4">
-              <h2 className="font-semibold">Finalisasi box</h2>
-              <p className="text-muted-foreground text-sm">
-                Pilih Delivery Number aktif untuk membuat print job. Box tidak
-                dapat diubah lagi setelah difinalisasi.
-              </p>
+            <div className="mb-3 flex items-center gap-2">
+              {finalizePending ? (
+                <Spinner className="size-5" />
+              ) : (
+                <PackageCheckIcon className="size-5" />
+              )}
+              <h2 className="font-semibold">
+                {finalizePending
+                  ? "Memfinalisasi box…"
+                  : "Box lengkap, menunggu finalisasi"}
+              </h2>
             </div>
+            <p className="text-muted-foreground text-sm">
+              Semua layer terpenuhi. Label dibuat dan dikirim ke printer secara
+              otomatis.
+            </p>
             {finalizeState.error ? (
-              <Alert className="mb-4" variant="destructive">
+              <Alert className="mt-4" variant="destructive">
                 <CircleAlertIcon />
                 <AlertDescription>{finalizeState.error}</AlertDescription>
               </Alert>
             ) : null}
-            <form action={finalizeFormAction} noValidate>
-              <input
-                name="packingSessionId"
-                type="hidden"
-                value={activeSession.id}
-              />
-              <input
-                name="deliveryNumberId"
-                type="hidden"
-                value={selectedDeliveryNumberId}
-              />
-              <FieldGroup>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-muted-foreground text-sm">
-                    Pilih Delivery Number aktif, atau buat baru.
-                  </p>
-                  <CreateDeliveryNumberDialog suppliers={suppliers} />
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="finalize-dn-search">
-                    Cari Delivery Number
-                  </FieldLabel>
-                  <div className="relative">
-                    <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-                    <Input
-                      className="pl-9"
-                      id="finalize-dn-search"
-                      onChange={(event) =>
-                        setDeliveryNumberQuery(event.target.value)
-                      }
-                      placeholder="Cari supplier code atau nomor DN"
-                      value={deliveryNumberQuery}
-                    />
-                  </div>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="finalize-dn">
-                    Delivery Number aktif
-                  </FieldLabel>
-                  <Select
-                    onValueChange={setSelectedDeliveryNumberId}
-                    value={selectedDeliveryNumberId}
-                  >
-                    <SelectTrigger id="finalize-dn" className="w-full">
-                      <SelectValue placeholder="Pilih Delivery Number" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredDeliveryNumbers.length === 0 ? (
-                        <div className="text-muted-foreground px-2 py-1.5 text-sm">
-                          Tidak ada Delivery Number yang cocok.
-                        </div>
-                      ) : (
-                        filteredDeliveryNumbers.map((deliveryNumber) => (
-                          <SelectItem
-                            key={deliveryNumber.id}
-                            value={deliveryNumber.id}
-                          >
-                            {deliveryNumber.supplierCode} ·{" "}
-                            {deliveryNumber.deliveryNumber}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    Hanya Delivery Number berstatus aktif yang ditampilkan
-                    (BR-09).
-                  </FieldDescription>
-                </Field>
-
-                {selectedDeliveryNumber && previewLabelFields ? (
-                  <div className="bg-muted/50 grid gap-2 rounded-lg p-4 text-sm">
-                    <p className="font-medium">
-                      Ringkasan sebelum finalisasi
-                    </p>
-                    <SummaryRow
-                      label="Part No"
-                      value={`${previewLabelFields.partNo} · ${activeSession.masterItemName}`}
-                    />
-                    <SummaryRow
-                      label="Box"
-                      value={`${activeSession.boxCode} · ${previewLabelFields.boxName}`}
-                    />
-                    {activeSession.layers.map((layer) => (
-                      <SummaryRow
-                        key={layer.id}
-                        label={`Layer ${layer.layerNo}${layer.layerName ? ` · ${layer.layerName}` : ""}`}
-                        value={`${layer.acceptedQty} / ${layer.expectedQty}`}
-                      />
-                    ))}
-                    <SummaryRow
-                      label="Total diterima"
-                      value={`${activeSession.acceptedQty} / ${activeSession.totalExpectedQty}`}
-                    />
-                    <SummaryRow
-                      label="Supplier"
-                      value={`${selectedDeliveryNumber.supplierCode} · ${selectedDeliveryNumber.supplierName}`}
-                    />
-                    <SummaryRow
-                      label="Delivery Number"
-                      value={previewLabelFields.deliveryNumber}
-                    />
-                    <SummaryRow
-                      label="Tanggal Delivery"
-                      value={previewLabelFields.deliveryDate}
-                    />
-                  </div>
-                ) : null}
-
-                <Button
-                  disabled={finalizePending || !selectedDeliveryNumberId}
-                  type="submit"
-                >
-                  {finalizePending ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <PackageCheckIcon data-icon="inline-start" />
-                  )}
-                  Finalisasi box
-                </Button>
-              </FieldGroup>
-            </form>
           </div>
         ) : null}
       </div>
