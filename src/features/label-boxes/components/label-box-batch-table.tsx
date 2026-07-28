@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useState } from "react"
-import { CheckCircle2Icon, ChevronRightIcon } from "lucide-react"
+import { CheckCircle2Icon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 import {
   LabelBoxBatchDialog,
@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatShortDate } from "@/lib/label/formatter"
 
 export type LabelBoxBatchRow = {
@@ -116,7 +117,11 @@ export function LabelBoxBatchTable({
                         variant="link"
                       >
                         {batch.labelCount} box
-                        <ChevronRightIcon data-icon="inline-end" />
+                        {expandedId === batch.id ? (
+                          <ChevronUpIcon data-icon="inline-end" />
+                        ) : (
+                          <ChevronDownIcon data-icon="inline-end" />
+                        )}
                       </Button>
                     </TableCell>
                     <TableCell>
@@ -126,13 +131,31 @@ export function LabelBoxBatchTable({
                           Siap
                         </Badge>
                       ) : (
+                        // Not reachable today: create_label_box_batch always
+                        // stamps qr_generated_at. Kept honest in case a
+                        // future writer skips the stamp.
                         <Badge variant="outline">Belum</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button disabled size="sm" type="button" variant="outline">
-                        Verifikasi
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-block" tabIndex={0}>
+                            <Button
+                              className="pointer-events-none"
+                              disabled
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Verifikasi
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Verifikasi tersedia pada task berikutnya.
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                   {expandedId === batch.id ? (
