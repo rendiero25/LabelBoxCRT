@@ -179,7 +179,7 @@ function StartSessionForm({
   suppliers: ScanSupplierOption[]
 }) {
   return (
-    <section className="mx-auto grid max-w-2xl gap-6">
+    <section className="grid w-full gap-6">
       <div className="space-y-2">
         {onCancel ? (
           <Button
