@@ -1,0 +1,297 @@
+begin;
+
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, public, pg_catalog;
+
+select plan(18);
+
+insert into auth.users (
+  id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values
+  ('91190000-0000-0000-0000-000000000001', 'authenticated', 'authenticated',
+    'label-box-operator@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
+
+insert into public.profiles (id, display_name, role, is_active) values
+  ('91190000-0000-0000-0000-000000000001', 'Label Box Operator', 'operator', true);
+
+insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
+  ('95190000-0000-0000-0000-000000000001', 'LB1SUP', 'Label Box Supplier', true),
+  ('95190000-0000-0000-0000-000000000002', 'LB1OFF', 'Label Box Inactive', false);
+
+insert into public.master_items (
+  id, item_code, part_no, part_name, unit, default_label_qty, supplier_id, is_active
+) values
+  (
+    '96190000-0000-0000-0000-000000000001', 'labelbox-item', 'LABELBOX-PART',
+    'Label Box Part', 'Pcs', 100, '95190000-0000-0000-0000-000000000001', true
+  ),
+  (
+    '96190000-0000-0000-0000-000000000002', 'labelbox-nobox', 'LABELBOX-NOBOX',
+    'Label Box No Box Part', 'Pcs', 100, '95190000-0000-0000-0000-000000000001', true
+  );
+
+insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
+  ('98190000-0000-0000-0000-000000000001',
+    '96190000-0000-0000-0000-000000000001', 1, 'labelbox-01', 'Box 1'),
+  ('98190000-0000-0000-0000-000000000002',
+    '96190000-0000-0000-0000-000000000001', 2, 'labelbox-02', 'Box 2'),
+  ('98190000-0000-0000-0000-000000000003',
+    '96190000-0000-0000-0000-000000000001', 3, 'labelbox-03', 'Box 3');
+
+select has_function(
+  'public',
+  'create_label_box_batch',
+  array['uuid', 'text', 'date', 'uuid', 'integer', 'text'],
+  'create_label_box_batch RPC takes supplier, DN, date, master item, qty, lot'
+);
+
+select has_table('public', 'label_box_batches', 'label_box_batches table exists');
+select has_table('public', 'label_boxes', 'label_boxes table exists');
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '91190000-0000-0000-0000-000000000001',
+  true
+);
+
+-- Qty 100 dengan packing qty 100 dan 3 box = 3 label.
+create temporary table labelbox_batch_a as
+select *
+from public.create_label_box_batch(
+  '95190000-0000-0000-0000-000000000001',
+  'DN-LABELBOX-1',
+  date '2026-07-28',
+  '96190000-0000-0000-0000-000000000001',
+  100,
+  'LOT-LB-A'
+);
+grant select on labelbox_batch_a to public;
+
+select is(
+  (select label_count from labelbox_batch_a),
+  3,
+  'qty delivery 100 dengan packing qty 100 dan 3 box menghasilkan 3 label'
+);
+
+select is(
+  (
+    select string_agg(box_number, ',' order by set_no, box_no)
+    from public.label_boxes
+    where batch_id = (select batch_id from labelbox_batch_a)
+  ),
+  'B101,B201,B301',
+  'satu set menghasilkan B101, B201, B301'
+);
+
+select is(
+  (
+    select qr_payload
+    from public.label_boxes
+    where batch_id = (select batch_id from labelbox_batch_a) and box_number = 'B101'
+  ),
+  'LB1SUP|LABELBOX-PART|100|' ||
+    (select master_item_row_no from labelbox_batch_a)::text ||
+    '|LOT-LB-A|B101|28-07-2026',
+  'QR payload berisi tujuh field dengan urutan yang dikunci spec'
+);
+
+select isnt(
+  (select qr_generated_at from labelbox_batch_a),
+  null,
+  'batch menyimpan waktu generate QR'
+);
+
+-- Qty 200 = 2 set = 6 label, set kedua berakhiran 02.
+create temporary table labelbox_batch_b as
+select *
+from public.create_label_box_batch(
+  '95190000-0000-0000-0000-000000000001',
+  'DN-LABELBOX-1',
+  date '2026-07-28',
+  '96190000-0000-0000-0000-000000000001',
+  200,
+  'LOT-LB-B'
+);
+grant select on labelbox_batch_b to public;
+
+select is(
+  (select label_count from labelbox_batch_b),
+  6,
+  'qty delivery 200 menghasilkan 6 label'
+);
+
+select is(
+  (
+    select string_agg(box_number, ',' order by set_no, box_no)
+    from public.label_boxes
+    where batch_id = (select batch_id from labelbox_batch_b)
+  ),
+  'B101,B201,B301,B102,B202,B302',
+  'set kedua memakai akhiran 02'
+);
+
+select is(
+  (
+    select count(distinct delivery_number_id)::integer
+    from public.label_box_batches
+    where id in (
+      (select batch_id from labelbox_batch_a),
+      (select batch_id from labelbox_batch_b)
+    )
+  ),
+  1,
+  'nomor DN yang sama dipakai ulang, tidak membuat DN baru'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-1',
+      date '2026-08-01',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-C'
+    )
+  $$,
+  'P0001',
+  'DELIVERY_NUMBER_DATE_MISMATCH',
+  'DN yang sama dengan tanggal berbeda ditolak'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-2',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      150,
+      'LOT-LB-C'
+    )
+  $$,
+  'P0001',
+  'QTY_DELIVERY_NOT_MULTIPLE',
+  'qty delivery yang bukan kelipatan packing qty ditolak'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-2',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      10000,
+      'LOT-LB-C'
+    )
+  $$,
+  'P0001',
+  'QTY_DELIVERY_INVALID',
+  'lebih dari 99 set ditolak karena nomor set hanya dua digit'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-2',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000002',
+      100,
+      'LOT-LB-C'
+    )
+  $$,
+  'P0001',
+  'MASTER_ITEM_HAS_NO_BOX',
+  'master item tanpa box ditolak'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000002',
+      'DN-LABELBOX-2',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-C'
+    )
+  $$,
+  'P0001',
+  'SUPPLIER_INVALID',
+  'supplier tidak aktif ditolak'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-2',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      '   '
+    )
+  $$,
+  'P0001',
+  'LOT_NO_INVALID',
+  'lot no kosong ditolak'
+);
+
+-- Admin bisa menutup DN kapan saja; label tidak boleh dibuat setelahnya.
+reset role;
+
+update public.delivery_numbers
+set status = 'closed'
+where supplier_id = '95190000-0000-0000-0000-000000000001'
+  and delivery_number = 'DN-LABELBOX-1';
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '91190000-0000-0000-0000-000000000001',
+  true
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-1',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-E'
+    )
+  $$,
+  'P0001',
+  'DELIVERY_NUMBER_NOT_ACTIVE',
+  'Delivery Number yang sudah ditutup ditolak'
+);
+
+reset role;
+set local role anon;
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-3',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-D'
+    )
+  $$,
+  '42501',
+  'permission denied for function create_label_box_batch',
+  'anon tidak punya execute privilege'
+);
+
+reset role;
+
+select * from finish();
+
+rollback;
