@@ -71,13 +71,16 @@ begin
   end if;
 
   -- Box tujuan: nomor terkecil yang belum penuh. Urutan set lalu box
-  -- mencerminkan urutan pengepakan di lapangan.
+  -- mencerminkan urutan pengepakan di lapangan. skip locked supaya dua
+  -- operator pada batch yang sama mengisi box berbeda, bukan saling
+  -- menunggu lalu menerima NO_LABEL_BOX_AVAILABLE palsu ketika box yang
+  -- dikunci berubah status sebelum lock dilepas.
   select * into target_box
   from public.label_boxes box
   where box.batch_id = p_batch_id and box.status <> 'verified'
   order by box.set_no, box.box_no
   limit 1
-  for update;
+  for update skip locked;
 
   if target_box.id is null then
     raise exception using errcode = 'P0001', message = 'NO_LABEL_BOX_AVAILABLE';
