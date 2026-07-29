@@ -1,15 +1,15 @@
 import type { FormattedLabelFields } from "@/lib/label/formatter"
 
 /**
- * ZPL template v2 for Zebra ZD220 (203 dpi), media 55 mm x 75 mm with 3 mm
+ * ZPL template v3 for Zebra ZD220 (203 dpi), media 55 mm x 75 mm with 3 mm
  * gap, thermal-transfer wax ribbon. Layout locked by
  * docs/superpowers/specs/2026-07-24-scan-page-consolidated-form-design.md.
  *
- * v2 tightens the seven text rows (pitch 80 -> 52 dots, fonts one step
- * smaller) so the bottom third of the label is free for the QR block. Text
- * ends at y=374; the QR occupies y=392..557 of the 600 available dots.
+ * v3 keeps the v2 layout exactly. Only the QR content changed: the payload
+ * now arrives already assembled from label_boxes.qr_payload (seven fields)
+ * instead of being rebuilt from the print job snapshot (five fields).
  */
-export const TEMPLATE_VERSION = "v2"
+export const TEMPLATE_VERSION = "v3"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 55 * DOTS_PER_MM // 440

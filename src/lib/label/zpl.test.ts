@@ -17,7 +17,7 @@ const sampleFields: FormattedLabelFields = {
   deliveryNumber: "DN-2026-0001",
   boxName: "Box Utama",
   deliveryDate: "15-May-2026",
-  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-150526-B101|24-07-2026",
+  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|29-07-2026",
 }
 
 describe("escapeZplText", () => {
@@ -37,8 +37,8 @@ describe("escapeZplText", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v2 and 203dpi 55x75mm dot dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v2")
+  it("exports template version v3 and 203dpi 55x75mm dot dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v3")
     expect(LABEL_WIDTH_DOTS).toBe(440)
     expect(LABEL_LENGTH_DOTS).toBe(600)
   })
@@ -84,7 +84,7 @@ describe("buildLabelZpl", () => {
   it("emits a QR block with the payload after the text rows", () => {
     expect(zpl).toContain("^BQN,2,5")
     expect(zpl).toContain(
-      "^FDMA,10015|3210A-K1Z-NA01-DL|100|1-150526-B101|24-07-2026^FS",
+      "^FDMA,10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|29-07-2026^FS",
     )
   })
 
