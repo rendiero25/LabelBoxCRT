@@ -28,12 +28,20 @@ const safeRpcMessages: Record<string, string> = {
     "Tutup verifikasi batch ini dulu sebelum mencetak.",
   LABEL_BOX_BATCH_NOT_FOUND: "Batch label box tidak ditemukan.",
   LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk operator aktif.",
+  LABEL_UID_INVALID: "Label UID dari QR tidak valid.",
   LABEL_UID_MISSING: "QR tidak memiliki Label UID unik.",
   LAYER_QUANTITY_FULL: "Kebutuhan layer untuk produk ini sudah penuh.",
+  MASTER_ITEM_NOT_ACTIVE: "Master Item tidak aktif atau tidak ditemukan.",
   NO_LABEL_BOX_AVAILABLE: "Semua label box pada batch ini sudah penuh.",
+  PACKING_SESSION_NOT_FOUND: "Sesi packing box ini tidak ditemukan.",
+  PACKING_SESSION_OPERATOR_MISMATCH:
+    "Box ini sedang diverifikasi operator lain.",
   PRODUCT_NOT_ALLOWED_FOR_PART: "Produk tidak diizinkan untuk Master Item ini.",
   PRODUCT_NOT_REQUIRED_IN_BOX: "Produk tidak diperlukan oleh Box aktif.",
   PRODUCT_SIZE_NOT_FOUND: "Ukuran produk dari QR tidak ditemukan.",
+  SCAN_INPUT_INVALID: "Data scan tidak lengkap atau tidak valid.",
+  SESSION_BOX_INVALID: "Box pada sesi ini tidak valid lagi.",
+  SESSION_NOT_ACCEPTING_SCAN: "Box ini sudah penuh dan tidak menerima scan.",
 }
 
 function rpcErrorMessage(code: string): string {
