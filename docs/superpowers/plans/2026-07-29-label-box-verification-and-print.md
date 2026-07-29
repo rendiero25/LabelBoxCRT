@@ -146,12 +146,17 @@ begin
 
   -- Box tujuan: nomor terkecil yang belum penuh. Urutan set lalu box
   -- mencerminkan urutan pengepakan di lapangan.
+  --
+  -- skip locked, bukan menunggu: dua operator pada batch yang sama harus
+  -- mengisi box berbeda. Dengan `for update` biasa, penunggu akan menguji
+  -- ulang barisnya setelah lock lepas, mendapati box itu sudah verified,
+  -- lalu pulang tangan kosong walau box lain masih kosong.
   select * into target_box
   from public.label_boxes box
   where box.batch_id = p_batch_id and box.status <> 'verified'
   order by box.set_no, box.box_no
   limit 1
-  for update;
+  for update skip locked;
 
   if target_box.id is null then
     raise exception using errcode = 'P0001', message = 'NO_LABEL_BOX_AVAILABLE';
