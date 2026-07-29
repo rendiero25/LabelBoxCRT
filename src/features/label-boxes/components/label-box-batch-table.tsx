@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react"
 import { CheckCircle2Icon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import Link from "next/link"
 
 import {
   LabelBoxBatchDialog,
@@ -24,11 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatShortDate } from "@/lib/label/formatter"
 
 export type LabelBoxBatchRow = {
   boxNumbers: string[]
+  closed: boolean
   deliveryDate: string
   deliveryNumber: string
   id: string
@@ -36,7 +37,7 @@ export type LabelBoxBatchRow = {
   labelCount: number
   lotNo: string
   packingQty: number
-  qrGenerated: boolean
+  printed: boolean
   qtyDelivery: number
   supplierCode: string
 }
@@ -86,7 +87,7 @@ export function LabelBoxBatchTable({
                 <TableHead className="text-right">Qty Delivery</TableHead>
                 <TableHead>Lot No</TableHead>
                 <TableHead className="text-right">Label</TableHead>
-                <TableHead>QR</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -125,37 +126,29 @@ export function LabelBoxBatchTable({
                       </Button>
                     </TableCell>
                     <TableCell>
-                      {batch.qrGenerated ? (
+                      {batch.printed ? (
                         <Badge variant="secondary">
                           <CheckCircle2Icon data-icon="inline-start" />
-                          Siap
+                          Tercetak
                         </Badge>
+                      ) : batch.closed ? (
+                        <Badge>Ditutup</Badge>
                       ) : (
-                        // Not reachable today: create_label_box_batch always
-                        // stamps qr_generated_at. Kept honest in case a
-                        // future writer skips the stamp.
-                        <Badge variant="outline">Belum</Badge>
+                        <Badge variant="outline">Terbuka</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-block" tabIndex={0}>
-                            <Button
-                              className="pointer-events-none"
-                              disabled
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              Verifikasi
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Verifikasi tersedia pada task berikutnya.
-                        </TooltipContent>
-                      </Tooltip>
+                      {batch.closed ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/scan/${batch.id}/cetak`}>Cetak</Link>
+                        </Button>
+                      ) : (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/scan/${batch.id}/verifikasi`}>
+                            Verifikasi
+                          </Link>
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                   {expandedId === batch.id ? (
