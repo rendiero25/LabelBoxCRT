@@ -251,6 +251,8 @@ export type Database = {
       }
       label_box_batches: {
         Row: {
+          closed_at: string | null
+          closed_by: string | null
           created_at: string
           created_by: string
           delivery_date_snapshot: string
@@ -270,6 +272,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           created_by: string
           delivery_date_snapshot: string
@@ -289,6 +293,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           created_by?: string
           delivery_date_snapshot?: string
@@ -308,6 +314,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "label_box_batches_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "label_box_batches_created_by_fkey"
             columns: ["created_by"]
@@ -346,6 +359,7 @@ export type Database = {
           box_number: string
           created_at: string
           id: string
+          packing_session_id: string | null
           qr_payload: string
           set_no: number
           status: Database["public"]["Enums"]["label_box_status"]
@@ -357,6 +371,7 @@ export type Database = {
           box_number: string
           created_at?: string
           id?: string
+          packing_session_id?: string | null
           qr_payload: string
           set_no: number
           status?: Database["public"]["Enums"]["label_box_status"]
@@ -368,6 +383,7 @@ export type Database = {
           box_number?: string
           created_at?: string
           id?: string
+          packing_session_id?: string | null
           qr_payload?: string
           set_no?: number
           status?: Database["public"]["Enums"]["label_box_status"]
@@ -385,6 +401,13 @@ export type Database = {
             columns: ["box_id"]
             isOneToOne: false
             referencedRelation: "boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_boxes_packing_session_id_fkey"
+            columns: ["packing_session_id"]
+            isOneToOne: false
+            referencedRelation: "packing_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -700,6 +723,7 @@ export type Database = {
           part_name_snapshot: string
           part_no_snapshot: string
           qr_generated_at_snapshot: string | null
+          qr_payload_snapshot: string | null
           qty_delivery_snapshot: number | null
           qty_snapshot: number
           sent_at: string | null
@@ -728,6 +752,7 @@ export type Database = {
           part_name_snapshot: string
           part_no_snapshot: string
           qr_generated_at_snapshot?: string | null
+          qr_payload_snapshot?: string | null
           qty_delivery_snapshot?: number | null
           qty_snapshot: number
           sent_at?: string | null
@@ -756,6 +781,7 @@ export type Database = {
           part_name_snapshot?: string
           part_no_snapshot?: string
           qr_generated_at_snapshot?: string | null
+          qr_payload_snapshot?: string | null
           qty_delivery_snapshot?: number | null
           qty_snapshot?: number
           sent_at?: string | null
@@ -968,6 +994,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_label_box_scan: {
+        Args: {
+          p_batch_id: string
+          p_label_uid: string
+          p_normalized_size: string
+          p_raw_payload_hash: string
+          p_scanned_size: string
+        }
+        Returns: {
+          box_number: string
+          error_code: string
+          label_box_id: string
+          label_box_status: Database["public"]["Enums"]["label_box_status"]
+          layer_accepted_qty: number
+          layer_expected_qty: number
+          result: Database["public"]["Enums"]["scan_result"]
+          total_accepted_qty: number
+          total_expected_qty: number
+        }[]
+      }
       accept_packing_scan: {
         Args: {
           p_label_uid: string
@@ -999,6 +1045,15 @@ export type Database = {
           packing_session_id: string
           print_job_id: string
           session_status: Database["public"]["Enums"]["packing_session_status"]
+        }[]
+      }
+      close_label_box_batch: {
+        Args: { p_batch_id: string }
+        Returns: {
+          batch_id: string
+          closed_at: string
+          label_count: number
+          verified_count: number
         }[]
       }
       close_or_cancel_delivery_number: {
@@ -1073,6 +1128,26 @@ export type Database = {
           packing_qty: number
           qr_generated_at: string
           qty_delivery: number
+          supplier_code: string
+        }[]
+      }
+      create_label_box_print_jobs: {
+        Args: { p_batch_id: string }
+        Returns: {
+          box_name: string
+          box_number: string
+          delivery_date: string
+          delivery_number: string
+          label_box_id: string
+          label_reference: string
+          lot_no: string
+          part_name: string
+          part_no: string
+          print_job_id: string
+          qr_payload: string
+          qty: number
+          qty_delivery: number
+          status: Database["public"]["Enums"]["print_job_status"]
           supplier_code: string
         }[]
       }
