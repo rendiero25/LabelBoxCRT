@@ -520,10 +520,10 @@ Every `start_packing_session` call gains four arguments, the fixture gains a sup
 
 - [ ] **Step 1: Raise the plan count and add a supplier fixture**
 
-Change line 6 from `select plan(35);` to:
+The file has 35 assertions today. Step 5 adds six and Step 6 adds one, so change line 6 from `select plan(35);` to:
 
 ```sql
-select plan(41);
+select plan(42);
 ```
 
 After the `insert into public.profiles (...)` block (ends line 24), insert:
@@ -783,7 +783,7 @@ select is(
 Run: `node scripts/run-pgtap.mjs supabase/tests/database/014_phase_5_packing_session_scan.test.sql`
 Expected: `PASS  supabase/tests/database/014_phase_5_packing_session_scan.test.sql`, exit code 0.
 
-A `# Looks like you failed N tests of 41` line means an assertion is wrong; an `HTTP 400` with a Postgres error means the SQL itself is malformed. Fix and re-run.
+A `# Looks like you failed N tests of 42` line means an assertion is wrong; an `HTTP 400` with a Postgres error means the SQL itself is malformed. Fix and re-run.
 
 - [ ] **Step 8: Commit**
 
@@ -803,10 +803,10 @@ git commit -m "test: cover Delivery Number resolution and manual inputs at sessi
 
 - [ ] **Step 1: Lower the plan count**
 
-Change line 12 from `select plan(42);` to:
+Step 8 collapses four assertions into one and Step 7 adds two, so 42 − 3 + 2 = 41. Change line 12 from `select plan(42);` to:
 
 ```sql
-select plan(40);
+select plan(41);
 ```
 
 - [ ] **Step 2: Point the Master Item fixture at the supplier**
@@ -1040,6 +1040,8 @@ select throws_ok(
 
 Run: `node scripts/run-pgtap.mjs supabase/tests/database/015_phase_6_finalize.test.sql`
 Expected: `PASS  supabase/tests/database/015_phase_6_finalize.test.sql`, exit code 0.
+
+There are six `finalize_packing_session` call sites once Step 8 lands, not five — Step 8 adds one.
 
 - [ ] **Step 10: Commit**
 
@@ -1438,7 +1440,9 @@ const ELLIPSIS = "..."
 const QR_MAGNIFICATION = 5
 const QR_MODULES = 33
 const QR_Y = 392
-const QR_X = Math.round((LABEL_WIDTH_DOTS - QR_MODULES * QR_MAGNIFICATION) / 2)
+// floor, not round: (440 - 165) / 2 is 137.5, and the golden snapshot below
+// is written for 137. Half a dot either way is invisible; consistency is not.
+const QR_X = Math.floor((LABEL_WIDTH_DOTS - QR_MODULES * QR_MAGNIFICATION) / 2)
 ```
 
 Keep `escapeZplText`, `truncate`, and the `LabelRow` type exactly as they are. Replace the body of `buildLabelZpl`:
@@ -2433,8 +2437,11 @@ Expected: all files pass.
 
 - [ ] **Step 16: Commit**
 
+Stage explicit paths — another session is editing `supabase/tests/database/` in this same working tree, and `git add -A` would sweep its uncommitted work into your commit.
+
 ```bash
-git add -A
+git add src/components/operator/packing-scan-console.tsx
+git rm --cached -r --ignore-unmatch src/features/delivery-numbers/components/create-delivery-number-dialog.tsx
 git commit -m "feat: consolidate the scan start form and auto-finalize a completed box"
 ```
 
