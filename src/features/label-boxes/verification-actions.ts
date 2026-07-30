@@ -27,7 +27,7 @@ const safeRpcMessages: Record<string, string> = {
   LABEL_BOX_BATCH_NOT_CLOSED:
     "Tutup verifikasi batch ini dulu sebelum mencetak.",
   LABEL_BOX_BATCH_NOT_FOUND: "Batch label box tidak ditemukan.",
-  LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk operator aktif.",
+  LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk pengguna aktif.",
   LABEL_UID_INVALID: "Label UID dari QR tidak valid.",
   LABEL_UID_MISSING: "QR tidak memiliki Label UID unik.",
   LAYER_QUANTITY_FULL: "Kebutuhan layer untuk produk ini sudah penuh.",

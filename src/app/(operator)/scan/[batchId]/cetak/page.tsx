@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 
 import { LabelBoxBatchPrintCard } from "@/features/label-boxes/components/label-box-batch-print-card"
 import { Button } from "@/components/ui/button"
-import { requireOperator } from "@/features/auth/server"
+import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function LabelBoxPrintPage({
@@ -12,7 +12,7 @@ export default async function LabelBoxPrintPage({
 }: {
   params: Promise<{ batchId: string }>
 }) {
-  await requireOperator()
+  await requireActiveUser()
   const { batchId } = await params
   const supabase = await createClient()
 

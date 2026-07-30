@@ -15,7 +15,7 @@ insert into auth.users (
 
 insert into public.profiles (id, display_name, role, is_active) values
   ('91180000-0000-0000-0000-000000000001', 'Box Owned Admin', 'admin', true),
-  ('91180000-0000-0000-0000-000000000002', 'Box Owned Operator', 'operator', true);
+  ('91180000-0000-0000-0000-000000000002', 'Box Owned Operator', 'user', true);
 
 insert into public.master_items (
   id, item_code, part_no, part_name, unit, default_label_qty, is_active

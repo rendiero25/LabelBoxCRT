@@ -4,7 +4,7 @@ import {
   LabelBoxVerificationConsole,
   type VerificationLabelBox,
 } from "@/features/label-boxes/components/label-box-verification-console"
-import { requireOperator } from "@/features/auth/server"
+import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function LabelBoxVerificationPage({
@@ -12,7 +12,7 @@ export default async function LabelBoxVerificationPage({
 }: {
   params: Promise<{ batchId: string }>
 }) {
-  await requireOperator()
+  await requireActiveUser()
   const { batchId } = await params
   const supabase = await createClient()
 

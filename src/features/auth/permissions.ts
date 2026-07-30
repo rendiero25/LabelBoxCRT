@@ -2,11 +2,13 @@ import type { Database } from "@/types/database"
 
 export type AppRole = Database["public"]["Enums"]["user_role"]
 
-export function hasRequiredRole(
-  actualRole: AppRole,
-  requiredRole: AppRole,
-): boolean {
-  return actualRole === "admin" || actualRole === requiredRole
+/**
+ * Peran operator sudah dihapus: alur scan dan label box terbuka untuk setiap
+ * profil aktif. Yang tersisa hanya pembeda admin, dipakai untuk mengunci
+ * area master data.
+ */
+export function isAdminRole(role: AppRole): boolean {
+  return role === "admin"
 }
 
 export function getRoleHomePath(role: AppRole): "/admin" | "/scan" {

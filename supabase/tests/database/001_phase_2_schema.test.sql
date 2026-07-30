@@ -9,7 +9,7 @@ select has_type('public', 'user_role', 'user_role enum exists');
 select enum_has_labels(
   'public',
   'user_role',
-  array['admin', 'operator'],
+  array['admin', 'user'],
   'user_role labels stay locked'
 );
 select has_type('public', 'delivery_status', 'delivery_status enum exists');

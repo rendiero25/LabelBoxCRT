@@ -27,8 +27,8 @@ insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_d
   ('a7100000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'phase7-other@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.profiles (id, display_name, role, is_active) values
-  ('a7100000-0000-0000-0000-000000000001', 'Phase 7 Operator', 'operator', true),
-  ('a7100000-0000-0000-0000-000000000002', 'Phase 7 Other', 'operator', true);
+  ('a7100000-0000-0000-0000-000000000001', 'Phase 7 Operator', 'user', true),
+  ('a7100000-0000-0000-0000-000000000002', 'Phase 7 Other', 'user', true);
 
 insert into public.master_items (id, item_code, part_no, part_name, unit, default_label_qty, is_active)
 values ('a7200000-0000-0000-0000-000000000001', 'phase7-item', 'PHASE7-PART', 'Phase 7 Part', 'Pcs', 100, true);

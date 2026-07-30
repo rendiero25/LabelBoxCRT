@@ -3,12 +3,12 @@ import Image from "next/image"
 import { AppStatus } from "@/components/shared/app-status"
 import { Badge } from "@/components/ui/badge"
 import { SignOutButton } from "@/features/auth/components/sign-out-button"
-import { requireOperator } from "@/features/auth/server"
+import { requireActiveUser } from "@/features/auth/server"
 
 export default async function OperatorLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const auth = await requireOperator()
+  const auth = await requireActiveUser()
 
   return (
     <div className="bg-muted/20 min-h-svh">

@@ -18,7 +18,7 @@ const safeRpcMessages: Record<string, string> = {
     "Delivery Number wajib diisi (maksimal 100 karakter).",
   DELIVERY_NUMBER_NOT_ACTIVE:
     "Delivery Number ini sudah ditutup atau dibatalkan admin.",
-  LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk operator aktif.",
+  LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk pengguna aktif.",
   LOT_NO_INVALID: "Lot No wajib diisi (maksimal 100 karakter).",
   MASTER_ITEM_HAS_NO_BOX: "Master Item ini belum punya Box.",
   MASTER_ITEM_NOT_ACTIVE: "Master Item tidak aktif atau tidak ditemukan.",

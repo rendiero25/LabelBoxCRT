@@ -12,7 +12,7 @@ insert into auth.users (
     'label-box-operator@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.profiles (id, display_name, role, is_active) values
-  ('91190000-0000-0000-0000-000000000001', 'Label Box Operator', 'operator', true);
+  ('91190000-0000-0000-0000-000000000001', 'Label Box Operator', 'user', true);
 
 insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
   ('95190000-0000-0000-0000-000000000001', 'LB1SUP', 'Label Box Supplier', true),

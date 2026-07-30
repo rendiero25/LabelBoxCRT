@@ -16,10 +16,10 @@ insert into auth.users (
 
 insert into public.profiles (id, display_name, role, is_active) values
   ('10000000-0000-0000-0000-000000000001', 'Phase 2 Admin', 'admin', true),
-  ('10000000-0000-0000-0000-000000000002', 'Phase 2 Operator', 'operator', true),
-  ('10000000-0000-0000-0000-000000000003', 'Other Operator', 'operator', true),
-  ('10000000-0000-0000-0000-000000000004', 'Inactive Operator', 'operator', false),
-  ('10000000-0000-0000-0000-000000000005', 'Unassigned Operator', 'operator', true);
+  ('10000000-0000-0000-0000-000000000002', 'Phase 2 Operator', 'user', true),
+  ('10000000-0000-0000-0000-000000000003', 'Other Operator', 'user', true),
+  ('10000000-0000-0000-0000-000000000004', 'Inactive Operator', 'user', false),
+  ('10000000-0000-0000-0000-000000000005', 'Unassigned Operator', 'user', true);
 
 insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
   ('20000000-0000-0000-0000-000000000001', 'RLS-ACTIVE', 'RLS Active Supplier', true),

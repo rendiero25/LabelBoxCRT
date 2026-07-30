@@ -5,11 +5,11 @@ import {
   type LabelBoxBatchRow,
 } from "@/features/label-boxes/components/label-box-batch-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { requireOperator } from "@/features/auth/server"
+import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function ScanPage() {
-  await requireOperator()
+  await requireActiveUser()
   const supabase = await createClient()
 
   const [

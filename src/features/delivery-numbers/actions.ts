@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { requireOperator } from "@/features/auth/server"
+import { requireActiveUser } from "@/features/auth/server"
 import type { DeliveryNumberActionState } from "@/features/delivery-numbers/form-state"
 import {
   deliveryNumberRpcErrorMessage,
@@ -21,7 +21,7 @@ export async function createDeliveryNumberAction(
   _previousState: DeliveryNumberActionState,
   formData: FormData,
 ): Promise<DeliveryNumberActionState> {
-  await requireOperator()
+  await requireActiveUser()
   const parsed = parseDeliveryNumberInput(formData, { allowStatus: true })
   if ("error" in parsed) return { error: parsed.error }
 
@@ -43,7 +43,7 @@ export async function updateDeliveryNumberAction(
   _previousState: DeliveryNumberActionState,
   formData: FormData,
 ): Promise<DeliveryNumberActionState> {
-  await requireOperator()
+  await requireActiveUser()
   const deliveryNumberId = deliveryNumberIdFromFormData(formData)
   const parsed = parseDeliveryNumberInput(formData)
   if (!deliveryNumberId) return { error: "Delivery Number tidak valid." }
@@ -67,7 +67,7 @@ export async function closeOrCancelDeliveryNumberAction(
   _previousState: DeliveryNumberActionState,
   formData: FormData,
 ): Promise<DeliveryNumberActionState> {
-  await requireOperator()
+  await requireActiveUser()
   const deliveryNumberId = deliveryNumberIdFromFormData(formData)
   const status = formData.get("status")
   if (!deliveryNumberId) return { error: "Delivery Number tidak valid." }

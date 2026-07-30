@@ -20,8 +20,8 @@ insert into auth.users (
   );
 
 insert into public.profiles (id, display_name, role, is_active) values
-  ('95100000-0000-0000-0000-000000000001', 'Phase 5 Operator', 'operator', true),
-  ('95100000-0000-0000-0000-000000000002', 'Phase 5 Other Operator', 'operator', true);
+  ('95100000-0000-0000-0000-000000000001', 'Phase 5 Operator', 'user', true),
+  ('95100000-0000-0000-0000-000000000002', 'Phase 5 Other Operator', 'user', true);
 
 insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
   ('95900000-0000-0000-0000-000000000001', 'PH5SUP', 'Phase 5 Supplier', true),

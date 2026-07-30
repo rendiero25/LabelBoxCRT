@@ -12,7 +12,7 @@ insert into auth.users (
     'verify-operator@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.profiles (id, display_name, role, is_active) values
-  ('91200000-0000-0000-0000-000000000001', 'Verify Operator', 'operator', true);
+  ('91200000-0000-0000-0000-000000000001', 'Verify Operator', 'user', true);
 
 insert into public.suppliers (id, supplier_code, supplier_name, is_active) values
   ('95200000-0000-0000-0000-000000000001', 'VF1SUP', 'Verify Supplier', true);

@@ -22,7 +22,7 @@ select results_eq(
 
 select results_eq(
   $$ select p.role::text from public.profiles p join auth.users u on u.id = p.id where lower(u.email) = 'user@crtkabelita.com' $$,
-  array['operator'::text],
+  array['user'::text],
   'operator profile is seeded'
 );
 

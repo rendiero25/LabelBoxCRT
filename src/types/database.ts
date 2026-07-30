@@ -1366,7 +1366,7 @@ export type Database = {
         | "cancelled"
       reprint_status: "requested" | "approved" | "rejected" | "executed"
       scan_result: "accepted" | "invalid" | "duplicate" | "over_qty"
-      user_role: "admin" | "operator"
+      user_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1523,7 +1523,7 @@ export const Constants = {
       ],
       reprint_status: ["requested", "approved", "rejected", "executed"],
       scan_result: ["accepted", "invalid", "duplicate", "over_qty"],
-      user_role: ["admin", "operator"],
+      user_role: ["admin", "user"],
     },
   },
 } as const
