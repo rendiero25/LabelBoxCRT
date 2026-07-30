@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(42);
+select plan(28);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -124,12 +124,45 @@ insert into public.box_layer_requirements (
     '98200000-0000-0000-0000-000000000004', '97100000-0000-0000-0000-000000000004', 1, 1
   );
 
-select has_function(
-  'public',
-  'start_packing_session',
-  array['uuid', 'uuid', 'uuid', 'date', 'integer', 'text'],
-  'start packing-session RPC takes master item, box, supplier, delivery date, qty delivery, and lot no'
+-- start_packing_session was dropped (Task 13): it auto-created this Delivery
+-- Number and the packing_sessions rows below. Both are now inserted directly
+-- as fixture data; accept_packing_scan reads packing_sessions by id and does
+-- not care how the row got there.
+insert into public.delivery_numbers (
+  id, supplier_id, delivery_number, delivery_date, status, created_by
+) values (
+  '95800000-0000-0000-0000-000000000001', '95900000-0000-0000-0000-000000000001',
+  'DN-PHASE5-TEST', date '2026-05-15', 'active', '95100000-0000-0000-0000-000000000001'
 );
+
+insert into public.packing_sessions (
+  id, operator_id, master_item_id, box_id, delivery_number_id,
+  qty_delivery, lot_no, status
+) values
+  (
+    'a1400000-0000-0000-0000-000000000001',
+    '95100000-0000-0000-0000-000000000001',
+    '96100000-0000-0000-0000-000000000001',
+    '98100000-0000-0000-0000-000000000001',
+    '95800000-0000-0000-0000-000000000001',
+    40, 'LOT-P5-A', 'scanning'
+  ),
+  (
+    'a1400000-0000-0000-0000-000000000002',
+    '95100000-0000-0000-0000-000000000001',
+    '96100000-0000-0000-0000-000000000001',
+    '98100000-0000-0000-0000-000000000001',
+    '95800000-0000-0000-0000-000000000001',
+    40, 'LOT-P5-B', 'scanning'
+  ),
+  (
+    'a1400000-0000-0000-0000-000000000003',
+    '95100000-0000-0000-0000-000000000001',
+    '96100000-0000-0000-0000-000000000001',
+    '98100000-0000-0000-0000-000000000002',
+    '95800000-0000-0000-0000-000000000001',
+    40, 'LOT-P5-C', 'scanning'
+  );
 
 select has_function(
   'public',
@@ -171,150 +204,6 @@ set local role authenticated;
 
 select throws_ok(
   $$
-    select public.start_packing_session(
-      '96100000-0000-0000-0000-000000000099',
-      '98100000-0000-0000-0000-000000000001',
-      '95900000-0000-0000-0000-000000000001',
-      date '2026-05-15',
-      40,
-      'LOT-P5-A'
-    )
-  $$,
-  'P0001',
-  'MASTER_ITEM_NOT_ACTIVE',
-  'start rejects a missing or inactive Master Item'
-);
-
-select throws_ok(
-  $$
-    select public.start_packing_session(
-      '96100000-0000-0000-0000-000000000002',
-      '98100000-0000-0000-0000-000000000001',
-      '95900000-0000-0000-0000-000000000001',
-      date '2026-05-15',
-      40,
-      'LOT-P5-A'
-    )
-  $$,
-  'P0001',
-  'BOX_NOT_FOUND_OR_MISMATCH',
-  'start requires the selected Box to belong to its Master Item'
-);
-
-select throws_ok(
-  $$
-    select public.start_packing_session(
-      '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001',
-      '95900000-0000-0000-0000-000000000002',
-      date '2026-05-15',
-      40,
-      'LOT-P5-A'
-    )
-  $$,
-  'P0001',
-  'DELIVERY_NUMBER_SUPPLIER_INVALID',
-  'start rejects an inactive supplier'
-);
-
-select throws_ok(
-  $$
-    select public.start_packing_session(
-      '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001',
-      '95900000-0000-0000-0000-000000000001',
-      date '2026-05-15',
-      0,
-      'LOT-P5-A'
-    )
-  $$,
-  'P0001',
-  'QTY_DELIVERY_INVALID',
-  'start rejects a non-positive qty delivery'
-);
-
-select throws_ok(
-  $$
-    select public.start_packing_session(
-      '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001',
-      '95900000-0000-0000-0000-000000000001',
-      date '2026-05-15',
-      40,
-      '   '
-    )
-  $$,
-  'P0001',
-  'LOT_NO_INVALID',
-  'start rejects a blank lot no'
-);
-
-create temporary table phase5_b101_session as
-select *
-from public.start_packing_session(
-  '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000001',
-  '95900000-0000-0000-0000-000000000001',
-  date '2026-05-15',
-  40,
-  'LOT-P5-A'
-);
-grant select on phase5_b101_session to public;
-
-select isnt(
-  (select delivery_number_id from phase5_b101_session),
-  null,
-  'start resolves a Delivery Number onto the session'
-);
-
-select matches(
-  (select delivery_number from phase5_b101_session),
-  '^DN-[0-9]{6}$',
-  'an auto-created Delivery Number uses the generated code format'
-);
-
-select is(
-  (
-    select qty_delivery::text || ':' || lot_no
-    from public.packing_sessions
-    where id = (select session_id from phase5_b101_session)
-  ),
-  '40:LOT-P5-A',
-  'start persists the manual qty delivery and lot no'
-);
-
-select is(
-  (select status::text from phase5_b101_session),
-  'scanning',
-  'start creates a scanning session'
-);
-
-select is(
-  (
-    select box_id::text || ':' || total_expected_qty::text || ':' || accepted_qty::text
-    from phase5_b101_session
-  ),
-  '98100000-0000-0000-0000-000000000001:8:0',
-  'start snapshots the B101 box and calculates its expected total'
-);
-
-reset role;
-
-select is(
-  (
-    select count(*)::integer
-    from public.audit_logs audit
-    join phase5_b101_session started on started.session_id::text = audit.entity_id
-    where audit.action = 'packing_session.started'
-  ),
-  1,
-  'start is audited'
-);
-
-set local role authenticated;
-
-select throws_ok(
-  $$
     insert into public.packing_sessions (
       operator_id, master_item_id, box_id, status
     ) values (
@@ -333,7 +222,7 @@ select is(
   (
     select result::text || ':' || error_code
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       null,
       'phase5-hash-missing-uid',
       '5.5 x 6.3 x 205',
@@ -348,8 +237,8 @@ select is(
   (
     select count(*)::integer
     from public.packing_session_scans scan
-    join phase5_b101_session started on started.session_id = scan.packing_session_id
-    where scan.result = 'invalid' and scan.error_code = 'LABEL_UID_MISSING'
+    where scan.packing_session_id = 'a1400000-0000-0000-0000-000000000001'
+      and scan.result = 'invalid' and scan.error_code = 'LABEL_UID_MISSING'
   ),
   1,
   'missing UID rejection is persisted'
@@ -359,7 +248,7 @@ select is(
   (
     select error_code
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-size-missing',
       'phase5-hash-size-missing',
       'Unknown size',
@@ -374,7 +263,7 @@ select is(
   (
     select error_code
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-unmapped',
       'phase5-hash-unmapped',
       '9.9 x 8.8 x 7.7',
@@ -389,7 +278,7 @@ select is(
   (
     select error_code
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-not-required',
       'phase5-hash-not-required',
       '10 x 9 x 8',
@@ -404,7 +293,7 @@ select is(
   (
     select result::text || ':' || box_layer_id::text || ':' || layer_accepted_qty::text || ':' || layer_expected_qty::text
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-1',
       'phase5-hash-b101-uid-1',
       '5.5 x 6.3 x 205',
@@ -418,7 +307,7 @@ select is(
 select lives_ok(
   $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-2',
       'phase5-hash-b101-uid-2',
       '5.5 x 6.3 x 205',
@@ -432,7 +321,7 @@ select is(
   (
     select box_layer_id::text || ':' || layer_accepted_qty::text || ':' || total_accepted_qty::text
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-3',
       'phase5-hash-b101-uid-3',
       '5.5 x 6.3 x 205',
@@ -447,7 +336,7 @@ select is(
   (
     select box_layer_id::text || ':' || layer_accepted_qty::text || ':' || layer_expected_qty::text
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-4',
       'phase5-hash-b101-uid-4',
       '5.5 x 6.3 x 205',
@@ -458,28 +347,11 @@ select is(
   'fourth scan moves to layer 2'
 );
 
-create temporary table phase5_second_session as
-select *
-from public.start_packing_session(
-  '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000001',
-  '95900000-0000-0000-0000-000000000001',
-  date '2026-05-15',
-  40,
-  'LOT-P5-B'
-);
-
-select is(
-  (select delivery_number_id from phase5_second_session),
-  (select delivery_number_id from phase5_b101_session),
-  'a second session on the same supplier and date reuses the same Delivery Number'
-);
-
 select is(
   (
     select result::text || ':' || error_code
     from public.accept_packing_scan(
-      (select session_id from phase5_second_session),
+      'a1400000-0000-0000-0000-000000000002',
       'phase5-b101-uid-1',
       'phase5-hash-duplicate-global',
       '5.5 x 6.3 x 205',
@@ -494,8 +366,8 @@ select is(
   (
     select count(*)::integer
     from public.packing_session_scans scan
-    join phase5_second_session started on started.session_id = scan.packing_session_id
-    where scan.label_uid = 'phase5-b101-uid-1'
+    where scan.packing_session_id = 'a1400000-0000-0000-0000-000000000002'
+      and scan.label_uid = 'phase5-b101-uid-1'
       and scan.result = 'duplicate'
       and scan.error_code = 'LABEL_ALREADY_SCANNED'
   ),
@@ -503,22 +375,11 @@ select is(
   'global duplicate outcome is persisted'
 );
 
-create temporary table phase5_overflow_session as
-select *
-from public.start_packing_session(
-  '96100000-0000-0000-0000-000000000001',
-  '98100000-0000-0000-0000-000000000002',
-  '95900000-0000-0000-0000-000000000001',
-  date '2026-05-15',
-  40,
-  'LOT-P5-C'
-);
-
 select is(
   (
     select session_status::text
     from public.accept_packing_scan(
-      (select session_id from phase5_overflow_session),
+      'a1400000-0000-0000-0000-000000000003',
       'phase5-overflow-uid-1',
       'phase5-hash-overflow-uid-1',
       '5.5 x 6.3 x 205',
@@ -533,7 +394,7 @@ select is(
   (
     select result::text || ':' || error_code
     from public.accept_packing_scan(
-      (select session_id from phase5_overflow_session),
+      'a1400000-0000-0000-0000-000000000003',
       'phase5-overflow-uid-2',
       'phase5-hash-overflow-uid-2',
       '5.5 x 6.3 x 205',
@@ -548,8 +409,8 @@ select is(
   (
     select count(*)::integer
     from public.packing_session_scans scan
-    join phase5_overflow_session started on started.session_id = scan.packing_session_id
-    where scan.result = 'over_qty' and scan.error_code = 'LAYER_QUANTITY_FULL'
+    where scan.packing_session_id = 'a1400000-0000-0000-0000-000000000003'
+      and scan.result = 'over_qty' and scan.error_code = 'LAYER_QUANTITY_FULL'
   ),
   1,
   'over-quantity rejection is persisted'
@@ -558,7 +419,7 @@ select is(
 select lives_ok(
   $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-5',
       'phase5-hash-b101-uid-5',
       '5.5 x 6.3 x 205',
@@ -571,7 +432,7 @@ select lives_ok(
 select lives_ok(
   $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-6',
       'phase5-hash-b101-uid-6',
       '5.5 x 6.3 x 205',
@@ -584,7 +445,7 @@ select lives_ok(
 select lives_ok(
   $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-7',
       'phase5-hash-b101-uid-7',
       '5.5 x 6.3 x 205',
@@ -598,7 +459,7 @@ select is(
   (
     select session_status::text || ':' || total_accepted_qty::text || ':' || total_expected_qty::text
     from public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-b101-uid-8',
       'phase5-hash-b101-uid-8',
       '5.5 x 6.3 x 205',
@@ -620,7 +481,7 @@ select is(
       left join public.packing_session_scans scan
         on scan.box_layer_id = layer.id
         and scan.result = 'accepted'
-        and scan.packing_session_id = (select session_id from phase5_b101_session)
+        and scan.packing_session_id = 'a1400000-0000-0000-0000-000000000001'
       where layer.box_id = '98100000-0000-0000-0000-000000000001'
       group by layer.id, layer.layer_no, layer.sort_order
     ) as layer_progress
@@ -633,8 +494,8 @@ select is(
   (
     select scanned_part_no
     from public.packing_session_scans scan
-    join phase5_b101_session started on started.session_id = scan.packing_session_id
-    where scan.label_uid = 'phase5-b101-uid-8'
+    where scan.packing_session_id = 'a1400000-0000-0000-0000-000000000001'
+      and scan.label_uid = 'phase5-b101-uid-8'
   ),
   'PHASE5-PART',
   'scan Part No is derived from the selected Master Item, not the QR input'
@@ -643,7 +504,7 @@ select is(
 select throws_ok(
   $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-after-ready',
       'phase5-hash-after-ready',
       '5.5 x 6.3 x 205',
@@ -664,7 +525,7 @@ select set_config(
 select throws_ok(
   $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-other-operator',
       'phase5-hash-other-operator',
       '5.5 x 6.3 x 205',
@@ -688,8 +549,8 @@ select is(
   (
     select count(*)::integer
     from public.audit_logs audit
-    join phase5_b101_session started on started.session_id::text = audit.entity_id
     where audit.action = 'packing_scan.accepted'
+      and audit.entity_id = 'a1400000-0000-0000-0000-000000000001'
   ),
   8,
   'accepted B101 scans are audited without raw UID values'
@@ -700,24 +561,8 @@ set local role anon;
 
 select throws_ok(
   $$
-    select public.start_packing_session(
-      '96100000-0000-0000-0000-000000000001',
-      '98100000-0000-0000-0000-000000000001',
-      '95900000-0000-0000-0000-000000000001',
-      date '2026-05-15',
-      40,
-      'LOT-P5-A'
-    )
-  $$,
-  '42501',
-  'permission denied for function start_packing_session',
-  'anon has no execute privilege for starting sessions'
-);
-
-select throws_ok(
-  $$
     select public.accept_packing_scan(
-      (select session_id from phase5_b101_session),
+      'a1400000-0000-0000-0000-000000000001',
       'phase5-anon',
       'phase5-hash-anon',
       '5.5 x 6.3 x 205',
