@@ -4,9 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   connectQz,
+  listHidDevices,
   listPrinters,
   onQzClosed,
 } from "@/features/print/qz-client"
+import {
+  findZebraScanner,
+  type HidDevice,
+} from "@/features/scan/zebra-scanner"
 
 export type QzConnectionStatus =
   | "connecting"
@@ -19,6 +24,7 @@ const RECONNECT_DELAYS_MS = [2000, 5000, 10000, 30000]
 export function useQzConnection() {
   const [status, setStatus] = useState<QzConnectionStatus>("disconnected")
   const [printers, setPrinters] = useState<string[]>([])
+  const [scanner, setScanner] = useState<HidDevice | null>(null)
   const reconnectAttempt = useRef(0)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const disposed = useRef(false)
@@ -34,6 +40,20 @@ export function useQzConnection() {
     }
   }, [])
 
+  // Enumerasi HID bisa gagal walau QZ terhubung, misalnya ketika Java
+  // tidak punya izin membaca perangkat. Kegagalan diperlakukan sebagai
+  // "tidak ditemukan", bukan memutus koneksi QZ.
+  const refreshScanner = useCallback(async () => {
+    try {
+      const devices = await listHidDevices()
+      if (disposed.current) return
+      setScanner(findZebraScanner(devices))
+    } catch {
+      if (disposed.current) return
+      setScanner(null)
+    }
+  }, [])
+
   const connect = useCallback(async () => {
     const attempt = async (): Promise<void> => {
       if (disposed.current) return
@@ -44,6 +64,7 @@ export function useQzConnection() {
         reconnectAttempt.current = 0
         setStatus("connected")
         await refreshPrinters()
+        await refreshScanner()
       } catch {
         if (disposed.current) return
         setStatus("error")
@@ -56,7 +77,7 @@ export function useQzConnection() {
       }
     }
     await attempt()
-  }, [refreshPrinters])
+  }, [refreshPrinters, refreshScanner])
 
   useEffect(() => {
     disposed.current = false
@@ -64,6 +85,7 @@ export function useQzConnection() {
       if (disposed.current) return
       setStatus("disconnected")
       setPrinters([])
+      setScanner(null)
       reconnectTimer.current = setTimeout(() => void connect(), 2000)
     })
     void connect()
@@ -74,5 +96,5 @@ export function useQzConnection() {
     }
   }, [connect])
 
-  return { connect, printers, refreshPrinters, status }
+  return { connect, printers, refreshPrinters, refreshScanner, scanner, status }
 }

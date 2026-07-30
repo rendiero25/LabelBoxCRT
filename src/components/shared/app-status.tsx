@@ -14,6 +14,7 @@ import {
 } from "@/features/print/components/use-preferred-printer"
 import { resolvePrinter } from "@/features/print/printer-preference"
 import { useQzConnection } from "@/features/print/use-qz-connection"
+import { describeZebraScanner } from "@/features/scan/zebra-scanner"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -56,22 +57,20 @@ const OVERALL_LABEL: Record<ReadinessState, string> = {
 }
 
 export function AppStatus() {
-  const { printers, status } = useQzConnection()
+  const { printers, scanner, status } = useQzConnection()
   // Hydration-safe: null on the server snapshot, stored value after
   // hydration (useSyncExternalStore under the hood).
   const printer = usePreferredPrinter()
   const activePrinter = resolvePrinter(printer, printers)
 
+  const qzState: ReadinessState =
+    status === "connected" ? "ok" : status === "connecting" ? "pending" : "attention"
+
   const items: ReadinessItem[] = [
     {
       key: "qz",
       label: "QZ Tray",
-      state:
-        status === "connected"
-          ? "ok"
-          : status === "connecting"
-            ? "pending"
-            : "attention",
+      state: qzState,
       detail:
         status === "connected"
           ? "Terhubung"
@@ -86,6 +85,22 @@ export function AppStatus() {
       label: "Printer",
       state: activePrinter ? "ok" : "attention",
       detail: activePrinter ?? (printer ? "Printer tersimpan tidak ditemukan" : "Belum dipilih"),
+    },
+    {
+      key: "scanner",
+      label: "Scanner",
+      // Daftar HID hanya bisa dibaca lewat QZ. Selama QZ belum terhubung
+      // status scanner tidak diketahui, jadi baris ini mengikuti keadaan QZ:
+      // memberinya "pending" sendiri akan membuat pil ringkasan berbunyi
+      // "Memeriksa sistem" padahal QZ mati dan justru butuh tindakan.
+      state:
+        status !== "connected" ? qzState : scanner ? "ok" : "attention",
+      detail:
+        status !== "connected"
+          ? "Menunggu QZ Tray"
+          : scanner
+            ? describeZebraScanner(scanner)
+            : "Scanner Zebra tidak terdeteksi",
     },
   ]
 

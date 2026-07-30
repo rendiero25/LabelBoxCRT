@@ -1,5 +1,7 @@
 import qz from "qz-tray"
 
+import type { HidDevice } from "@/features/scan/zebra-scanner"
+
 let securityConfigured = false
 
 function configureSecurity(): void {
@@ -55,6 +57,16 @@ export async function disconnectQz(): Promise<void> {
 export async function listPrinters(): Promise<string[]> {
   const printers = await qz.printers.find()
   return Array.isArray(printers) ? printers : [printers]
+}
+
+/**
+ * Daftar perangkat HID yang terlihat QZ Tray. Hanya membaca, tidak mengklaim
+ * perangkat, jadi tetap berhasil walau sistem operasi sudah memegang scanner
+ * sebagai keyboard.
+ */
+export async function listHidDevices(): Promise<HidDevice[]> {
+  const devices = await qz.hid.listDevices()
+  return Array.isArray(devices) ? devices : []
 }
 
 export async function sendZpl(

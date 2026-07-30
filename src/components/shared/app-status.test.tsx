@@ -11,9 +11,13 @@ const mocks = vi.hoisted(() => ({
     connect: vi.fn(),
     printers: [] as string[],
     refreshPrinters: vi.fn(),
+    refreshScanner: vi.fn(),
+    scanner: null as { product?: string } | null,
     status: "disconnected" as const,
   })),
 }))
+
+const zebraScanner = { product: "Symbol Bar Code Scanner DS2208" }
 
 vi.mock("@/features/print/use-qz-connection", () => ({
   useQzConnection: mocks.useQzConnection,
@@ -48,10 +52,12 @@ afterEach(() => {
 
 function renderAppStatus({
   printers,
+  scanner = zebraScanner,
   status,
   storedPrinter,
 }: {
   printers: string[]
+  scanner?: { product?: string } | null
   status: "connected" | "connecting" | "disconnected" | "error"
   storedPrinter: string | null
 }): string {
@@ -59,6 +65,8 @@ function renderAppStatus({
     connect: vi.fn(),
     printers,
     refreshPrinters: vi.fn(),
+    refreshScanner: vi.fn(),
+    scanner,
     status: status as never,
   })
   mocks.readPreferredPrinter.mockReturnValue(storedPrinter)
@@ -98,6 +106,18 @@ describe("AppStatus", () => {
   it("reports attention needed when the stored printer is no longer discovered", () => {
     const html = renderAppStatus({
       printers: ["Some Other Printer"],
+      status: "connected",
+      storedPrinter: "ZDesigner ZD220-203dpi ZPL",
+    })
+
+    expect(html).toContain("Perlu perhatian")
+    expect(html).not.toContain("Sistem siap")
+  })
+
+  it("reports attention needed when no Zebra scanner is detected", () => {
+    const html = renderAppStatus({
+      printers: ["ZDesigner ZD220-203dpi ZPL"],
+      scanner: null,
       status: "connected",
       storedPrinter: "ZDesigner ZD220-203dpi ZPL",
     })

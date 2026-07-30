@@ -20,7 +20,18 @@ declare module "qz-tray" {
     retries?: number
   }
 
+  interface QzHidDevice {
+    manufacturer?: string
+    product?: string
+    productId?: number | string
+    serial?: string
+    vendorId?: number | string
+  }
+
   const qz: {
+    hid: {
+      listDevices(): Promise<QzHidDevice[]>
+    }
     configs: {
       create(
         printer: string | { name: string },
