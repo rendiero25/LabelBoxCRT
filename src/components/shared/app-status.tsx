@@ -14,6 +14,7 @@ import {
 } from "@/features/print/components/use-preferred-printer"
 import { resolvePrinter } from "@/features/print/printer-preference"
 import { useQzConnection } from "@/features/print/use-qz-connection"
+import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
@@ -98,19 +99,20 @@ export function AppStatus() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
+        <Button
           aria-label="Status sistem"
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+            "h-8 gap-1.5 rounded-full border px-3 text-xs font-medium",
             TRIGGER_STYLES[overall],
           )}
           type="button"
+          variant="outline"
         >
           <OverallIcon
             className={cn("size-3.5", STATE_STYLES[overall].iconClassName)}
           />
           {OVERALL_LABEL[overall]}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64">
         <div className="flex flex-col gap-0.5 px-0.5 pb-1">

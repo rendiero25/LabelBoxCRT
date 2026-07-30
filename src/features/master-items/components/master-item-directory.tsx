@@ -36,10 +36,14 @@ import {
 } from "@/components/shared/action-state-toast"
 import { PaginationControls } from "@/components/shared/pagination-controls"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -201,8 +205,8 @@ export function MasterItemDirectory({
               value={query}
             />
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <FilterIcon data-icon="inline-start" />
                 Filter
@@ -212,63 +216,60 @@ export function MasterItemDirectory({
                   </Badge>
                 ) : null}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-64">
-              <div className="flex flex-col gap-2">
-                <p className="text-muted-foreground text-xs font-medium">
-                  Status
-                </p>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    setStatus(value as typeof status)
-                    setPage(1)
-                  }}
-                >
-                  <SelectTrigger
-                    aria-label="Filter status Master Item"
-                    className="w-full"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua status</SelectItem>
-                    <SelectItem value="active">Aktif</SelectItem>
-                    <SelectItem value="inactive">Nonaktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                onValueChange={(value) => {
+                  setStatus(value as typeof status)
+                  setPage(1)
+                }}
+                value={status}
+              >
+                <DropdownMenuRadioItem value="all">
+                  Semua status
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="active">
+                  Aktif
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="inactive">
+                  Nonaktif
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <ArrowUpDownIcon data-icon="inline-start" />
                 Urutkan
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-56">
-              <div className="flex flex-col gap-1">
-                {(Object.keys(sortLabels) as SortColumn[]).map((column) => {
-                  const isActive = column === sortColumn
-                  const Icon =
-                    sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
-                  return (
-                    <Button
-                      className="justify-between"
-                      key={column}
-                      onClick={() => toggleSort(column)}
-                      type="button"
-                      variant={isActive ? "secondary" : "ghost"}
-                    >
-                      {sortLabels[column]}
-                      {isActive ? <Icon className="size-3.5" /> : null}
-                    </Button>
-                  )
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Urutkan menurut</DropdownMenuLabel>
+              {(Object.keys(sortLabels) as SortColumn[]).map((column) => {
+                const isActive = column === sortColumn
+                const Icon =
+                  sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+                return (
+                  // Menu tetap terbuka: menekan kolom yang sama membalik arah
+                  // urutan, jadi menutupnya memaksa operator membuka lagi.
+                  <DropdownMenuItem
+                    key={column}
+                    onSelect={(event) => {
+                      event.preventDefault()
+                      toggleSort(column)
+                    }}
+                  >
+                    {sortLabels[column]}
+                    {isActive ? (
+                      <Icon className="ml-auto size-3.5" />
+                    ) : null}
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <CreateMasterItemDialog suppliers={suppliers} />
       </div>

@@ -67,17 +67,14 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Table,
@@ -185,8 +182,8 @@ export function ProductDirectory({ products }: { products: Product[] }) {
               value={query}
             />
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <FilterIcon data-icon="inline-start" />
                 Filter
@@ -196,64 +193,58 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                   </Badge>
                 ) : null}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-64">
-              <div className="flex flex-col gap-2">
-                <p className="text-muted-foreground text-xs font-medium">
-                  Status
-                </p>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    setStatus(value as typeof status)
-                    setPage(1)
-                  }}
-                >
-                  <SelectTrigger
-                    aria-label="Filter status produk"
-                    className="w-full"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua status</SelectItem>
-                    <SelectItem value="active">Aktif</SelectItem>
-                    <SelectItem value="inactive">Nonaktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                onValueChange={(value) => {
+                  setStatus(value as typeof status)
+                  setPage(1)
+                }}
+                value={status}
+              >
+                <DropdownMenuRadioItem value="all">
+                  Semua status
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="active">
+                  Aktif
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="inactive">
+                  Nonaktif
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <ArrowUpDownIcon data-icon="inline-start" />
                 Urutkan
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-56">
-              <div className="flex flex-col gap-1">
-                {(
-                  Object.keys(sortLabels) as ProductSortColumn[]
-                ).map((column) => {
-                  const isActive = column === sortColumn
-                  const Icon = sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
-                  return (
-                    <Button
-                      className="justify-between"
-                      key={column}
-                      onClick={() => toggleSort(column)}
-                      type="button"
-                      variant={isActive ? "secondary" : "ghost"}
-                    >
-                      {sortLabels[column]}
-                      {isActive ? <Icon className="size-3.5" /> : null}
-                    </Button>
-                  )
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Urutkan menurut</DropdownMenuLabel>
+              {(Object.keys(sortLabels) as ProductSortColumn[]).map((column) => {
+                const isActive = column === sortColumn
+                const Icon =
+                  sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+                return (
+                  // Menu tetap terbuka: menekan kolom yang sama membalik arah
+                  // urutan, jadi menutupnya memaksa operator membuka lagi.
+                  <DropdownMenuItem
+                    key={column}
+                    onSelect={(event) => {
+                      event.preventDefault()
+                      toggleSort(column)
+                    }}
+                  >
+                    {sortLabels[column]}
+                    {isActive ? <Icon className="ml-auto size-3.5" /> : null}
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <CreateProductDialog products={products} />
       </div>
@@ -381,14 +372,16 @@ function SortableHeader({
   const Icon = sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
 
   return (
-    <button
-      className="hover:text-foreground flex items-center gap-1 font-medium"
+    <Button
+      className="h-auto p-0 font-medium"
       onClick={() => onSort(column)}
+      size="sm"
       type="button"
+      variant="ghost"
     >
       {label}
       {isActive ? <Icon className="size-3.5" /> : null}
-    </button>
+    </Button>
   )
 }
 
