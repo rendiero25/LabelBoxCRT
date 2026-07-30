@@ -1225,29 +1225,6 @@ export type Database = {
       }
       delete_master_item_box: { Args: { p_box_id: string }; Returns: undefined }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
-      finalize_packing_session: {
-        Args: { p_packing_session_id: string }
-        Returns: {
-          already_finalized: boolean
-          box_code: string
-          box_name: string
-          delivery_date: string
-          delivery_number: string
-          label_reference: string
-          lot_no: string
-          packing_session_id: string
-          part_name: string
-          part_no: string
-          print_job_id: string
-          qr_generated_at: string
-          qty: number
-          qty_delivery: number
-          sequence_no: number
-          session_status: Database["public"]["Enums"]["packing_session_status"]
-          supplier_code: string
-          supplier_name: string
-        }[]
-      }
       import_csv_master_data: {
         Args: { p_correlation_id: string; p_rows: Json; p_template: string }
         Returns: number
@@ -1284,28 +1261,6 @@ export type Database = {
           supplier_code: string
           supplier_name: string
           updated_at: string
-        }[]
-      }
-      start_packing_session: {
-        Args: {
-          p_box_id: string
-          p_delivery_date: string
-          p_lot_no: string
-          p_master_item_id: string
-          p_qty_delivery: number
-          p_supplier_id: string
-        }
-        Returns: {
-          accepted_qty: number
-          box_id: string
-          delivery_number: string
-          delivery_number_id: string
-          master_item_id: string
-          operator_id: string
-          session_id: string
-          started_at: string
-          status: Database["public"]["Enums"]["packing_session_status"]
-          total_expected_qty: number
         }[]
       }
       update_delivery_number: {
