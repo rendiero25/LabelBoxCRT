@@ -17,6 +17,7 @@ const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const safeRpcMessages: Record<string, string> = {
+  ACTIVE_USER_REQUIRED: "Aksi ini hanya untuk pengguna aktif.",
   BARCODE_PARSE_FAILED: "Format QR tidak valid.",
   BARCODE_PAYLOAD_TOO_LONG: "Payload QR melebihi batas yang diizinkan.",
   BARCODE_UNSUPPORTED_ENVELOPE: "Format QR belum didukung.",
@@ -27,7 +28,6 @@ const safeRpcMessages: Record<string, string> = {
   LABEL_BOX_BATCH_NOT_CLOSED:
     "Tutup verifikasi batch ini dulu sebelum mencetak.",
   LABEL_BOX_BATCH_NOT_FOUND: "Batch label box tidak ditemukan.",
-  LABEL_BOX_OPERATOR_REQUIRED: "Aksi ini hanya untuk pengguna aktif.",
   LABEL_UID_INVALID: "Label UID dari QR tidak valid.",
   LABEL_UID_MISSING: "QR tidak memiliki Label UID unik.",
   LAYER_QUANTITY_FULL: "Kebutuhan layer untuk produk ini sudah penuh.",
