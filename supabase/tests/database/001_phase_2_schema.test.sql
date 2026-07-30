@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select no_plan();
+select plan(73);
 
 select has_type('public', 'user_role', 'user_role enum exists');
 select enum_has_labels(
@@ -128,7 +128,7 @@ select columns_are(
   'master_items',
   array[
     'id', 'item_code', 'part_no', 'part_name', 'unit', 'default_label_qty',
-    'is_active', 'created_at', 'updated_at'
+    'is_active', 'created_at', 'updated_at', 'supplier_id'
   ],
   'master_items columns stay locked'
 );

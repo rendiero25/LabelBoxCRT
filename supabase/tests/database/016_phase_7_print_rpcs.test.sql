@@ -33,15 +33,15 @@ insert into public.profiles (id, display_name, role, is_active) values
 insert into public.master_items (id, item_code, part_no, part_name, unit, default_label_qty, is_active)
 values ('a7200000-0000-0000-0000-000000000001', 'phase7-item', 'PHASE7-PART', 'Phase 7 Part', 'Pcs', 100, true);
 
-insert into public.boxes (id, box_code, box_name, is_active)
-values ('a7400000-0000-0000-0000-000000000001', 'B701', 'Phase 7 Box', true);
+-- A Box now belongs to one Master Item and carries a 1-3 slot number; the
+-- master_item_boxes assignment table and boxes.is_active are gone.
+insert into public.boxes (id, master_item_id, box_no, box_code, box_name)
+values ('a7400000-0000-0000-0000-000000000001', 'a7200000-0000-0000-0000-000000000001',
+        1, 'B701', 'Phase 7 Box');
 
-insert into public.master_item_boxes (id, master_item_id, box_id, version, is_active)
-values ('a7450000-0000-0000-0000-000000000001', 'a7200000-0000-0000-0000-000000000001', 'a7400000-0000-0000-0000-000000000001', 1, true);
-
-insert into public.packing_sessions (id, operator_id, master_item_id, master_item_box_id, status)
+insert into public.packing_sessions (id, operator_id, master_item_id, box_id, status)
 values ('a7600000-0000-0000-0000-000000000001', 'a7100000-0000-0000-0000-000000000001',
-        'a7200000-0000-0000-0000-000000000001', 'a7450000-0000-0000-0000-000000000001', 'print_pending');
+        'a7200000-0000-0000-0000-000000000001', 'a7400000-0000-0000-0000-000000000001', 'print_pending');
 
 insert into public.print_jobs (
   id, packing_session_id, status, supplier_code_snapshot, supplier_name_snapshot,

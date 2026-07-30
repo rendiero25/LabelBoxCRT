@@ -38,25 +38,30 @@ select has_function(
   'create_product only accepts product details'
 );
 
+-- Capture what the RPC returns rather than looking the row back up by
+-- part_name: part_name is not unique, and the dev database already holds
+-- several products sharing these names.
 select lives_ok(
-  $$ select public.create_product('VO-B', 6, 7, 525) $$,
+  $$ create temporary table product_auto_code_first as
+     select * from public.create_product('VO-B', 6, 7, 525) $$,
   'admin creates a product without providing a code'
 );
 
 select matches(
-  (select product_code from public.products where part_name = 'VO-B'),
+  (select product_code from product_auto_code_first),
   '^prd-[0-9]{6,}$',
   'first automatic product code uses the required format'
 );
 
 select lives_ok(
-  $$ select public.create_product('VO-C', 6, 7, 530) $$,
+  $$ create temporary table product_auto_code_second as
+     select * from public.create_product('VO-C', 6, 7, 530) $$,
   'admin creates a second product without providing a code'
 );
 
 select isnt(
-  (select product_code from public.products where part_name = 'VO-B'),
-  (select product_code from public.products where part_name = 'VO-C'),
+  (select product_code from product_auto_code_first),
+  (select product_code from product_auto_code_second),
   'automatic product codes are unique'
 );
 
