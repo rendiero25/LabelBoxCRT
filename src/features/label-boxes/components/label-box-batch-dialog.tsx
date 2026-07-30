@@ -194,14 +194,16 @@ export function LabelBoxBatchDialog({
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="label-box-master-item">Master Item</FieldLabel>
+                  <FieldLabel htmlFor="label-box-master-item">
+                    Master Item / Part No
+                  </FieldLabel>
                   <Select
                     key={supplierId}
                     onValueChange={setMasterItemId}
                     value={masterItemId}
                   >
                     <SelectTrigger className="w-full" id="label-box-master-item">
-                      <SelectValue placeholder="Pilih kode Master Item" />
+                      <SelectValue placeholder="Pilih Part No" />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredMasterItems.length === 0 ? (
@@ -211,7 +213,7 @@ export function LabelBoxBatchDialog({
                       ) : (
                         filteredMasterItems.map((item) => (
                           <SelectItem key={item.id} value={item.id}>
-                            {item.itemCode}
+                            {item.partNo}
                           </SelectItem>
                         ))
                       )}
