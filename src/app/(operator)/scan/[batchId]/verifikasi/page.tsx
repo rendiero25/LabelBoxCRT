@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import {
   LabelBoxVerificationConsole,
   type VerificationLabelBox,
+  type VerificationMasterItemProduct,
 } from "@/features/label-boxes/components/label-box-verification-console"
 import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
@@ -35,14 +36,16 @@ export default async function LabelBoxVerificationPage({
   const { data: scanRows } = sessionIds.length
     ? await supabase
         .from("packing_session_scans")
-        .select("packing_session_id, result")
+        .select("packing_session_id, product_id, result")
         .in("packing_session_id", sessionIds)
         .eq("result", "accepted")
     : { data: [] }
 
   const { data: requirementRows } = await supabase
     .from("box_layers")
-    .select("box_id, box_layer_requirements(expected_qty)")
+    .select(
+      "box_id, box_layer_requirements(expected_qty, product_id, products(id, product_code, part_name, outer_diameter, inner_diameter, length))",
+    )
 
   function expectedQtyForBox(boxId: string): number {
     return (requirementRows ?? [])
@@ -74,6 +77,36 @@ export default async function LabelBoxVerificationPage({
       verified: labelBox.status === "verified",
     }))
 
+  const batchBoxIds = new Set(
+    batch.label_boxes.map((labelBox) => labelBox.box_id),
+  )
+  const coveredProductIds = new Set(
+    (scanRows ?? [])
+      .map((scan) => scan.product_id)
+      .filter((productId): productId is string => productId !== null),
+  )
+
+  const masterItemProductsById = new Map<string, VerificationMasterItemProduct>()
+  for (const layer of requirementRows ?? []) {
+    if (!batchBoxIds.has(layer.box_id)) continue
+    for (const requirement of layer.box_layer_requirements) {
+      const product = requirement.products
+      if (!product || masterItemProductsById.has(product.id)) continue
+      masterItemProductsById.set(product.id, {
+        id: product.id,
+        innerDiameter: product.inner_diameter,
+        length: product.length,
+        outerDiameter: product.outer_diameter,
+        partName: product.part_name,
+        productCode: product.product_code,
+        scanned: coveredProductIds.has(product.id),
+      })
+    }
+  }
+  const masterItemProducts = [...masterItemProductsById.values()].sort(
+    (left, right) => left.productCode.localeCompare(right.productCode),
+  )
+
   return (
     <LabelBoxVerificationConsole
       batch={{
@@ -83,6 +116,7 @@ export default async function LabelBoxVerificationPage({
         itemCode: batch.item_code_snapshot,
         labelBoxes,
         lotNo: batch.lot_no,
+        masterItemProducts,
         qtyDelivery: batch.qty_delivery,
         supplierCode: batch.supplier_code_snapshot,
       }}

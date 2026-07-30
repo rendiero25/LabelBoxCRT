@@ -32,6 +32,8 @@ const safeRpcMessages: Record<string, string> = {
   LABEL_UID_MISSING: "QR tidak memiliki Label UID unik.",
   LAYER_QUANTITY_FULL: "Kebutuhan layer untuk produk ini sudah penuh.",
   MASTER_ITEM_NOT_ACTIVE: "Master Item tidak aktif atau tidak ditemukan.",
+  MASTER_ITEM_PRODUCTS_INCOMPLETE:
+    "Masih ada produk Master Item yang belum discan.",
   NO_LABEL_BOX_AVAILABLE: "Semua label box pada batch ini sudah penuh.",
   PACKING_SESSION_NOT_FOUND: "Sesi packing box ini tidak ditemukan.",
   PACKING_SESSION_OPERATOR_MISMATCH:

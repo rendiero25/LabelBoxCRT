@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(14);
+select plan(15);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -24,20 +24,26 @@ insert into public.master_items (
   'Verify Part', 'Pcs', 2, '95200000-0000-0000-0000-000000000001', true
 );
 
+-- Dua produk: layer box 1 minta produk pertama, layer box 2 minta produk
+-- kedua. Batch tidak boleh ditutup sebelum keduanya pernah discan (guard
+-- MASTER_ITEM_PRODUCTS_INCOMPLETE di close_label_box_batch).
 insert into public.products (
   id, product_code, part_name, outer_diameter, inner_diameter, length, is_active
-) values (
-  '97200000-0000-0000-0000-000000000001', 'verify-product', 'Verify Product',
-  6.3, 5.5, 205, true
-);
+) values
+  ('97200000-0000-0000-0000-000000000001', 'verify-product', 'Verify Product',
+    6.3, 5.5, 205, true),
+  ('97200000-0000-0000-0000-000000000002', 'verify-product-2', 'Verify Product 2',
+    8.4, 6.5, 150, true);
 
 insert into public.master_item_products (
   master_item_id, product_id, is_active
-) values (
-  '96200000-0000-0000-0000-000000000001',
-  '97200000-0000-0000-0000-000000000001',
-  true
-);
+) values
+  ('96200000-0000-0000-0000-000000000001',
+    '97200000-0000-0000-0000-000000000001',
+    true),
+  ('96200000-0000-0000-0000-000000000001',
+    '97200000-0000-0000-0000-000000000002',
+    true);
 
 insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
   ('98200000-0000-0000-0000-000000000001',
@@ -57,7 +63,7 @@ insert into public.box_layer_requirements (
   ('99200000-0000-0000-0000-000000000001',
     '97200000-0000-0000-0000-000000000001', 1, 1),
   ('99200000-0000-0000-0000-000000000002',
-    '97200000-0000-0000-0000-000000000001', 1, 1);
+    '97200000-0000-0000-0000-000000000002', 1, 1);
 
 select has_function(
   'public', 'accept_label_box_scan',
@@ -122,14 +128,27 @@ select is(
   'box penuh setelah layernya terpenuhi'
 );
 
+-- Box 1 sudah menutup layernya dengan produk pertama, tetapi box 2 (layer
+-- yang meminta produk kedua) belum pernah discan. Batch tidak boleh ditutup.
+select throws_ok(
+  $$
+    select public.close_label_box_batch(
+      (select batch_id from verify_batch)
+    )
+  $$,
+  'P0001',
+  'MASTER_ITEM_PRODUCTS_INCOMPLETE',
+  'menutup batch ditolak selama produk kedua belum pernah discan'
+);
+
 create temporary table verify_scan_b as
 select *
 from public.accept_label_box_scan(
   (select batch_id from verify_batch),
   'VERIFY-UID-2',
   'bb22',
-  'D6.3X5.5 L=205',
-  '6.3x5.5x205'
+  'D8.4X6.5 L=150',
+  '8.4x6.5x150'
 );
 grant select on verify_scan_b to public;
 
@@ -151,6 +170,8 @@ select throws_ok(
   'scan ditolak ketika semua box sudah penuh'
 );
 
+-- Kedua produk sudah pernah discan (produk pertama di box 1, produk kedua
+-- di box 2), jadi penutupan batch sekarang berhasil.
 create temporary table verify_close as
 select * from public.close_label_box_batch((select batch_id from verify_batch));
 grant select on verify_close to public;

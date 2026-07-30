@@ -11,6 +11,7 @@ import {
   ScanLineIcon,
   Volume2Icon,
   VolumeOffIcon,
+  XCircleIcon,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -32,6 +33,16 @@ export type VerificationLabelBox = {
   verified: boolean
 }
 
+export type VerificationMasterItemProduct = {
+  id: string
+  innerDiameter: number
+  length: number
+  outerDiameter: number
+  partName: string
+  productCode: string
+  scanned: boolean
+}
+
 export type VerificationBatchView = {
   deliveryDate: string
   deliveryNumber: string
@@ -39,6 +50,7 @@ export type VerificationBatchView = {
   itemCode: string
   labelBoxes: VerificationLabelBox[]
   lotNo: string
+  masterItemProducts: VerificationMasterItemProduct[]
   qtyDelivery: number
   supplierCode: string
 }
@@ -131,6 +143,9 @@ export function LabelBoxVerificationConsole({
     0,
   )
   const activeBox = batch.labelBoxes.find((labelBox) => !labelBox.verified)
+  const unscannedProducts = batch.masterItemProducts.filter(
+    (product) => !product.scanned,
+  )
 
   return (
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -249,7 +264,16 @@ export function LabelBoxVerificationConsole({
               <AlertDescription>{closeState.error}</AlertDescription>
             </Alert>
           ) : null}
-          <Button disabled={closePending} type="submit">
+          {unscannedProducts.length > 0 ? (
+            <p className="text-muted-foreground mb-3 text-sm">
+              Masih {unscannedProducts.length} produk Master Item yang belum
+              discan.
+            </p>
+          ) : null}
+          <Button
+            disabled={closePending || unscannedProducts.length > 0}
+            type="submit"
+          >
             {closePending ? (
               <Spinner data-icon="inline-start" />
             ) : (
@@ -261,29 +285,34 @@ export function LabelBoxVerificationConsole({
       </div>
 
       <aside className="rounded-xl border p-5">
-        <h2 className="mb-3 font-semibold">Scan terakhir</h2>
+        <h2 className="mb-3 font-semibold">Produk Master Item</h2>
         <div className="grid gap-2">
-          {scanner.recentScans.length > 0 ? (
-            scanner.recentScans.map((scan) => (
+          {batch.masterItemProducts.length > 0 ? (
+            batch.masterItemProducts.map((product) => (
               <div
                 className="bg-muted/50 flex items-start justify-between gap-3 rounded-lg p-3"
-                key={`${scan.scannedAt.toISOString()}-${scan.rawPayload}`}
+                key={product.id}
               >
                 <div>
-                  <p className="text-sm font-medium">
-                    {scan.status === "success"
-                      ? "Diterima"
-                      : scan.status === "duplicate"
-                        ? "Duplikat"
-                        : "Ditolak"}
+                  <p className="text-sm font-medium">{product.productCode}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {product.partName}
                   </p>
-                  <p className="text-muted-foreground text-xs">{scan.message}</p>
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    {product.outerDiameter} × {product.innerDiameter} ×{" "}
+                    {product.length}
+                  </p>
                 </div>
+                {product.scanned ? (
+                  <CircleCheckIcon className="text-primary size-5 shrink-0" />
+                ) : (
+                  <XCircleIcon className="text-destructive size-5 shrink-0" />
+                )}
               </div>
             ))
           ) : (
             <p className="text-muted-foreground text-sm">
-              Belum ada scan pada batch ini.
+              Tidak ada produk Master Item yang diminta batch ini.
             </p>
           )}
         </div>
