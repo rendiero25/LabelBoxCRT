@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   connectQz,
-  listHidDevices,
   listPrinters,
+  listUsbDevices,
   onQzClosed,
 } from "@/features/print/qz-client"
 import {
   findZebraScanner,
-  type HidDevice,
+  type UsbDevice,
 } from "@/features/scan/zebra-scanner"
 
 export type QzConnectionStatus =
@@ -24,7 +24,7 @@ const RECONNECT_DELAYS_MS = [2000, 5000, 10000, 30000]
 export function useQzConnection() {
   const [status, setStatus] = useState<QzConnectionStatus>("disconnected")
   const [printers, setPrinters] = useState<string[]>([])
-  const [scanner, setScanner] = useState<HidDevice | null>(null)
+  const [scanner, setScanner] = useState<UsbDevice | null>(null)
   const reconnectAttempt = useRef(0)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const disposed = useRef(false)
@@ -40,12 +40,12 @@ export function useQzConnection() {
     }
   }, [])
 
-  // Enumerasi HID bisa gagal walau QZ terhubung, misalnya ketika Java
+  // Enumerasi USB bisa gagal walau QZ terhubung, misalnya ketika Java
   // tidak punya izin membaca perangkat. Kegagalan diperlakukan sebagai
   // "tidak ditemukan", bukan memutus koneksi QZ.
   const refreshScanner = useCallback(async () => {
     try {
-      const devices = await listHidDevices()
+      const devices = await listUsbDevices()
       if (disposed.current) return
       setScanner(findZebraScanner(devices))
     } catch {

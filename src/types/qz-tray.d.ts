@@ -20,17 +20,15 @@ declare module "qz-tray" {
     retries?: number
   }
 
-  interface QzHidDevice {
-    manufacturer?: string
-    product?: string
+  interface QzUsbDevice {
+    hub?: boolean
     productId?: number | string
-    serial?: string
     vendorId?: number | string
   }
 
   const qz: {
-    hid: {
-      listDevices(): Promise<QzHidDevice[]>
+    usb: {
+      listDevices(includeHubs?: boolean): Promise<QzUsbDevice[]>
     }
     configs: {
       create(

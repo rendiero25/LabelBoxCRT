@@ -1,6 +1,6 @@
 import qz from "qz-tray"
 
-import type { HidDevice } from "@/features/scan/zebra-scanner"
+import type { UsbDevice } from "@/features/scan/zebra-scanner"
 
 let securityConfigured = false
 
@@ -60,12 +60,15 @@ export async function listPrinters(): Promise<string[]> {
 }
 
 /**
- * Daftar perangkat HID yang terlihat QZ Tray. Hanya membaca, tidak mengklaim
- * perangkat, jadi tetap berhasil walau sistem operasi sudah memegang scanner
- * sebagai keyboard.
+ * Daftar perangkat USB yang terlihat QZ Tray, tanpa hub.
+ *
+ * Sengaja USB, bukan HID: Windows mengunci koleksi HID Keyboard, dan scanner
+ * dalam mode wedge hanya mengekspos koleksi itu, sehingga tidak pernah muncul
+ * di `hid.listDevices`. Terbukti pada unit DS2208 di workstation ini — daftar
+ * HID hanya memuat keyboard Logitech, sedangkan daftar USB memuat 05e0:1200.
  */
-export async function listHidDevices(): Promise<HidDevice[]> {
-  const devices = await qz.hid.listDevices()
+export async function listUsbDevices(): Promise<UsbDevice[]> {
+  const devices = await qz.usb.listDevices(false)
   return Array.isArray(devices) ? devices : []
 }
 
