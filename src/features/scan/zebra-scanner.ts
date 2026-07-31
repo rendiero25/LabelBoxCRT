@@ -72,6 +72,14 @@ export function findZebraScanner(devices: HidDevice[]): HidDevice | null {
   return zebra.find(isDs22) ?? zebra[0] ?? null
 }
 
+/**
+ * Windows melaporkan unit DS2208 di workstation ini sebagai
+ * "Symbol Bar Code Scanner::EA" — sufiks setelah "::" itu penanda antarmuka
+ * USB, bukan bagian nama perangkat, jadi dibuang agar baris status terbaca
+ * dari jarak operator.
+ */
 export function describeZebraScanner(device: HidDevice): string {
-  return device.product?.trim() || device.manufacturer?.trim() || "Scanner Zebra"
+  const name = device.product?.trim() || device.manufacturer?.trim()
+  if (!name) return "Scanner Zebra"
+  return name.split("::")[0].trim() || name
 }

@@ -9,7 +9,23 @@ const ds22: HidDevice = {
   vendorId: 1504,
 }
 
+/**
+ * Descriptor asli unit DS2208 di workstation ini, dibaca dari Windows:
+ * VID_05E0 PID_1200, BusReportedDeviceDesc "Symbol Bar Code Scanner::EA".
+ * Namanya tidak memuat "DS22" sama sekali, jadi kasus ini membuktikan
+ * pencocokan vendor id yang menanggung deteksi, bukan pencocokan teks.
+ */
+const realDs2208: HidDevice = {
+  product: "Symbol Bar Code Scanner::EA",
+  productId: 0x1200,
+  vendorId: 0x05e0,
+}
+
 describe("findZebraScanner", () => {
+  it("matches the real DS2208 descriptor from this workstation", () => {
+    expect(findZebraScanner([realDs2208])).not.toBeNull()
+  })
+
   it("matches a Zebra scanner by its numeric vendor id", () => {
     expect(findZebraScanner([ds22])?.product).toBe(
       "Symbol Bar Code Scanner DS2208",
@@ -96,5 +112,12 @@ describe("describeZebraScanner", () => {
       "@/features/scan/zebra-scanner"
     )
     expect(describeZebraScanner({ vendorId: 1504 })).toBe("Scanner Zebra")
+  })
+
+  it("drops the interface suffix Windows reports on the real unit", async () => {
+    const { describeZebraScanner } = await import(
+      "@/features/scan/zebra-scanner"
+    )
+    expect(describeZebraScanner(realDs2208)).toBe("Symbol Bar Code Scanner")
   })
 })
