@@ -8,16 +8,10 @@ import {
   listUsbDevices,
   onQzClosed,
 } from "@/features/print/qz-client"
-import {
-  findZebraScanner,
-  type UsbDevice,
-} from "@/features/scan/zebra-scanner"
+import { findZebraScanner, type UsbDevice } from "@/features/scan/zebra-scanner"
 
 export type QzConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "error"
+  "connecting" | "connected" | "disconnected" | "error"
 
 const RECONNECT_DELAYS_MS = [2000, 5000, 10000, 30000]
 

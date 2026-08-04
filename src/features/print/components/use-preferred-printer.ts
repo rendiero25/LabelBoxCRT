@@ -30,7 +30,11 @@ function getServerSnapshot(): string | null {
 }
 
 export function usePreferredPrinter(): string | null {
-  return useSyncExternalStore(subscribe, readPreferredPrinter, getServerSnapshot)
+  return useSyncExternalStore(
+    subscribe,
+    readPreferredPrinter,
+    getServerSnapshot,
+  )
 }
 
 export function setPreferredPrinter(printerName: string): void {

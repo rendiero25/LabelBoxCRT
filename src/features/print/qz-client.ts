@@ -76,10 +76,31 @@ export async function sendZpl(
   printerName: string,
   zplPayload: string,
 ): Promise<void> {
+  await sendZplBatch(printerName, [zplPayload])
+}
+
+/**
+ * Satu panggilan qz.print untuk seluruh label. Mengirim label satu per satu
+ * membuat QZ meminta persetujuan sebanyak jumlah label, dan operator harus
+ * mengklik enam kali untuk satu batch. Urutan array dipertahankan printer,
+ * jadi label tetap keluar berurutan sesuai nomor box.
+ */
+export async function sendZplBatch(
+  printerName: string,
+  zplPayloads: string[],
+): Promise<void> {
+  if (zplPayloads.length === 0) return
+
   const config = qz.configs.create(printerName)
-  await qz.print(config, [
-    { data: zplPayload, flavor: "plain", format: "command", type: "raw" },
-  ])
+  await qz.print(
+    config,
+    zplPayloads.map((data) => ({
+      data,
+      flavor: "plain" as const,
+      format: "command" as const,
+      type: "raw" as const,
+    })),
+  )
 }
 
 // qz-tray's `setClosedCallbacks` is a plain assignment, so registering a

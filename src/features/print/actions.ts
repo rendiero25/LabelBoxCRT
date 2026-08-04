@@ -19,7 +19,9 @@ const safeRpcMessages: Record<string, string> = {
 }
 
 function rpcErrorMessage(code: string): string {
-  return safeRpcMessages[code] ?? "Aksi print gagal. Coba lagi atau hubungi admin."
+  return (
+    safeRpcMessages[code] ?? "Aksi print gagal. Coba lagi atau hubungi admin."
+  )
 }
 
 export async function claimPrintJobAction(input: {

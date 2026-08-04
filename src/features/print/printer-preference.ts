@@ -25,3 +25,32 @@ export function resolvePrinter(
   if (!stored) return null
   return discovered.includes(stored) ? stored : null
 }
+
+/** Nama driver printer label Zebra pada Windows, misalnya "ZDesigner ZD220". */
+const LABEL_PRINTER_PATTERN = /zdesigner|zebra|\bzd\d{3}\b/i
+
+/**
+ * Pilihan printer untuk alur cetak: pakai pilihan tersimpan bila masih ada,
+ * kalau belum pernah memilih tebak printer labelnya. Tebakan hanya diambil
+ * ketika jawabannya tunggal, karena mencetak ke printer yang salah berarti
+ * label terbuang dan operator belum tentu sadar.
+ *
+ * Pilihan tersimpan yang hilang tetap menghasilkan null seperti resolvePrinter:
+ * operator harus memilih ulang secara sadar, bukan diam-diam dialihkan.
+ */
+export function autoSelectPrinter(
+  stored: string | null,
+  discovered: string[],
+): string | null {
+  if (stored) return resolvePrinter(stored, discovered)
+
+  const labelPrinters = discovered.filter((printer) =>
+    LABEL_PRINTER_PATTERN.test(printer),
+  )
+  if (labelPrinters.length === 1) return labelPrinters[0]
+  if (labelPrinters.length === 0 && discovered.length === 1) {
+    return discovered[0]
+  }
+
+  return null
+}

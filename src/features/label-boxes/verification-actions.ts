@@ -23,6 +23,9 @@ const safeRpcMessages: Record<string, string> = {
   BARCODE_UNSUPPORTED_ENVELOPE: "Format QR belum didukung.",
   BARCODE_UNSUPPORTED_VERSION: "Versi QR belum didukung.",
   LABEL_ALREADY_SCANNED: "Label ini sudah pernah diterima.",
+  LABEL_BOX_NOT_FOUND: "Label box tidak ditemukan pada batch ini.",
+  LABEL_BOX_NOT_PRINTED:
+    "Label box ini belum pernah dicetak, jadi belum ada yang bisa dicetak ulang.",
   LABEL_BOX_BATCH_ALREADY_CLOSED: "Batch ini sudah ditutup sebelumnya.",
   LABEL_BOX_BATCH_CLOSED: "Batch sudah ditutup, scan tidak diterima lagi.",
   LABEL_BOX_BATCH_NOT_CLOSED:
@@ -47,9 +50,7 @@ const safeRpcMessages: Record<string, string> = {
 }
 
 function rpcErrorMessage(code: string): string {
-  return (
-    safeRpcMessages[code] ?? "Aksi gagal. Coba lagi atau hubungi admin."
-  )
+  return safeRpcMessages[code] ?? "Aksi gagal. Coba lagi atau hubungi admin."
 }
 
 function productDimensionsLookup(size: {
@@ -171,6 +172,7 @@ export async function createLabelBoxPrintJobsAction(
       labelBoxId: row.label_box_id,
       labelReference: row.label_reference,
       lotNo: row.lot_no,
+      masterItemRowNo: row.master_item_row_no,
       partName: row.part_name,
       partNo: row.part_no,
       printJobId: row.print_job_id,
@@ -181,5 +183,55 @@ export async function createLabelBoxPrintJobsAction(
       supplierCode: row.supplier_code,
     })),
     success: `${data.length} label siap dicetak.`,
+  }
+}
+
+/**
+ * Cetak ulang label yang sudah pernah keluar dari printer. Tanpa daftar box,
+ * seluruh batch dicetak ulang. Job lama tidak bisa diklaim dua kali, jadi RPC
+ * membuat job anak yang menyalin label aslinya persis.
+ */
+export async function createLabelBoxReprintJobsAction(input: {
+  batchId: string
+  labelBoxIds?: string[]
+}): Promise<LabelBoxPrintJobsActionState> {
+  if (!uuidPattern.test(input.batchId)) {
+    return { error: "Batch tidak valid." }
+  }
+  if (input.labelBoxIds?.some((id) => !uuidPattern.test(id))) {
+    return { error: "Label box tidak valid." }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("create_label_box_reprint_jobs", {
+    p_batch_id: input.batchId,
+    p_label_box_ids: input.labelBoxIds?.length ? input.labelBoxIds : null,
+  })
+
+  if (error || !data) {
+    return { error: rpcErrorMessage(error?.message ?? "") }
+  }
+
+  revalidatePath("/scan")
+  return {
+    jobs: data.map((row) => ({
+      boxName: row.box_name,
+      boxNumber: row.box_number,
+      deliveryDate: row.delivery_date,
+      deliveryNumber: row.delivery_number,
+      labelBoxId: row.label_box_id,
+      labelReference: row.label_reference,
+      lotNo: row.lot_no,
+      masterItemRowNo: row.master_item_row_no,
+      partName: row.part_name,
+      partNo: row.part_no,
+      printJobId: row.print_job_id,
+      qrPayload: row.qr_payload,
+      qty: row.qty,
+      qtyDelivery: row.qty_delivery,
+      status: row.status,
+      supplierCode: row.supplier_code,
+    })),
+    success: `${data.length} label siap dicetak ulang.`,
   }
 }

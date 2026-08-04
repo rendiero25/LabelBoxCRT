@@ -1,6 +1,13 @@
 "use client"
 
-import { useActionState, useCallback, useMemo, useRef, useState } from "react"
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { CircleAlertIcon, CircleCheckIcon, PrinterIcon } from "lucide-react"
 
 import {
@@ -12,99 +19,190 @@ import {
   setPreferredPrinter,
   usePreferredPrinter,
 } from "@/features/print/components/use-preferred-printer"
-import { resolvePrinter } from "@/features/print/printer-preference"
-import { sendZpl } from "@/features/print/qz-client"
+import { loadLabelFontUploadCommands } from "@/features/print/label-font-loader"
+import { autoSelectPrinter } from "@/features/print/printer-preference"
+import { sendZplBatch } from "@/features/print/qz-client"
 import { useQzConnection } from "@/features/print/use-qz-connection"
-import { createLabelBoxPrintJobsAction } from "@/features/label-boxes/verification-actions"
-import { initialLabelBoxPrintJobsActionState } from "@/features/label-boxes/verification-form-state"
+import {
+  createLabelBoxPrintJobsAction,
+  createLabelBoxReprintJobsAction,
+} from "@/features/label-boxes/verification-actions"
+import {
+  initialLabelBoxPrintJobsActionState,
+  type LabelBoxPrintJob,
+} from "@/features/label-boxes/verification-form-state"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { formatLabelFields } from "@/lib/label/formatter"
 import { buildLabelZpl } from "@/lib/label/zpl"
 
-export function LabelBoxBatchPrintCard({ batchId }: { batchId: string }) {
+export function LabelBoxBatchPrintCard({
+  batchId,
+  onPrinted,
+}: {
+  batchId: string
+  onPrinted?: () => void
+}) {
   const { printers, status } = useQzConnection()
   const selectedPrinter = usePreferredPrinter()
   const [jobsState, jobsAction, jobsPending] = useActionState(
     createLabelBoxPrintJobsAction,
     initialLabelBoxPrintJobsActionState,
   )
-  const [printedCount, setPrintedCount] = useState(0)
+  const [printRun, setPrintRun] = useState<{
+    done: number
+    total: number
+  } | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const [printing, setPrinting] = useState(false)
+  const [reprintError, setReprintError] = useState<string | null>(null)
+  const [selectedBoxIds, setSelectedBoxIds] = useState<string[]>([])
   const inFlight = useRef(false)
 
-  const activePrinter = resolvePrinter(selectedPrinter, printers)
+  const activePrinter = autoSelectPrinter(selectedPrinter, printers)
   const jobs = useMemo(() => jobsState.jobs ?? [], [jobsState.jobs])
+  // Job yang sudah selesai tidak bisa diklaim ulang; menekan Cetak untuk job
+  // seperti itu berakhir PRINT_JOB_NOT_CLAIMABLE.
+  const printableJobs = useMemo(
+    () => jobs.filter((job) => job.status === "pending"),
+    [jobs],
+  )
+  const alreadyPrinted = jobs.length > 0 && printableJobs.length === 0
 
-  const runPrint = useCallback(async () => {
-    if (inFlight.current || !activePrinter || jobs.length === 0) return
-    inFlight.current = true
-    setPrinting(true)
-    setPrintError(null)
-    setPrintedCount(0)
+  // Label disiapkan begitu kartu muncul, jadi operator hanya menekan Cetak.
+  const prepared = useRef(false)
+  useEffect(() => {
+    if (prepared.current || jobs.length > 0 || jobsPending) return
+    prepared.current = true
+    const formData = new FormData()
+    formData.set("batchId", batchId)
+    jobsAction(formData)
+  }, [batchId, jobs.length, jobsAction, jobsPending])
 
-    try {
-      // Cetak berurutan, bukan paralel: satu printer, dan urutan label harus
-      // sama dengan urutan nomor box supaya operator menempelnya runtut.
-      for (const job of jobs) {
-        const zpl = buildLabelZpl(
-          formatLabelFields({
-            supplierCode: job.supplierCode,
-            partNo: job.partNo,
-            partName: job.partName,
-            qty: job.qty,
-            sequenceNo: 0,
-            labelReference: job.labelReference,
-            deliveryNumber: job.deliveryNumber,
-            deliveryDate: job.deliveryDate,
-            boxCode: job.boxNumber,
-            boxName: job.boxName,
-            qrPayload: job.qrPayload,
-          }),
-        )
+  /**
+   * Mencetak satu rombongan job: klaim, kirim sekali ke QZ, lalu tandai
+   * selesai. Dipakai cetak pertama maupun cetak ulang supaya keduanya tidak
+   * punya dua jalur yang bisa berbeda perilaku.
+   */
+  const printJobs = useCallback(
+    async (jobsToPrint: LabelBoxPrintJob[]) => {
+      if (inFlight.current || !activePrinter || jobsToPrint.length === 0) return
+      inFlight.current = true
+      setPrinting(true)
+      setPrintError(null)
+      setPrintRun({ done: 0, total: jobsToPrint.length })
 
-        const claim = await claimPrintJobAction({
-          printJobId: job.printJobId,
-          zplPayload: zpl,
-        })
-        if (claim.error) {
-          setPrintError(claim.error)
-          return
+      try {
+        // Urutan label mengikuti urutan nomor box supaya operator menempelnya
+        // runtut. ZPL disiapkan lebih dulu untuk semuanya, lalu dikirim dalam
+        // satu panggilan QZ: mengirim satu per satu memunculkan konfirmasi QZ
+        // sebanyak jumlah label.
+        const payloads: string[] = []
+        for (const job of jobsToPrint) {
+          const zpl = buildLabelZpl(
+            formatLabelFields({
+              boxNumber: job.boxNumber,
+              deliveryDate: job.deliveryDate,
+              lotNo: job.lotNo,
+              masterItemRowNo: job.masterItemRowNo,
+              packingQty: job.qty,
+              partNo: job.partNo,
+              qrPayload: job.qrPayload,
+              qtyDelivery: job.qtyDelivery,
+              supplierCode: job.supplierCode,
+            }),
+          )
+
+          const claim = await claimPrintJobAction({
+            printJobId: job.printJobId,
+            zplPayload: zpl,
+          })
+          if (claim.error) {
+            setPrintError(claim.error)
+            return
+          }
+
+          payloads.push(zpl)
         }
 
         try {
-          await sendZpl(activePrinter, zpl)
+          // Font Outfit ditanam lebih dulu dalam panggilan yang sama: label
+          // merujuk berkas di memori printer, dan printer yang baru di-reset
+          // tidak lagi memilikinya.
+          const fontCommands = await loadLabelFontUploadCommands()
+          await sendZplBatch(activePrinter, [...fontCommands, ...payloads])
         } catch {
-          await completePrintJobAction({
-            errorCode: "QZ_SEND_FAILED",
-            errorMessage: "Gagal mengirim ke printer.",
+          await Promise.all(
+            jobsToPrint.map((job) =>
+              completePrintJobAction({
+                errorCode: "QZ_SEND_FAILED",
+                errorMessage: "Gagal mengirim ke printer.",
+                printJobId: job.printJobId,
+                printerName: activePrinter,
+                result: "failed",
+              }).catch(() => undefined),
+            ),
+          )
+          setPrintError("Gagal mengirim label ke printer.")
+          return
+        }
+
+        for (const job of jobsToPrint) {
+          const complete = await completePrintJobAction({
             printJobId: job.printJobId,
             printerName: activePrinter,
-            result: "failed",
-          }).catch(() => undefined)
-          setPrintError(`Gagal mengirim ${job.boxNumber} ke printer.`)
-          return
+            result: "sent",
+          })
+          if (complete.error) {
+            setPrintError(complete.error)
+            return
+          }
+
+          setPrintRun((run) =>
+            run ? { done: run.done + 1, total: run.total } : run,
+          )
         }
 
-        const complete = await completePrintJobAction({
-          printJobId: job.printJobId,
-          printerName: activePrinter,
-          result: "sent",
-        })
-        if (complete.error) {
-          setPrintError(complete.error)
-          return
-        }
-
-        setPrintedCount((count) => count + 1)
+        onPrinted?.()
+      } finally {
+        inFlight.current = false
+        setPrinting(false)
       }
-    } finally {
-      inFlight.current = false
-      setPrinting(false)
-    }
-  }, [activePrinter, jobs])
+    },
+    [activePrinter, onPrinted],
+  )
+
+  const runPrint = useCallback(
+    () => printJobs(printableJobs),
+    [printJobs, printableJobs],
+  )
+
+  /**
+   * Cetak ulang sekali tekan: job penggantinya dibuat lalu langsung dicetak.
+   * Daftar centang tetap seperti semula setelah selesai, karena operator yang
+   * kertasnya habis biasanya mencetak ulang beberapa kali berturut-turut.
+   */
+  const runReprint = useCallback(
+    async (labelBoxIds?: string[]) => {
+      setReprintError(null)
+      const result = await createLabelBoxReprintJobsAction({
+        batchId,
+        labelBoxIds,
+      })
+
+      if (result.error || !result.jobs?.length) {
+        setReprintError(
+          result.error ?? "Tidak ada label yang bisa dicetak ulang.",
+        )
+        return
+      }
+
+      setSelectedBoxIds([])
+      await printJobs(result.jobs)
+    },
+    [batchId, printJobs],
+  )
 
   return (
     <div className="grid gap-4 rounded-xl border p-5">
@@ -123,16 +221,18 @@ export function LabelBoxBatchPrintCard({ batchId }: { batchId: string }) {
         </Alert>
       ) : null}
 
-      <PrinterPicker
-        onSelect={setPreferredPrinter}
-        printers={printers}
-        selected={selectedPrinter}
-      />
+      {status === "connected" && !activePrinter ? (
+        <PrinterPicker
+          onSelect={setPreferredPrinter}
+          printers={printers}
+          selected={selectedPrinter}
+        />
+      ) : null}
 
-      {jobsState.error ? (
+      {(jobsState.error ?? reprintError) ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertDescription>{jobsState.error}</AlertDescription>
+          <AlertDescription>{jobsState.error ?? reprintError}</AlertDescription>
         </Alert>
       ) : null}
 
@@ -144,40 +244,115 @@ export function LabelBoxBatchPrintCard({ batchId }: { batchId: string }) {
         </Alert>
       ) : null}
 
-      {jobs.length > 0 && printedCount === jobs.length ? (
+      {printRun && printRun.done === printRun.total ? (
         <Alert>
           <CircleCheckIcon />
-          <AlertTitle>Semua label tercetak</AlertTitle>
+          <AlertTitle>Label tercetak</AlertTitle>
           <AlertDescription>
-            {printedCount} label terkirim ke {activePrinter}.
+            {printRun.done} label terkirim ke {activePrinter}.
           </AlertDescription>
         </Alert>
       ) : null}
 
-      {jobs.length === 0 ? (
-        <form action={jobsAction} noValidate>
-          <input name="batchId" type="hidden" value={batchId} />
-          <Button disabled={jobsPending} type="submit">
-            {jobsPending ? <Spinner data-icon="inline-start" /> : null}
-            Siapkan label
+      {/* Label yang sudah keluar dari printer tidak bisa dicetak lagi lewat job
+          yang sama. Pilih box yang labelnya rusak atau hilang, atau cetak ulang
+          seluruh batch; keduanya membuat label pengganti yang identik. */}
+      {alreadyPrinted ? (
+        <div className="grid gap-3">
+          <p className="text-muted-foreground text-sm">
+            Label batch ini sudah tercetak. Pilih box yang perlu dicetak ulang,
+            atau cetak ulang semuanya.
+          </p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {jobs.map((job) => (
+              <label
+                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                key={job.labelBoxId}
+              >
+                <input
+                  checked={selectedBoxIds.includes(job.labelBoxId)}
+                  className="accent-primary size-4"
+                  onChange={(event) =>
+                    setSelectedBoxIds((current) =>
+                      event.target.checked
+                        ? [...current, job.labelBoxId]
+                        : current.filter((id) => id !== job.labelBoxId),
+                    )
+                  }
+                  type="checkbox"
+                />
+                <span className="font-mono">{job.boxNumber}</span>
+                <span className="text-muted-foreground truncate">
+                  {job.boxName}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {alreadyPrinted ? (
+          <>
+            <Button
+              disabled={
+                printing ||
+                selectedBoxIds.length === 0 ||
+                status !== "connected" ||
+                !activePrinter
+              }
+              onClick={() => void runReprint(selectedBoxIds)}
+              type="button"
+            >
+              {printing ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <PrinterIcon data-icon="inline-start" />
+              )}
+              Cetak ulang {selectedBoxIds.length || ""} terpilih
+            </Button>
+            <Button
+              disabled={printing || status !== "connected" || !activePrinter}
+              onClick={() => void runReprint()}
+              type="button"
+              variant="outline"
+            >
+              Cetak ulang semua
+            </Button>
+          </>
+        ) : (
+          <Button
+            disabled={
+              printing ||
+              jobsPending ||
+              printableJobs.length === 0 ||
+              status !== "connected" ||
+              !activePrinter
+            }
+            onClick={() => void runPrint()}
+            type="button"
+          >
+            {printing || jobsPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <PrinterIcon data-icon="inline-start" />
+            )}
+            {jobsPending
+              ? "Menyiapkan label…"
+              : printing
+                ? `Mencetak ${printableJobs.length} label…`
+                : `Cetak ${printableJobs.length || ""} label`.replace(
+                    "  ",
+                    " ",
+                  )}
           </Button>
-        </form>
-      ) : (
-        <Button
-          disabled={printing || status !== "connected" || !activePrinter}
-          onClick={() => void runPrint()}
-          type="button"
-        >
-          {printing ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <PrinterIcon data-icon="inline-start" />
-          )}
-          {printing
-            ? `Mencetak ${printedCount + 1} dari ${jobs.length}…`
-            : `Cetak ${jobs.length} label`}
-        </Button>
-      )}
+        )}
+        {activePrinter ? (
+          <span className="text-muted-foreground text-sm">
+            Printer: {activePrinter}
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }

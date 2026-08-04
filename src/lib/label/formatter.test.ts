@@ -8,92 +8,72 @@ import {
 
 const baseSnapshot: FinalizedLabelSnapshot = {
   supplierCode: "10015",
-  partNo: "PN-0001",
-  partName: "Bracket Assembly",
-  qty: 100,
-  sequenceNo: 1,
-  labelReference: "1-150526-B101",
-  deliveryNumber: "DN-2026-0042",
-  deliveryDate: "2026-05-15",
-  boxCode: "B101",
-  boxName: "Standard Box",
-  qrPayload: "10015|PN-0001|100|1|LOT-A|B101|24-07-2026",
+  partNo: "3210A-K1Z-NA01-DL",
+  packingQty: 100,
+  qtyDelivery: 200,
+  masterItemRowNo: 1,
+  lotNo: "M-CRT-004A-581-300726-B001",
+  boxNumber: "B101",
+  deliveryDate: "2026-08-15",
+  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
 }
 
 describe("formatLabelFields", () => {
-  it("maps a normal snapshot to display-ready fields", () => {
+  it("maps a snapshot to the eight rows printed on the label", () => {
     expect(formatLabelFields(baseSnapshot)).toEqual({
       supplierCode: "10015",
-      partNo: "PN-0001",
-      qty: "100",
-      itemBoxReference: "1-150526-B101",
-      deliveryNumber: "DN-2026-0042",
-      boxName: "Standard Box",
-      deliveryDate: "15-May-2026",
-      qrPayload: "10015|PN-0001|100|1|LOT-A|B101|24-07-2026",
+      partNo: "3210A-K1Z-NA01-DL",
+      packingQty: "100",
+      qtyDelivery: "200",
+      masterItemRowNo: "1",
+      lotNo: "M-CRT-004A-581-300726-B001",
+      boxNumber: "B101",
+      deliveryDate: "15-08-2026",
+      qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
     })
   })
 
-  it("does not combine boxName with boxCode (BR-02)", () => {
-    const result = formatLabelFields(baseSnapshot)
-    expect(result.boxName).toBe("Standard Box")
-    expect(result.boxName).not.toContain("B101")
-  })
-
-  it("passes labelReference through untouched as itemBoxReference", () => {
+  // Qty/Box adalah packing qty Master Item, Qty/Delivery adalah jumlah kiriman.
+  // Keduanya angka dan bersebelahan di label, jadi tertukarnya tidak kelihatan.
+  it("keeps packing qty and delivery qty on their own rows", () => {
     const result = formatLabelFields({
       ...baseSnapshot,
-      labelReference: "42-311225-B999",
+      packingQty: 50,
+      qtyDelivery: 1500,
     })
-    expect(result.itemBoxReference).toBe("42-311225-B999")
+    expect(result.packingQty).toBe("50")
+    expect(result.qtyDelivery).toBe("1500")
+  })
+
+  it("formats quantities as plain digits with no thousands separator", () => {
+    expect(
+      formatLabelFields({ ...baseSnapshot, qtyDelivery: 12345 }).qtyDelivery,
+    ).toBe("12345")
   })
 
   it.each([
-    ["01-January-2026", "2026-01-01"],
-    ["09-February-2026", "2026-02-09"],
-    ["15-May-2026", "2026-05-15"],
-    ["01-July-2026", "2026-07-01"],
-    ["31-December-2026", "2026-12-31"],
-    ["29-February-2024", "2024-02-29"],
+    ["01-01-2026", "2026-01-01"],
+    ["15-08-2026", "2026-08-15"],
+    ["31-12-2026", "2026-12-31"],
+    ["29-02-2024", "2024-02-29"],
   ])("formats deliveryDate as %s for input %s", (expected, isoDate) => {
-    expect(formatLabelFields({ ...baseSnapshot, deliveryDate: isoDate }).deliveryDate).toBe(
-      expected,
-    )
+    expect(
+      formatLabelFields({ ...baseSnapshot, deliveryDate: isoDate })
+        .deliveryDate,
+    ).toBe(expected)
   })
 
-  it("formats qty as a plain digit string with no thousands separator", () => {
-    expect(formatLabelFields({ ...baseSnapshot, qty: 12345 }).qty).toBe("12345")
-  })
-
-  it("does not truncate a long Part No", () => {
+  it("does not truncate a long Part No or Lot No", () => {
     const longPartNo = "PN-".padEnd(65, "X")
-    expect(longPartNo.length).toBeGreaterThan(60)
+    const longLotNo = "M-CRT-".padEnd(70, "9")
 
-    const result = formatLabelFields({ ...baseSnapshot, partNo: longPartNo })
+    const result = formatLabelFields({
+      ...baseSnapshot,
+      lotNo: longLotNo,
+      partNo: longPartNo,
+    })
     expect(result.partNo).toBe(longPartNo)
-    expect(result.partNo.length).toBe(longPartNo.length)
-  })
-
-  it("does not truncate a long Delivery Number", () => {
-    const longDeliveryNumber = "DN-".padEnd(70, "9")
-    expect(longDeliveryNumber.length).toBeGreaterThan(60)
-
-    const result = formatLabelFields({
-      ...baseSnapshot,
-      deliveryNumber: longDeliveryNumber,
-    })
-    expect(result.deliveryNumber).toBe(longDeliveryNumber)
-    expect(result.deliveryNumber.length).toBe(longDeliveryNumber.length)
-  })
-
-  it("preserves internal whitespace in supplierCode and boxName without trimming or re-casing", () => {
-    const result = formatLabelFields({
-      ...baseSnapshot,
-      supplierCode: "  10015  ",
-      boxName: "box   with   spaces",
-    })
-    expect(result.supplierCode).toBe("  10015  ")
-    expect(result.boxName).toBe("box   with   spaces")
+    expect(result.lotNo).toBe(longLotNo)
   })
 
   it("throws when deliveryDate is not a parseable ISO date", () => {
@@ -104,7 +84,7 @@ describe("formatLabelFields", () => {
 
   it("passes the stored QR payload through untouched", () => {
     expect(formatLabelFields(baseSnapshot).qrPayload).toBe(
-      "10015|PN-0001|100|1|LOT-A|B101|24-07-2026",
+      "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
     )
   })
 })

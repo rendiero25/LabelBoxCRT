@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(15);
+select plan(24);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -141,6 +141,18 @@ select throws_ok(
   'menutup batch ditolak selama produk kedua belum pernah discan'
 );
 
+-- Cetak memakai syarat cakupan yang sama, bukan syarat "batch sudah ditutup".
+select throws_ok(
+  $$
+    select public.create_label_box_print_jobs(
+      (select batch_id from verify_batch)
+    )
+  $$,
+  'P0001',
+  'MASTER_ITEM_PRODUCTS_INCOMPLETE',
+  'mencetak ditolak selama produk batch belum lengkap discan'
+);
+
 create temporary table verify_scan_b as
 select *
 from public.accept_label_box_scan(
@@ -154,7 +166,7 @@ grant select on verify_scan_b to public;
 
 select is(
   (select box_number from verify_scan_b),
-  'B201',
+  'B102',
   'scan berikutnya pindah sendiri ke box kedua'
 );
 
@@ -168,6 +180,40 @@ select throws_ok(
   'P0001',
   'NO_LABEL_BOX_AVAILABLE',
   'scan ditolak ketika semua box sudah penuh'
+);
+
+-- Operator mencetak lebih dulu, saat batch masih terbuka. Ini urutan yang
+-- dipakai di lapangan: label keluar dari printer dan ditempel, baru batch
+-- ditutup sebagai penyimpanan.
+create temporary table verify_jobs_open as
+select * from public.create_label_box_print_jobs((select batch_id from verify_batch));
+grant select on verify_jobs_open to public;
+
+select is(
+  (select count(*)::integer from verify_jobs_open),
+  2,
+  'label batch terbuka boleh dicetak setelah semua produk discan'
+);
+
+select is(
+  (
+    select closed_at
+    from public.label_box_batches
+    where id = (select batch_id from verify_batch)
+  ),
+  null::timestamptz,
+  'mencetak tidak diam-diam menutup batch'
+);
+
+-- Baris "Item List" pada label memakai nomor urut Master Item milik batch.
+select is(
+  (select distinct master_item_row_no from verify_jobs_open),
+  (
+    select master_item_row_no
+    from public.label_box_batches
+    where id = (select batch_id from verify_batch)
+  ),
+  'print job membawa nomor urut Master Item dari batch'
 );
 
 -- Kedua produk sudah pernah discan (produk pertama di box 1, produk kedua
@@ -231,6 +277,76 @@ select is(
   ),
   2,
   'memanggil ulang tidak menggandakan print job'
+);
+
+-- Cetak ulang. Kedua label diselesaikan lewat jalur aslinya lebih dulu supaya
+-- job awalnya tidak lagi claimable, persis keadaan batch yang labelnya sudah
+-- keluar dari printer.
+select public.claim_print_job(job.print_job_id, '^XA^XZ')
+from verify_jobs job;
+
+select public.complete_print_job(
+  job.print_job_id, 'sent', 'VERIFY-PRINTER', null, null
+)
+from verify_jobs job;
+
+create temporary table verify_reprint_one as
+select * from public.create_label_box_reprint_jobs(
+  (select batch_id from verify_batch),
+  array[(select label_box_id from verify_jobs order by box_number limit 1)]
+);
+grant select on verify_reprint_one to public;
+
+select is(
+  (select count(*)::integer from verify_reprint_one),
+  1,
+  'cetak ulang per box hanya membuat label yang diminta'
+);
+
+select is(
+  (select status::text from verify_reprint_one),
+  'pending',
+  'job cetak ulang siap diklaim'
+);
+
+-- Label pengganti harus identik dengan yang hilang: referensi, nomor urut,
+-- dan QR-nya disalin dari job aslinya.
+select is(
+  (
+    select job.label_reference || '|' || job.sequence_no::text || '|' || job.qr_payload_snapshot
+    from public.print_jobs job
+    where job.id = (select print_job_id from verify_reprint_one)
+  ),
+  (
+    select parent.label_reference || '|' || parent.sequence_no::text || '|' || parent.qr_payload_snapshot
+    from public.print_jobs parent
+    where parent.id = (
+      select job.parent_print_job_id from public.print_jobs job
+      where job.id = (select print_job_id from verify_reprint_one)
+    )
+  ),
+  'cetak ulang menyalin referensi, nomor urut, dan QR dari label aslinya'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.create_label_box_reprint_jobs(
+      (select batch_id from verify_batch),
+      array[(select label_box_id from verify_jobs order by box_number limit 1)]
+    )
+  ),
+  1,
+  'menekan cetak ulang dua kali tidak menumpuk antrean label yang sama'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.create_label_box_reprint_jobs((select batch_id from verify_batch))
+  ),
+  2,
+  'cetak ulang tanpa daftar box mencakup seluruh batch'
 );
 
 reset role;

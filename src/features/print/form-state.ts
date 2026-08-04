@@ -1,10 +1,5 @@
 export type PrintJobPhase =
-  | "idle"
-  | "claiming"
-  | "sending"
-  | "completing"
-  | "confirmed"
-  | "failed"
+  "idle" | "claiming" | "sending" | "completing" | "confirmed" | "failed"
 
 export type PrintActionResult = {
   error?: string

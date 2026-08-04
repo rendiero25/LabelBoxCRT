@@ -1,20 +1,16 @@
 /**
- * Mirrors the row shape returned by finalize_packing_session() and the
- * print_jobs snapshot columns (flowsystem.md §4.14). partName, sequenceNo,
- * and boxCode are carried for context but are not part of the label's
- * display fields (BR-07) — labelReference already encodes the sequence.
+ * Data satu label box, diambil dari snapshot print_jobs ditambah nomor urut
+ * Master Item milik batch. Urutan field mengikuti urutan barisnya di label.
  */
 export type FinalizedLabelSnapshot = {
   supplierCode: string
   partNo: string
-  partName: string
-  qty: number
-  sequenceNo: number
-  labelReference: string
-  deliveryNumber: string
+  packingQty: number
+  qtyDelivery: number
+  masterItemRowNo: number
+  lotNo: string
+  boxNumber: string
   deliveryDate: string
-  boxCode: string
-  boxName: string
   /** QR payload yang sudah dirakit dan disimpan di label_boxes.qr_payload. */
   qrPayload: string
 }
@@ -22,51 +18,20 @@ export type FinalizedLabelSnapshot = {
 export type FormattedLabelFields = {
   supplierCode: string
   partNo: string
-  qty: string
-  itemBoxReference: string
-  deliveryNumber: string
-  boxName: string
+  packingQty: string
+  qtyDelivery: string
+  masterItemRowNo: string
+  lotNo: string
+  boxNumber: string
   deliveryDate: string
   qrPayload: string
 }
 
 const isoDatePattern = /^(\d{4})-(\d{2})-(\d{2})/
 
-const monthNames = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-]
-
-function formatDeliveryDate(isoDate: string): string {
-  const match = isoDatePattern.exec(isoDate)
-  if (!match) {
-    throw new Error(
-      `formatDeliveryDate: expected an ISO date (YYYY-MM-DD), received "${isoDate}"`,
-    )
-  }
-
-  const [, yearText, monthText, dayText] = match
-  const monthName = monthNames[Number(monthText) - 1]
-  if (!monthName) {
-    throw new Error(`formatDeliveryDate: invalid month in "${isoDate}"`)
-  }
-
-  return `${dayText.padStart(2, "0")}-${monthName}-${yearText}`
-}
-
 /**
- * Tanggal ringkas DD-MM-YYYY. Dipakai QR payload label dan kolom tanggal di
- * tabel batch label box.
+ * Tanggal ringkas DD-MM-YYYY. Dipakai label box, QR payload, dan kolom tanggal
+ * di tabel batch label box, jadi ketiganya selalu terbaca sama oleh operator.
  */
 export function formatShortDate(isoTimestamp: string): string {
   const match = isoDatePattern.exec(isoTimestamp)
@@ -86,11 +51,12 @@ export function formatLabelFields(
   return {
     supplierCode: snapshot.supplierCode,
     partNo: snapshot.partNo,
-    qty: String(snapshot.qty),
-    itemBoxReference: snapshot.labelReference,
-    deliveryNumber: snapshot.deliveryNumber,
-    boxName: snapshot.boxName,
-    deliveryDate: formatDeliveryDate(snapshot.deliveryDate),
+    packingQty: String(snapshot.packingQty),
+    qtyDelivery: String(snapshot.qtyDelivery),
+    masterItemRowNo: String(snapshot.masterItemRowNo),
+    lotNo: snapshot.lotNo,
+    boxNumber: snapshot.boxNumber,
+    deliveryDate: formatShortDate(snapshot.deliveryDate),
     qrPayload: snapshot.qrPayload,
   }
 }

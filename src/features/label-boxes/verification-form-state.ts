@@ -31,6 +31,7 @@ export type LabelBoxPrintJob = {
   labelBoxId: string
   labelReference: string
   lotNo: string
+  masterItemRowNo: number
   partName: string
   partNo: string
   printJobId: string

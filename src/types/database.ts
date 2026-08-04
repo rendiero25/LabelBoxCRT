@@ -265,6 +265,7 @@ export type Database = {
           master_item_id: string
           master_item_row_no: number
           packing_qty: number
+          part_no_snapshot: string
           qr_generated_at: string | null
           qty_delivery: number
           supplier_code_snapshot: string
@@ -286,6 +287,7 @@ export type Database = {
           master_item_id: string
           master_item_row_no: number
           packing_qty: number
+          part_no_snapshot: string
           qr_generated_at?: string | null
           qty_delivery: number
           supplier_code_snapshot: string
@@ -307,6 +309,7 @@ export type Database = {
           master_item_id?: string
           master_item_row_no?: number
           packing_qty?: number
+          part_no_snapshot?: string
           qr_generated_at?: string | null
           qty_delivery?: number
           supplier_code_snapshot?: string
@@ -1141,6 +1144,28 @@ export type Database = {
           label_box_id: string
           label_reference: string
           lot_no: string
+          master_item_row_no: number
+          part_name: string
+          part_no: string
+          print_job_id: string
+          qr_payload: string
+          qty: number
+          qty_delivery: number
+          status: Database["public"]["Enums"]["print_job_status"]
+          supplier_code: string
+        }[]
+      }
+      create_label_box_reprint_jobs: {
+        Args: { p_batch_id: string; p_label_box_ids?: string[] | null }
+        Returns: {
+          box_name: string
+          box_number: string
+          delivery_date: string
+          delivery_number: string
+          label_box_id: string
+          label_reference: string
+          lot_no: string
+          master_item_row_no: number
           part_name: string
           part_no: string
           print_job_id: string
@@ -1358,12 +1383,7 @@ export type Database = {
         | "expired"
       print_attempt_result: "sent" | "failed"
       print_job_status:
-        | "pending"
-        | "printing"
-        | "sent"
-        | "confirmed"
-        | "failed"
-        | "cancelled"
+        "pending" | "printing" | "sent" | "confirmed" | "failed" | "cancelled"
       reprint_status: "requested" | "approved" | "rejected" | "executed"
       scan_result: "accepted" | "invalid" | "duplicate" | "over_qty"
       user_role: "admin" | "user"
@@ -1382,12 +1402,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1409,13 +1429,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1434,13 +1453,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1459,13 +1477,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1478,11 +1495,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
