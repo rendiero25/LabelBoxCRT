@@ -29,7 +29,10 @@ const SYMBOL_VENDOR_ID = 0x05e0
 /** Zebra Technologies, dipakai sebagian perangkat Zebra lain. */
 const ZEBRA_VENDOR_ID = 0x0a5f
 
-const VENDOR_TEXT_PATTERN = /zebra|symbol/i
+/** Symbol hanya membuat scanner, jadi namanya saja sudah menentukan. */
+const SYMBOL_TEXT_PATTERN = /symbol/i
+/** Zebra membuat printer juga, jadi namanya harus menyebut scanner. */
+const SCANNER_TEXT_PATTERN = /scanner|ds\s*\d{4}/i
 const DS22_PATTERN = /ds\s*22/i
 
 /**
@@ -53,12 +56,25 @@ function deviceText(device: UsbDevice): string {
   return `${device.manufacturer ?? ""} ${device.product ?? ""}`
 }
 
+/**
+ * Vendor 0a5f dipakai Zebra untuk printer maupun scanner, dan pada
+ * workstation ini printer ZD220 (0a5f:0164) dilaporkan QZ lebih dulu daripada
+ * scanner (05e0:1200). Mencocokkan vendor itu tanpa syarat membuat panel
+ * kesiapan menamai printer sebagai scanner, lalu operator percaya scanner
+ * siap padahal belum tentu. Karena itu vendor Zebra hanya diterima bila
+ * teksnya menyebut scanner; Symbol tetap diterima langsung.
+ */
 function isZebraDevice(device: UsbDevice): boolean {
   if (device.hub) return false
 
-  const vendorId = toDeviceId(device.vendorId)
-  if (vendorId === SYMBOL_VENDOR_ID || vendorId === ZEBRA_VENDOR_ID) return true
-  return VENDOR_TEXT_PATTERN.test(deviceText(device))
+  const text = deviceText(device)
+  if (toDeviceId(device.vendorId) === SYMBOL_VENDOR_ID) return true
+  if (SYMBOL_TEXT_PATTERN.test(text)) return true
+
+  const isZebraVendor = toDeviceId(device.vendorId) === ZEBRA_VENDOR_ID
+  return (
+    (isZebraVendor || /zebra/i.test(text)) && SCANNER_TEXT_PATTERN.test(text)
+  )
 }
 
 function isDs22(device: UsbDevice): boolean {

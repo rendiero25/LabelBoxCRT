@@ -18,7 +18,27 @@ import {
  * QZ melaporkan id sebagai string heksadesimal TANPA awalan 0x, dan tidak
  * menyertakan nama perangkat sama sekali.
  */
-const realScanner: UsbDevice = { hub: false, productId: "1200", vendorId: "05e0" }
+const realScanner: UsbDevice = {
+  hub: false,
+  productId: "1200",
+  vendorId: "05e0",
+}
+/**
+ * Printer ZD220 pada workstation yang sama. Vendor 0a5f milik Zebra
+ * Technologies dipakai printer maupun scanner, dan QZ melaporkannya lebih
+ * dulu daripada scanner, jadi mencocokkan vendor itu saja menamai printer
+ * sebagai scanner.
+ */
+const zebraPrinter: UsbDevice = {
+  hub: false,
+  productId: "0164",
+  vendorId: "0a5f",
+}
+const canonDevice: UsbDevice = {
+  hub: false,
+  productId: "183d",
+  vendorId: "04a9",
+}
 const logitechKeyboard: UsbDevice = {
   hub: false,
   productId: "c31c",
@@ -50,8 +70,26 @@ describe("findZebraScanner", () => {
     expect(findZebraScanner([{ vendorId: 0x05e0 }])).not.toBeNull()
   })
 
-  it("matches the Zebra Technologies vendor id too", () => {
-    expect(findZebraScanner([{ vendorId: "0a5f" }])).not.toBeNull()
+  it("picks the scanner, not the Zebra printer listed before it", () => {
+    expect(
+      findZebraScanner([
+        canonDevice,
+        zebraPrinter,
+        logitechKeyboard,
+        logitechReceiver,
+        realScanner,
+      ]),
+    ).toEqual(realScanner)
+  })
+
+  it("ignores a bare Zebra-vendor device because printers share that vendor", () => {
+    expect(findZebraScanner([zebraPrinter])).toBeNull()
+  })
+
+  it("accepts a Zebra-vendor device that names itself a scanner", () => {
+    expect(
+      findZebraScanner([{ product: "Zebra DS2278 Scanner", vendorId: "0a5f" }]),
+    ).not.toBeNull()
   })
 
   it("ignores devices from other vendors", () => {

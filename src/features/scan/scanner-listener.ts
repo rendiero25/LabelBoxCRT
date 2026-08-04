@@ -105,7 +105,10 @@ export function isScannerEditableTarget(target: EventTarget | null): boolean {
     return true
   }
 
-  return Boolean(candidate.closest?.("dialog[open], form"))
+  // Hanya dialog terbuka yang memblokir scan. Sebuah <form> biasa tidak,
+  // karena halaman verifikasi memuat form penutup batch: memblokir seluruh
+  // isinya membuat scan hilang tanpa pesan begitu fokus mendarat di tombolnya.
+  return Boolean(candidate.closest?.("dialog[open]"))
 }
 
 function isPrintableScannerKey(event: KeyboardEvent) {
@@ -148,6 +151,19 @@ export class ScannerListener {
     if (this.state.buffer) {
       this.updateState({ buffer: "" })
     }
+  }
+
+  /**
+   * Mengirim payload yang tidak datang dari ketikan di badan halaman, misalnya
+   * dari kotak scan. Lewat antrean yang sama supaya bunyi, banner, dan riwayat
+   * tidak punya dua sumber kebenaran.
+   */
+  async submit(rawPayload: string) {
+    const payload = rawPayload.trim()
+    if (!payload) return
+
+    this.enqueue(payload)
+    await this.queue
   }
 
   whenIdle() {

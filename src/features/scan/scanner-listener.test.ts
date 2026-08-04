@@ -96,6 +96,44 @@ describe("scanner listener", () => {
     },
   )
 
+  // Kartu "Selesaikan verifikasi" adalah <form>, jadi memperlakukan seluruh isi
+  // form sebagai kolom ketik membuat scan hilang tanpa jejak begitu fokus
+  // mendarat di tombolnya.
+  it("keeps scanning while a plain button inside a form holds focus", async () => {
+    const target = new FakeKeyboardTarget()
+    const onScan = vi.fn(async () => ({ status: "success" as const }))
+    const listener = createScannerListener({ onScan, target })
+    const buttonInsideForm = {
+      closest: (selector: string) =>
+        selector.includes("form") ? { tagName: "FORM" } : null,
+      isContentEditable: false,
+      tagName: "BUTTON",
+    }
+
+    target.key("Q", buttonInsideForm as unknown as EventTarget)
+    target.key("Enter", buttonInsideForm as unknown as EventTarget)
+    await listener.whenIdle()
+
+    expect(onScan).toHaveBeenCalledWith("Q")
+  })
+
+  // Kotak scan di halaman verifikasi mengirim lewat jalur yang sama dengan
+  // ketikan langsung, supaya bunyi, banner, dan riwayat scan tetap satu sumber.
+  it("submits a payload handed to it without any keystrokes", async () => {
+    const target = new FakeKeyboardTarget()
+    const onScan = vi.fn(async () => ({ status: "success" as const }))
+    const listener = createScannerListener({ onScan, target })
+
+    await listener.submit("QR-FROM-INPUT")
+    await listener.whenIdle()
+
+    expect(onScan).toHaveBeenCalledWith("QR-FROM-INPUT")
+    expect(listener.getState().lastScan).toMatchObject({
+      rawPayload: "QR-FROM-INPUT",
+      status: "success",
+    })
+  })
+
   it("serializes scanner payloads while the previous async decision is pending", async () => {
     const target = new FakeKeyboardTarget()
     const calls: string[] = []

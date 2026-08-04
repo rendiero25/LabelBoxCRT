@@ -83,11 +83,16 @@ export function useScannerListener({
     writeScannerMutePreference(nextMuted)
   }, [])
 
+  const submit = useCallback(async (rawPayload: string) => {
+    await listenerRef.current?.submit(rawPayload)
+  }, [])
+
   return {
     ...(enabled ? state : emptyState()),
     clearRecentScans: () => listenerRef.current?.clearRecentScans(),
     muted,
     resetBuffer: () => listenerRef.current?.resetBuffer(),
     setMuted,
+    submit,
   }
 }

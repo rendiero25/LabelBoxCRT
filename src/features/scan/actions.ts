@@ -55,8 +55,8 @@ export async function acceptPackingScanAction(
     return { message: rpcErrorMessage(parsed.code), status: "error" }
   }
 
-  // QR v1 nyata belum menyertakan label_uid; jangan menggunakan lot/reference
-  // sebagai pengganti karena itu bukan identitas label fisik yang unik.
+  // Parser sudah menjamin label UID tidak kosong; sisa penjagaan panjang dan
+  // keunikan dilakukan RPC.
   if (!parsed.data.labelUid) {
     return { message: rpcErrorMessage("LABEL_UID_MISSING"), status: "error" }
   }
