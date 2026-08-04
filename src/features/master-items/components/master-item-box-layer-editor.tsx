@@ -16,6 +16,7 @@ import {
   deleteMasterItemBoxAction,
 } from "@/features/master-items/actions"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
+import { shortenLayerName } from "@/features/master-items/layer-label"
 import { formatProductPreview } from "@/features/products/validation"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -213,7 +214,9 @@ function BoxCard({
                 type="submit"
                 variant="destructive"
               >
-                {isDeletingBox ? <Spinner data-icon="inline-start" /> : (
+                {isDeletingBox ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
                   <Trash2Icon data-icon="inline-start" />
                 )}
                 Hapus Box
@@ -302,7 +305,9 @@ function LayerCard({
   return (
     <div className="rounded-md border p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h4 className="text-sm font-medium">{layer.layerName}</h4>
+        <h4 className="text-sm font-medium">
+          Layer {layer.layerNo} · {shortenLayerName(layer.layerName)}
+        </h4>
         {canDeleteLayer ? (
           <form action={deleteLayerAction}>
             <input name="boxLayerId" type="hidden" value={layer.id} />
@@ -312,7 +317,9 @@ function LayerCard({
               type="submit"
               variant="outline"
             >
-              {isDeletingLayer ? <Spinner data-icon="inline-start" /> : (
+              {isDeletingLayer ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
                 <Trash2Icon data-icon="inline-start" />
               )}
               Hapus Layer
@@ -337,7 +344,7 @@ function LayerCard({
         ) : (
           selectedProducts.map((product) => (
             <span
-              className="rounded-md border bg-secondary px-2 py-1 text-sm text-secondary-foreground"
+              className="bg-secondary text-secondary-foreground rounded-md border px-2 py-1 text-sm"
               key={product.id}
             >
               {productLabel(product)}
@@ -366,7 +373,7 @@ function LayerCard({
         <div className="mt-2 max-h-80 columns-2 gap-x-4 overflow-y-auto rounded-md border p-2">
           {products.map((product) => (
             <label
-              className="mb-2 flex items-center gap-1.5 break-inside-avoid text-sm"
+              className="mb-2 flex break-inside-avoid items-center gap-1.5 text-sm"
               key={product.id}
             >
               <input

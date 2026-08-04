@@ -33,10 +33,10 @@ export type LabelBoxBatchRow = {
   deliveryDate: string
   deliveryNumber: string
   id: string
-  itemCode: string
   labelCount: number
   lotNo: string
   packingQty: number
+  partNo: string
   printed: boolean
   qtyDelivery: number
   supplierCode: string
@@ -100,7 +100,7 @@ export function LabelBoxBatchTable({
                     </TableCell>
                     <TableCell>{formatShortDate(batch.deliveryDate)}</TableCell>
                     <TableCell>{batch.supplierCode}</TableCell>
-                    <TableCell>{batch.itemCode}</TableCell>
+                    <TableCell>{batch.partNo}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {batch.packingQty}
                     </TableCell>
@@ -112,7 +112,9 @@ export function LabelBoxBatchTable({
                       <Button
                         className="px-0"
                         onClick={() =>
-                          setExpandedId(expandedId === batch.id ? null : batch.id)
+                          setExpandedId(
+                            expandedId === batch.id ? null : batch.id,
+                          )
                         }
                         type="button"
                         variant="link"

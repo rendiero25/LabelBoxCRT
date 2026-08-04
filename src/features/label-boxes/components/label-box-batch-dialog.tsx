@@ -22,7 +22,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -137,7 +142,11 @@ export function LabelBoxBatchDialog({
                 Packing Qty Master Item.
               </DialogDescription>
             </DialogHeader>
-            <form action={formAction} className="flex flex-col gap-5" noValidate>
+            <form
+              action={formAction}
+              className="flex flex-col gap-5"
+              noValidate
+            >
               {state.error ? (
                 <Alert variant="destructive">
                   <CircleAlertIcon />
@@ -149,7 +158,9 @@ export function LabelBoxBatchDialog({
               <FieldGroup>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field>
-                    <FieldLabel htmlFor="label-box-dn">Delivery Number</FieldLabel>
+                    <FieldLabel htmlFor="label-box-dn">
+                      Delivery Number
+                    </FieldLabel>
                     <Input
                       id="label-box-dn"
                       maxLength={100}
@@ -172,7 +183,9 @@ export function LabelBoxBatchDialog({
                 </div>
 
                 <Field>
-                  <FieldLabel htmlFor="label-box-supplier">Kode Supplier</FieldLabel>
+                  <FieldLabel htmlFor="label-box-supplier">
+                    Kode Supplier
+                  </FieldLabel>
                   <Select
                     onValueChange={(value) => {
                       setSupplierId(value)
@@ -202,7 +215,10 @@ export function LabelBoxBatchDialog({
                     onValueChange={setMasterItemId}
                     value={masterItemId}
                   >
-                    <SelectTrigger className="w-full" id="label-box-master-item">
+                    <SelectTrigger
+                      className="w-full"
+                      id="label-box-master-item"
+                    >
                       <SelectValue placeholder="Pilih Part No" />
                     </SelectTrigger>
                     <SelectContent>
@@ -235,7 +251,9 @@ export function LabelBoxBatchDialog({
                           : "Pilih Master Item terlebih dahulu"
                       }
                     />
-                    <FieldDescription>Ikut master data, tidak bisa diubah.</FieldDescription>
+                    <FieldDescription>
+                      Ikut master data, tidak bisa diubah.
+                    </FieldDescription>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="label-box-qty-delivery">
@@ -248,7 +266,9 @@ export function LabelBoxBatchDialog({
                       placeholder="100"
                       required
                     />
-                    <FieldDescription>Harus kelipatan Packing Qty.</FieldDescription>
+                    <FieldDescription>
+                      Harus kelipatan Packing Qty.
+                    </FieldDescription>
                   </Field>
                 </div>
 

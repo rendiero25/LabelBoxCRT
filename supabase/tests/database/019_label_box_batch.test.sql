@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(20);
+select plan(21);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -80,8 +80,8 @@ select is(
     from public.label_boxes
     where batch_id = (select batch_id from labelbox_batch_a)
   ),
-  'B101,B201,B301',
-  'satu set menghasilkan B101, B201, B301'
+  'B101,B102,B103',
+  'satu set menghasilkan B101, B102, B103'
 );
 
 select is(
@@ -117,6 +117,18 @@ select is(
   ),
   'LB1SUP|labelbox-item|DN-LABELBOX-1|2026-07-28',
   'batch menyimpan snapshot supplier code, item code, DN, dan tanggal delivery'
+);
+
+-- Part No ikut disnapshot karena itu yang ditampilkan di kolom Master Item
+-- pada tabel halaman scan; item_code hanya kode internal hasil autogen.
+select is(
+  (
+    select part_no_snapshot
+    from public.label_box_batches
+    where id = (select batch_id from labelbox_batch_a)
+  ),
+  'LABELBOX-PART',
+  'batch menyimpan snapshot part no master item'
 );
 
 -- Dihitung ulang tanpa membaca batch, supaya kesalahan pada row_number()
@@ -156,8 +168,8 @@ select is(
     from public.label_boxes
     where batch_id = (select batch_id from labelbox_batch_b)
   ),
-  'B101,B201,B301,B102,B202,B302',
-  'set kedua memakai akhiran 02'
+  'B101,B102,B103,B201,B202,B203',
+  'set kedua memakai awalan 2'
 );
 
 select is(

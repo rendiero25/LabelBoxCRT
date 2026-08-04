@@ -2,9 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import {
-  type LabelBoxBatchActionState,
-} from "@/features/label-boxes/form-state"
+import { type LabelBoxBatchActionState } from "@/features/label-boxes/form-state"
 import { createClient } from "@/lib/supabase/server"
 
 const uuidPattern =

@@ -22,7 +22,7 @@ export default async function ScanPage() {
     supabase
       .from("label_box_batches")
       .select(
-        "id, packing_qty, qty_delivery, lot_no, label_count, qr_generated_at, created_at, closed_at, supplier_code_snapshot, item_code_snapshot, delivery_number_snapshot, delivery_date_snapshot, label_boxes(box_number, set_no, box_no, packing_session_id)",
+        "id, packing_qty, qty_delivery, lot_no, label_count, qr_generated_at, created_at, closed_at, supplier_code_snapshot, part_no_snapshot, delivery_number_snapshot, delivery_date_snapshot, label_boxes(box_number, set_no, box_no, packing_session_id)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -102,7 +102,7 @@ type LabelBoxBatchQuery = {
   qr_generated_at: string | null
   closed_at: string | null
   supplier_code_snapshot: string
-  item_code_snapshot: string
+  part_no_snapshot: string
   delivery_number_snapshot: string
   delivery_date_snapshot: string
   label_boxes: Array<{
@@ -129,10 +129,10 @@ function toLabelBoxBatchRow(
     deliveryDate: batch.delivery_date_snapshot,
     deliveryNumber: batch.delivery_number_snapshot,
     id: batch.id,
-    itemCode: batch.item_code_snapshot,
     labelCount: batch.label_count,
     lotNo: batch.lot_no,
     packingQty: batch.packing_qty,
+    partNo: batch.part_no_snapshot,
     printed: batch.label_boxes.some(
       (labelBox) =>
         labelBox.packing_session_id !== null &&
