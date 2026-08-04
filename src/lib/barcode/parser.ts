@@ -17,7 +17,7 @@ export type ParsedBarcodeV1Draft = {
   }
   labelQuantity: number
   productionDate: string
-  labelUid: null
+  labelUid: string
 }
 
 export type BarcodeParseErrorCode =
@@ -33,10 +33,17 @@ export type BarcodeParseResult =
 const controlCharacterPattern = /[\p{Cc}]/u
 const versionEnvelopePattern = /^v\d+(?:[|:])/i
 const quantityPattern = /^[0-9]+$/
+// Label produksi memisahkan penanda panjang dengan spasi ("Pt L=205") maupun
+// titik ("Pt.L=525"); dua-duanya berasal dari scanner yang sama. Besar-kecil
+// hurufnya juga tidak konsisten ("D6X7" maupun "d6x7 pT.l="), sementara Size
+// hanya dipakai lewat angkanya dan lewat sizeLookup yang sudah di-uppercase,
+// jadi pencocokan pola sengaja mengabaikan case.
 const sizePattern =
-  /^(?:.+\s+)?D([0-9]+(?:\.[0-9]+)?)X([0-9]+(?:\.[0-9]+)?)\s+.+\s+L=([0-9]+(?:\.[0-9]+)?)$/
+  /^(?:.+\s+)?D([0-9]+(?:\.[0-9]+)?)X([0-9]+(?:\.[0-9]+)?)\s+.+[\s.]L=([0-9]+(?:\.[0-9]+)?)$/i
+// Bulan datang dalam huruf besar ("13-DEC-2025") maupun campuran
+// ("30-Jul-2026"), jadi pencocokan case-insensitive dan lookup di-uppercase.
 const productionDatePattern =
-  /^(\d{2})-(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-(\d{4})$/
+  /^(\d{2})-(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-(\d{4})$/i
 
 const monthNumbers: Record<string, number> = {
   JAN: 1,
@@ -83,7 +90,7 @@ function parseProductionDate(value: string): string | null {
 
   const [, dayText, monthText, yearText] = match
   const day = Number(dayText)
-  const month = monthNumbers[monthText]
+  const month = monthNumbers[monthText.toUpperCase()]
   const year = Number(yearText)
 
   if (!month || !Number.isInteger(day) || year < 1) return null
@@ -137,17 +144,17 @@ export function parseBarcodeV1(payload: unknown): BarcodeParseResult {
     supplierCode,
     sizeRaw,
     quantityRaw,
-    ignoredLotReference,
+    labelReferenceRaw,
     productionDateRaw,
   ] = fields
   if (
     !supplierCode ||
     !sizeRaw ||
     !quantityRaw ||
-    !ignoredLotReference ||
+    !labelReferenceRaw ||
     !productionDateRaw ||
     !supplierCode.trim() ||
-    !ignoredLotReference.trim()
+    !labelReferenceRaw.trim()
   ) {
     return failed()
   }
@@ -182,7 +189,15 @@ export function parseBarcodeV1(payload: unknown): BarcodeParseResult {
       size: { dimension1, dimension2, length },
       labelQuantity,
       productionDate,
-      labelUid: null,
+      // Field keempat adalah lot/reference dengan sufiks nomor label
+      // ("/P0001"), satu-satunya bagian payload yang berbeda antar label
+      // fisik. Kontrak QR v1 memakainya sebagai label_uid.
+      //
+      // Di-uppercase karena duplicate prevention membandingkan nilai ini persis
+      // apa adanya: Caps Lock yang menyala di tengah sesi membalik besar-kecil
+      // huruf yang dikirim scanner, dan label fisik yang sama akan lolos dua
+      // kali kalau kasusnya ikut tersimpan.
+      labelUid: labelReferenceRaw.normalize("NFKC").trim().toUpperCase(),
     },
   }
 }

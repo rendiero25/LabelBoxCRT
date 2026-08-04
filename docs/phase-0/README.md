@@ -7,12 +7,12 @@ invariant sebelum disetujui.
 
 ## Status per 13 Juli 2026
 
-| Area           | Status   | Gate yang belum terpenuhi                                                                                                                                                                                              |
-| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| QR contract    | Deferred | Satu QR product telah didekode. Part No berasal dari Master Item/session untuk label box, bukan QR product. Field lot/reference sengaja diabaikan. Sumber `label_uid` unik dan unit per scan akan dilengkapi kemudian. |
-| Business rules | Partial  | Sumber field label, quantity layer, Qty default, urutan field, toast, dan font telah dikonfirmasi. Sequence scope, reference date mismatch, scan unit, cancel/reset, print confirmation, dan retention masih terbuka.  |
-| Hardware       | Partial  | QZ Tray terpasang dan ZD220 dilaporkan menyala, tetapi printer Windows belum terdeteksi dan raw ZPL belum diuji. DS2208 masih dalam pengiriman.                                                                        |
-| Branding       | Ready    | Logo resmi tersedia; palette dan contrast telah diekstrak; Outfit dipilih sebagai font aplikasi.                                                                                                                       |
+| Area           | Status  | Gate yang belum terpenuhi                                                                                                                                                                                             |
+| -------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QR contract    | Partial | Dua QR product telah didekode. Part No berasal dari Master Item/session untuk label box, bukan QR product. Field lot/reference dipakai sebagai `label_uid`. Unit per scan masih terbuka.                              |
+| Business rules | Partial | Sumber field label, quantity layer, Qty default, urutan field, toast, dan font telah dikonfirmasi. Sequence scope, reference date mismatch, scan unit, cancel/reset, print confirmation, dan retention masih terbuka. |
+| Hardware       | Partial | QZ Tray terpasang dan ZD220 dilaporkan menyala, tetapi printer Windows belum terdeteksi dan raw ZPL belum diuji. DS2208 masih dalam pengiriman.                                                                       |
+| Branding       | Ready   | Logo resmi tersedia; palette dan contrast telah diekstrak; Outfit dipilih sebagai font aplikasi.                                                                                                                      |
 
 ## Artefak
 

@@ -1,9 +1,9 @@
 # QR Contract v1 — Draft
 
-Status: `PARTIAL — ONE REAL SAMPLE DECODED`
+Status: `PARTIAL — TWO REAL SAMPLES DECODED`
 
-Satu QR nyata dari `docs/qr code.jpeg` berhasil didekode. Parser v1 tetap draft
-sampai minimal lima payload produksi membuktikan struktur dan keunikan field.
+Dua QR nyata berhasil didekode. Parser v1 tetap draft sampai minimal lima
+payload produksi membuktikan struktur dan keunikan field.
 
 ## Sample QR-001
 
@@ -13,22 +13,40 @@ Raw payload, 76 karakter ASCII dan lima field pipe-delimited:
 10015|VO-B D5.5X6.3 Pt L=205|100|M-CRT-004A-778-131225-B002/P001|13-DEC-2025
 ```
 
-| Posisi | Raw                               | Interpretasi terverifikasi          |
-| ------ | --------------------------------- | ----------------------------------- |
-| 1      | `10015`                           | Supplier code                       |
-| 2      | `VO-B D5.5X6.3 Pt L=205`          | Size lengkap                        |
-| 3      | `100`                             | Quantity pada label part            |
-| 4      | `M-CRT-004A-778-131225-B002/P001` | Lot/reference yang diabaikan parser |
-| 5      | `13-DEC-2025`                     | Production date pada label part     |
+| Posisi | Raw                               | Interpretasi terverifikasi                 |
+| ------ | --------------------------------- | ------------------------------------------ |
+| 1      | `10015`                           | Supplier code                              |
+| 2      | `VO-B D5.5X6.3 Pt L=205`          | Size lengkap                               |
+| 3      | `100`                             | Quantity pada label part                   |
+| 4      | `M-CRT-004A-778-131225-B002/P001` | Lot/reference, dipakai sebagai `label_uid` |
+| 5      | `13-DEC-2025`                     | Production date pada label part            |
+
+## Sample QR-002
+
+Dipindai dari scanner produksi pada 31 Juli 2026:
+
+```text
+10015|VO-B D6X7 Pt.L=525|100|M-CRT-004A-675-300726-B001/P0001|30-Jul-2026
+```
+
+Dua perbedaan bentuk terhadap QR-001, keduanya sah dan harus diterima parser:
+
+| Bagian       | QR-001             | QR-002             |
+| ------------ | ------------------ | ------------------ |
+| Sebelum `L=` | spasi (`Pt L=205`) | titik (`Pt.L=525`) |
+| Bulan        | `DEC`              | `Jul`              |
 
 QR product memang **tidak memuat** Part No `3210A-K1Z-NA01-DL`. Part No tersebut
 adalah data Master Item untuk label box yang akan dicetak. Operator memilih
 Master Item/Part No dan Box aktif sebelum proses scan; parser QR tidak mencoba
 menurunkan Part No dari payload product.
 
-Field keempat (`M-CRT-.../P001`) tidak dibaca dan tidak digunakan sebagai
-`label_uid`. Sampai sumber ID unik lain disepakati, duplicate prevention fisik
-tetap deferred dan Phase 5 tidak boleh menggantinya dengan debounce waktu.
+Field keempat (`M-CRT-.../P001`) dipakai sebagai `label_uid`. Sufiks `/P####`
+adalah nomor label di dalam lot, satu-satunya bagian payload yang berbeda antar
+label fisik, sehingga duplicate prevention memakai nilai ini (trim + NFKC +
+uppercase) dan bukan debounce waktu. Keunikannya masih bertumpu pada dua
+sample; bila sample berikut menunjukkan sufiks berulang antar lot, keputusan ini
+harus ditinjau ulang.
 
 ## Input envelope yang diusulkan
 
@@ -57,23 +75,24 @@ type ParsedBarcodeV1Draft = {
   }
   labelQuantity: number // 100
   productionDate: string // ISO date after strict parsing
+  labelUid: string // field keempat, trim + NFKC + uppercase
 }
 ```
 
-Field keempat di-skip setelah jumlah field dan format envelope divalidasi.
-`partNo` berasal dari session/Master Item aktif. `labelUid` dan `unitsPerScan`
-belum tersedia dan tidak boleh ditebak oleh client.
+`partNo` berasal dari session/Master Item aktif. `unitsPerScan` belum tersedia
+dan tidak boleh ditebak oleh client.
 
 ## Normalization proposal
 
-| Field            | Aturan yang diusulkan                                                                                                                                          |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Payload          | Hapus hanya terminator CR/LF di akhir; jangan trim/mengubah isi lain sebelum parsing.                                                                          |
-| `partNo`         | Trim, Unicode normalize NFKC, uppercase, pertahankan delimiter seperti `-`.                                                                                    |
-| `size`           | Trim, Unicode normalize NFKC, collapse whitespace internal menjadi satu spasi; case-fold hanya untuk lookup normalized.                                        |
-| Komponen Size    | Parse ketat pola `D{dimension1}X{dimension2} ... L={length}`; input admin menyimpan angka `5.5`, `6.3`, dan `205`, lalu format display dibentuk deterministik. |
-| `productionDate` | Parse strict `DD-MMM-YYYY` berbahasa Inggris dari QR, lalu simpan sebagai PostgreSQL `date`.                                                                   |
-| Angka            | Gunakan format ASCII yang didefinisikan kontrak; jangan menerka locale.                                                                                        |
+| Field            | Aturan yang diusulkan                                                                                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Payload          | Hapus hanya terminator CR/LF di akhir; jangan trim/mengubah isi lain sebelum parsing.                                                                                                                                                     |
+| `partNo`         | Trim, Unicode normalize NFKC, uppercase, pertahankan delimiter seperti `-`.                                                                                                                                                               |
+| `size`           | Trim, Unicode normalize NFKC, collapse whitespace internal menjadi satu spasi; case-fold hanya untuk lookup normalized.                                                                                                                   |
+| Komponen Size    | Parse ketat pola `D{dimension1}X{dimension2} ... L={length}`, case-insensitive; pemisah sebelum `L=` boleh spasi atau titik; input admin menyimpan angka `5.5`, `6.3`, dan `205`, lalu format display dibentuk deterministik.             |
+| `productionDate` | Parse strict `DD-MMM-YYYY` berbahasa Inggris dari QR, nama bulan case-insensitive, lalu simpan sebagai PostgreSQL `date`.                                                                                                                 |
+| `labelUid`       | Trim, Unicode normalize NFKC, uppercase; delimiter `-` dan `/` dipertahankan. Uppercase wajib karena duplicate prevention membandingkan nilai ini apa adanya, sedangkan Caps Lock workstation membalik besar-kecil huruf kiriman scanner. |
+| Angka            | Gunakan format ASCII yang didefinisikan kontrak; jangan menerka locale.                                                                                                                                                                   |
 
 Raw value dan normalized value harus dapat dibedakan pada diagnostic yang hanya
 dapat diakses role berizin. Keputusan duplicate selalu memakai identitas unik
@@ -101,6 +120,11 @@ yang wajib dicakup:
 
 ## Open contract decisions
 
-1. Field apa yang menyediakan `label_uid` unik, karena lot/reference diabaikan?
-2. Apakah satu scan menghitung satu label/pack atau 100 unit yang tercetak pada
+1. Apakah satu scan menghitung satu label/pack atau 100 unit yang tercetak pada
    QR?
+
+## Closed contract decisions
+
+1. Sumber `label_uid` (31 Juli 2026): field keempat penuh, termasuk sufiks
+   `/P####`. Sebelumnya field ini diabaikan, sehingga setiap scan ditolak
+   `LABEL_UID_MISSING` dan tidak pernah tercatat.
