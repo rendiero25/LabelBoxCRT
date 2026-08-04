@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(28);
+select plan(30);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -86,6 +86,13 @@ insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
   (
     '98100000-0000-0000-0000-000000000002',
     '96100000-0000-0000-0000-000000000001', 2, 'B102-T5', 'Phase 5 Overflow'
+  ),
+  -- Box dengan satu layer yang memuat dua produk berbeda. Bentuk inilah yang
+  -- dipakai Master Item nyata, dan sempat menolak produk kedua karena hitungan
+  -- kuota dilakukan per layer, bukan per produk.
+  (
+    '98100000-0000-0000-0000-000000000003',
+    '96100000-0000-0000-0000-000000000001', 3, 'B103-T5', 'Phase 5 Mixed Layer'
   );
 
 insert into public.box_layers (
@@ -106,6 +113,10 @@ insert into public.box_layers (
   (
     '98200000-0000-0000-0000-000000000004',
     '98100000-0000-0000-0000-000000000002', 2, 'Layer 2', 2
+  ),
+  (
+    '98200000-0000-0000-0000-000000000005',
+    '98100000-0000-0000-0000-000000000003', 1, 'Layer 1', 1
   );
 
 insert into public.box_layer_requirements (
@@ -122,6 +133,12 @@ insert into public.box_layer_requirements (
   ),
   (
     '98200000-0000-0000-0000-000000000004', '97100000-0000-0000-0000-000000000004', 1, 1
+  ),
+  (
+    '98200000-0000-0000-0000-000000000005', '97100000-0000-0000-0000-000000000001', 1, 1
+  ),
+  (
+    '98200000-0000-0000-0000-000000000005', '97100000-0000-0000-0000-000000000004', 1, 2
   );
 
 -- start_packing_session was dropped (Task 13): it auto-created this Delivery
@@ -162,6 +179,14 @@ insert into public.packing_sessions (
     '98100000-0000-0000-0000-000000000002',
     '95800000-0000-0000-0000-000000000001',
     40, 'LOT-P5-C', 'scanning'
+  ),
+  (
+    'a1400000-0000-0000-0000-000000000004',
+    '95100000-0000-0000-0000-000000000001',
+    '96100000-0000-0000-0000-000000000001',
+    '98100000-0000-0000-0000-000000000003',
+    '95800000-0000-0000-0000-000000000001',
+    40, 'LOT-P5-D', 'scanning'
   );
 
 select has_function(
@@ -541,6 +566,39 @@ select set_config(
   'request.jwt.claim.sub',
   '95100000-0000-0000-0000-000000000001',
   true
+);
+
+-- Satu layer memuat dua produk berbeda, masing-masing butuh satu keping.
+-- Kuota harus dihitung per produk: menghitung per layer membuat produk kedua
+-- ditolak LAYER_QUANTITY_FULL padahal belum pernah discan.
+select is(
+  (
+    select result::text
+    from public.accept_packing_scan(
+      'a1400000-0000-0000-0000-000000000004',
+      'phase5-mixed-first',
+      'phase5-hash-mixed-first',
+      '5.5 x 6.3 x 205',
+      '5.5x6.3x205'
+    )
+  ),
+  'accepted',
+  'first product of a shared layer is accepted'
+);
+
+select is(
+  (
+    select result::text || ':' || coalesce(error_code, '-')
+    from public.accept_packing_scan(
+      'a1400000-0000-0000-0000-000000000004',
+      'phase5-mixed-second',
+      'phase5-hash-mixed-second',
+      '12 x 11 x 10',
+      '12x11x10'
+    )
+  ),
+  'accepted:-',
+  'second product of the same layer is still accepted'
 );
 
 reset role;
