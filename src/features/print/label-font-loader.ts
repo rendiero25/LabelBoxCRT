@@ -3,7 +3,8 @@
 import {
   LABEL_FONT_BOLD,
   LABEL_FONT_REGULAR,
-  buildFontUploadZpl,
+  buildFontUpload,
+  type LabelFontUpload,
 } from "@/lib/label/font"
 
 /**
@@ -16,7 +17,7 @@ const FONT_SOURCES = [
   { name: LABEL_FONT_BOLD, url: "/label-fonts/Outfit-SemiBold.ttf" },
 ]
 
-let cachedCommands: string[] | null = null
+let cachedUploads: LabelFontUpload[] | null = null
 
 /**
  * Perintah ~DY untuk kedua berat font, dirakit sekali per tab. Perintah ini
@@ -25,10 +26,10 @@ let cachedCommands: string[] | null = null
  * akan menghapusnya, dan label yang merujuk font hilang tercetak kosong.
  * Mengirim ulang tiap kali mencetak membuatnya pulih sendiri.
  */
-export async function loadLabelFontUploadCommands(): Promise<string[]> {
-  if (cachedCommands) return cachedCommands
+export async function loadLabelFontUploads(): Promise<LabelFontUpload[]> {
+  if (cachedUploads) return cachedUploads
 
-  const commands = await Promise.all(
+  const uploads = await Promise.all(
     FONT_SOURCES.map(async ({ name, url }) => {
       const response = await fetch(url)
       if (!response.ok) {
@@ -36,10 +37,10 @@ export async function loadLabelFontUploadCommands(): Promise<string[]> {
       }
 
       const bytes = new Uint8Array(await response.arrayBuffer())
-      return buildFontUploadZpl(name, bytes)
+      return buildFontUpload(name, bytes)
     }),
   )
 
-  cachedCommands = commands
-  return commands
+  cachedUploads = uploads
+  return uploads
 }

@@ -19,7 +19,7 @@ import {
   setPreferredPrinter,
   usePreferredPrinter,
 } from "@/features/print/components/use-preferred-printer"
-import { loadLabelFontUploadCommands } from "@/features/print/label-font-loader"
+import { loadLabelFontUploads } from "@/features/print/label-font-loader"
 import { autoSelectPrinter } from "@/features/print/printer-preference"
 import { sendZplBatch } from "@/features/print/qz-client"
 import { useQzConnection } from "@/features/print/use-qz-connection"
@@ -130,8 +130,8 @@ export function LabelBoxBatchPrintCard({
           // Font Outfit ditanam lebih dulu dalam panggilan yang sama: label
           // merujuk berkas di memori printer, dan printer yang baru di-reset
           // tidak lagi memilikinya.
-          const fontCommands = await loadLabelFontUploadCommands()
-          await sendZplBatch(activePrinter, [...fontCommands, ...payloads])
+          const fontUploads = await loadLabelFontUploads()
+          await sendZplBatch(activePrinter, [...fontUploads, ...payloads])
         } catch {
           await Promise.all(
             jobsToPrint.map((job) =>

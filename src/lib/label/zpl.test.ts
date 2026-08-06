@@ -7,6 +7,8 @@ import {
   TEMPLATE_VERSION,
   buildLabelZpl,
   escapeZplText,
+  qrMagnificationFor,
+  qrModulesFor,
 } from "@/lib/label/zpl"
 
 const sampleFields: FormattedLabelFields = {
@@ -32,6 +34,37 @@ describe("escapeZplText", () => {
 
   it("passes plain text through unchanged", () => {
     expect(escapeZplText("3210A-K1Z-NA01-DL")).toBe("3210A-K1Z-NA01-DL")
+  })
+})
+
+// Ukuran QR yang dipatok pernah menembus bingkai: modulnya naik mengikuti
+// panjang payload, sedangkan magnifikasi ZPL hanya bilangan bulat.
+describe("qrModulesFor", () => {
+  it.each([
+    [14, 21],
+    [62, 33],
+    [63, 37],
+    [84, 37],
+    [85, 41],
+    [122, 45],
+  ])("gives %i bytes a %i-module symbol", (payloadLength, modules) => {
+    expect(qrModulesFor(payloadLength)).toBe(modules)
+  })
+
+  it("caps at version 10 instead of dividing by a negative version", () => {
+    expect(qrModulesFor(5_000)).toBe(57)
+  })
+})
+
+describe("qrMagnificationFor", () => {
+  it("takes the largest whole multiplier that still fits", () => {
+    expect(qrMagnificationFor(37, 148)).toBe(4)
+    expect(qrMagnificationFor(37, 147)).toBe(3)
+  })
+
+  it("stays inside the 1-10 range ZPL accepts", () => {
+    expect(qrMagnificationFor(45, 10)).toBe(1)
+    expect(qrMagnificationFor(21, 10_000)).toBe(10)
   })
 })
 
@@ -85,11 +118,11 @@ describe("buildLabelZpl", () => {
 
   it("draws the frame and the label/value divider", () => {
     expect(zpl).toContain("^FO8,8^GB584,424,2^FS")
-    expect(zpl).toContain("^FO196,68^GB0,352,2^FS")
+    expect(zpl).toContain("^FO200,68^GB0,352,2^FS")
   })
 
   it("runs the QR column from the top edge down to the third row", () => {
-    expect(zpl).toContain("^FO436,8^GB0,192,2^FS")
+    expect(zpl).toContain("^FO440,8^GB0,192,2^FS")
   })
 
   // Garis mendatar yang melintas di belakang QR akan tercetak menembus
@@ -101,7 +134,7 @@ describe("buildLabelZpl", () => {
     expect(rules.length).toBe(8)
 
     for (const rule of rules) {
-      expect(rule.width).toBe(rule.y <= 200 ? 428 : 584)
+      expect(rule.width).toBe(rule.y < 200 ? 432 : 584)
     }
   })
 
@@ -124,8 +157,8 @@ describe("buildLabelZpl", () => {
     const fieldName = blocks.find((block) => block.text === "Delivery Date")
 
     expect(supplierId?.width).toBe(212)
-    expect(lotNo?.width).toBe(368)
-    expect(fieldName?.width).toBe(166)
+    expect(lotNo?.width).toBe(364)
+    expect(fieldName?.width).toBe(170)
   })
 
   it("matches the golden sample layout", () => {
@@ -153,21 +186,23 @@ describe("buildLabelZpl", () => {
     expect(qrOrigin).not.toBeNull()
 
     const [, x, y] = qrOrigin as RegExpExecArray
-    expect(Number(x)).toBeGreaterThanOrEqual(436)
-    expect(Number(x) + 132).toBeLessThanOrEqual(592)
+    expect(Number(x)).toBeGreaterThanOrEqual(440)
+    expect(Number(x) + 135).toBeLessThanOrEqual(592)
     expect(Number(y)).toBeGreaterThanOrEqual(8)
-    expect(Number(y) + 132).toBeLessThanOrEqual(200)
+    expect(Number(y) + 135).toBeLessThanOrEqual(200)
   })
 
   // Berat huruf datang dari berkas font yang ditanam, bukan dari mencetak teks
-  // dua kali seperti pada font resident.
-  it("draws values in the SemiBold face and field names in the regular one", () => {
+  // dua kali seperti pada font resident. Nama field dan nilainya sama-sama
+  // SemiBold: dalam satu baris keduanya dibaca bersamaan.
+  it("draws both columns in the SemiBold face", () => {
     expect(zpl).toContain(
-      "^A@N,30,12,E:OUTFITSB.TTF^FB212,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
+      "^A@N,32,13,E:OUTFITSB.TTF^FB212,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
     )
     expect(zpl).toContain(
-      "^A@N,22,12,E:OUTFITRG.TTF^FB166,1,0,L,0^FH^FDPart No^FS",
+      "^A@N,28,14,E:OUTFITSB.TTF^FB170,1,0,L,0^FH^FDPart No^FS",
     )
+    expect(zpl).not.toContain("E:OUTFITRG.TTF")
     expect(zpl).not.toContain("^A0N,")
   })
 

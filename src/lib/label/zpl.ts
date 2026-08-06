@@ -45,7 +45,7 @@ const ROWS_BOTTOM = ROWS_TOP + ROW_COUNT * ROW_HEIGHT
  * terpanjang yang nyata, yaitu Lot No 26 karakter.
  */
 const LABEL_COLUMN_X = FRAME_X + 14
-const VALUE_DIVIDER_X = 196
+const VALUE_DIVIDER_X = 200
 const VALUE_COLUMN_X = VALUE_DIVIDER_X + 14
 
 /**
@@ -53,25 +53,53 @@ const VALUE_COLUMN_X = VALUE_DIVIDER_X + 14
  * atas bingkai, bukan dari bawah kop, dan garis mendatar kop maupun tiga baris
  * pertama berhenti di kolom ini. Tanpa itu ada garis melintas di belakang QR.
  *
- * Payload tujuh field (~60 karakter byte mode) butuh QR versi 4, yaitu 33
- * modul; magnifikasi 4 memberi 132 dot, muat di kolom selebar 156 dot dan
- * setinggi kop + tiga baris (192 dot).
+ * Ukuran QR dihitung dari payload, bukan dipatok. Jumlah modul naik mengikuti
+ * panjang data, dan magnifikasi ZPL hanya menerima bilangan bulat, jadi ukuran
+ * yang dipatok akan meleset ke dua arah: menembus bingkai saat payload panjang,
+ * atau menyisakan kolom setengah kosong saat payload pendek.
  */
-const QR_MAGNIFICATION = 4
-const QR_MODULES = 33
-const QR_SIZE = QR_MODULES * QR_MAGNIFICATION
-const QR_COLUMN_X = 436
+const QR_COLUMN_X = 440
 const QR_ROWS = 3
 const QR_COLUMN_BOTTOM = ROWS_TOP + QR_ROWS * ROW_HEIGHT
-const QR_X =
-  QR_COLUMN_X + Math.floor((FRAME_X + FRAME_WIDTH - QR_COLUMN_X - QR_SIZE) / 2)
-const QR_Y = FRAME_Y + Math.floor((QR_COLUMN_BOTTOM - FRAME_Y - QR_SIZE) / 2)
+/** Sisa 2 dot di tiap sisi supaya QR tidak menyentuh garis kolomnya. */
+const QR_PADDING = 2
+const QR_AVAILABLE_WIDTH = FRAME_X + FRAME_WIDTH - QR_COLUMN_X - QR_PADDING * 2
+const QR_AVAILABLE_HEIGHT = QR_COLUMN_BOTTOM - FRAME_Y - QR_PADDING * 2
+
+/**
+ * Kapasitas byte mode QR model 2 pada level koreksi M, versi 1 sampai 10.
+ * Indeksnya versi dikurangi satu; jumlah modul tiap versi adalah 21 + 4(v-1).
+ */
+const QR_BYTE_CAPACITY_EC_M = [14, 26, 42, 62, 84, 106, 122, 152, 180, 213]
+
+export function qrModulesFor(payloadLength: number): number {
+  const version = QR_BYTE_CAPACITY_EC_M.findIndex(
+    (capacity) => payloadLength <= capacity,
+  )
+  // Payload melebihi versi 10 tetap dihitung sebagai versi 10: ukurannya jadi
+  // perkiraan terbaik yang masih muat, bukan pembagian dengan angka negatif.
+  const resolved = version === -1 ? QR_BYTE_CAPACITY_EC_M.length - 1 : version
+  return 21 + 4 * resolved
+}
+
+/** Magnifikasi terbesar yang masih muat, dibatasi rentang sah ZPL 1-10. */
+export function qrMagnificationFor(
+  modules: number,
+  availableDots: number,
+): number {
+  return Math.min(10, Math.max(1, Math.floor(availableDots / modules)))
+}
 
 const COMPANY_FONT = { height: 44, width: 25 }
-const LABEL_FONT = { height: 22, width: 12 }
-const VALUE_FONT = { height: 26, width: 14 }
+/**
+ * Nama field dan nilainya seukuran dan seberat: keduanya dibaca bersamaan dalam
+ * satu baris, dan membedakan salah satunya membuat baris terasa timpang. Yang
+ * memisahkan kolom cukup garis pemisahnya.
+ */
+const LABEL_FONT = { height: 28, width: 14 }
+const VALUE_FONT = { height: 28, width: 14 }
 /** Part No dicetak paling tinggi; itu field yang dicari operator lebih dulu. */
-const PART_NO_FONT = { height: 30, width: 12 }
+const PART_NO_FONT = { height: 32, width: 13 }
 
 type ZplFont = { height: number; width: number }
 
@@ -138,10 +166,11 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
     "^LH0,0",
   ]
 
-  // Lebar garis mendatar: di wilayah QR garisnya berhenti di kolom QR, di
-  // bawahnya melintang penuh sampai bingkai kanan.
+  // Lebar garis mendatar: selama masih sejajar QR garisnya berhenti di kolom
+  // QR, sedangkan garis tepat di bawah QR justru melintang penuh — itu yang
+  // menutup blok QR. Batasnya karena itu "<", bukan "<=".
   const ruleWidth = (y: number) =>
-    y <= QR_COLUMN_BOTTOM ? QR_COLUMN_X - FRAME_X : FRAME_WIDTH
+    y < QR_COLUMN_BOTTOM ? QR_COLUMN_X - FRAME_X : FRAME_WIDTH
 
   commands.push(
     `^FO${FRAME_X},${FRAME_Y}^GB${FRAME_WIDTH},${FRAME_HEIGHT},${BORDER_DOTS}^FS`,
@@ -188,10 +217,8 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
         LABEL_FONT,
         labelBlockWidth,
         escapeZplText(row.label),
-        false,
+        true,
       ),
-      // Nilai memakai berat SemiBold: itu yang dibaca operator dari jarak
-      // satu meja.
       textCommand(
         VALUE_COLUMN_X,
         valueBaseline,
@@ -203,10 +230,22 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
     )
   })
 
+  // QR sebesar yang muat: modul dihitung dari panjang payload, magnifikasi
+  // diambil sebesar mungkin, lalu hasilnya ditengahkan di kolomnya sendiri.
+  const qrModules = qrModulesFor(fields.qrPayload.length)
+  const qrMagnification = qrMagnificationFor(
+    qrModules,
+    Math.min(QR_AVAILABLE_WIDTH, QR_AVAILABLE_HEIGHT),
+  )
+  const qrSize = qrModules * qrMagnification
+  const qrX =
+    QR_COLUMN_X + Math.floor((FRAME_X + FRAME_WIDTH - QR_COLUMN_X - qrSize) / 2)
+  const qrY = FRAME_Y + Math.floor((QR_COLUMN_BOTTOM - FRAME_Y - qrSize) / 2)
+
   // ^BQ data is prefixed with the error-correction level (M) and input mode
   // (A, auto). The prefix must not be hex-escaped; only the payload is.
   commands.push(
-    `^FO${QR_X},${QR_Y}^BQN,2,${QR_MAGNIFICATION}^FH^FDMA,${escapeZplText(fields.qrPayload)}^FS`,
+    `^FO${qrX},${qrY}^BQN,2,${qrMagnification}^FH^FDMA,${escapeZplText(fields.qrPayload)}^FS`,
   )
 
   commands.push("^XZ")

@@ -80,6 +80,12 @@ export async function sendZpl(
 }
 
 /**
+ * Entri cetak mentah: teks ZPL biasa, atau perintah yang membawa byte biner
+ * (unggahan font) dan karenanya dikirim sebagai base64.
+ */
+export type RawPrintEntry = string | { data: string; flavor: "base64" }
+
+/**
  * Satu panggilan qz.print untuk seluruh label. Mengirim label satu per satu
  * membuat QZ meminta persetujuan sebanyak jumlah label, dan operator harus
  * mengklik enam kali untuk satu batch. Urutan array dipertahankan printer,
@@ -87,16 +93,16 @@ export async function sendZpl(
  */
 export async function sendZplBatch(
   printerName: string,
-  zplPayloads: string[],
+  entries: RawPrintEntry[],
 ): Promise<void> {
-  if (zplPayloads.length === 0) return
+  if (entries.length === 0) return
 
   const config = qz.configs.create(printerName)
   await qz.print(
     config,
-    zplPayloads.map((data) => ({
-      data,
-      flavor: "plain" as const,
+    entries.map((entry) => ({
+      data: typeof entry === "string" ? entry : entry.data,
+      flavor: typeof entry === "string" ? ("plain" as const) : entry.flavor,
       format: "command" as const,
       type: "raw" as const,
     })),
