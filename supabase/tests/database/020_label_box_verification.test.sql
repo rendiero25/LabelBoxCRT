@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(24);
+select plan(26);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -151,6 +151,19 @@ select throws_ok(
   'P0001',
   'MASTER_ITEM_PRODUCTS_INCOMPLETE',
   'mencetak ditolak selama produk batch belum lengkap discan'
+);
+
+-- Keping yang sama tidak boleh masuk dua box dalam satu kiriman.
+select is(
+  (
+    select result::text || ':' || error_code
+    from public.accept_label_box_scan(
+      (select batch_id from verify_batch),
+      'VERIFY-UID-1', 'aa11-again', 'D6.3X5.5 L=205', '6.3x5.5x205'
+    )
+  ),
+  'duplicate:LABEL_ALREADY_SCANNED',
+  'label yang sama ditolak pada batch yang sama'
 );
 
 create temporary table verify_scan_b as
@@ -347,6 +360,32 @@ select is(
   ),
   2,
   'cetak ulang tanpa daftar box mencakup seluruh batch'
+);
+
+-- Batch lain, QR produk yang sama. Kiriman berikutnya memakai keping dengan
+-- lot/reference yang kebetulan berulang, dan itu bukan kesalahan operator.
+create temporary table verify_batch_2 as
+select *
+from public.create_label_box_batch(
+  '95200000-0000-0000-0000-000000000001',
+  'DN-VERIFY-2',
+  date '2026-07-30',
+  '96200000-0000-0000-0000-000000000001',
+  2,
+  'LOT-VF-B'
+);
+grant select on verify_batch_2 to public;
+
+select is(
+  (
+    select result::text
+    from public.accept_label_box_scan(
+      (select batch_id from verify_batch_2),
+      'VERIFY-UID-1', 'aa11-batch2', 'D6.3X5.5 L=205', '6.3x5.5x205'
+    )
+  ),
+  'accepted',
+  'label yang sama diterima pada batch label box yang berbeda'
 );
 
 reset role;

@@ -44,7 +44,9 @@ menurunkan Part No dari payload product.
 Field keempat (`M-CRT-.../P001`) dipakai sebagai `label_uid`. Sufiks `/P####`
 adalah nomor label di dalam lot, satu-satunya bagian payload yang berbeda antar
 label fisik, sehingga duplicate prevention memakai nilai ini (trim + NFKC +
-uppercase) dan bukan debounce waktu. Keunikannya masih bertumpu pada dua
+uppercase) dan bukan debounce waktu. Pagarnya berlaku **per batch label box**:
+dalam satu kiriman, satu keping tidak boleh masuk dua box, tetapi QR dengan
+lot/reference yang sama sah muncul lagi pada kiriman berikutnya. Keunikannya masih bertumpu pada dua
 sample; bila sample berikut menunjukkan sufiks berulang antar lot, keputusan ini
 harus ditinjau ulang.
 
@@ -128,3 +130,7 @@ yang wajib dicakup:
 1. Sumber `label_uid` (31 Juli 2026): field keempat penuh, termasuk sufiks
    `/P####`. Sebelumnya field ini diabaikan, sehingga setiap scan ditolak
    `LABEL_UID_MISSING` dan tidak pernah tercatat.
+2. Jangkauan keunikan `label_uid` (5 Agustus 2026): per batch label box, bukan
+   global. Keunikan global menolak QR produk yang sah pada kiriman berbeda,
+   padahal yang perlu dijaga hanya "satu keping tidak masuk dua box dalam satu
+   kiriman".

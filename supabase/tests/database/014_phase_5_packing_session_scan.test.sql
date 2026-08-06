@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(30);
+select plan(31);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -203,10 +203,29 @@ select ok(
     join pg_catalog.pg_class index_relation on index_relation.oid = index_definition.indexrelid
     join pg_catalog.pg_namespace index_schema on index_schema.oid = index_relation.relnamespace
     where index_schema.nspname = 'public'
-      and index_relation.relname = 'packing_session_scans_accepted_label_uid_idx'
+      and index_relation.relname =
+        'packing_session_scans_accepted_label_uid_per_batch_idx'
       and index_definition.indisunique
   ),
-  'global accepted-label unique index protects same-label parallel scans'
+  'per-batch accepted-label unique index protects same-label parallel scans'
+);
+
+-- Pagarnya per batch, bukan global: QR produk yang sama sah muncul lagi pada
+-- kiriman berikutnya, tetapi tidak boleh masuk dua box dalam kiriman yang sama.
+select is(
+  (
+    select array_agg(attribute.attname::text order by attribute.attnum)
+    from pg_catalog.pg_index index_definition
+    join pg_catalog.pg_class index_relation
+      on index_relation.oid = index_definition.indexrelid
+    join pg_catalog.pg_attribute attribute
+      on attribute.attrelid = index_definition.indrelid
+      and attribute.attnum = any(index_definition.indkey)
+    where index_relation.relname =
+      'packing_session_scans_accepted_label_uid_per_batch_idx'
+  ),
+  array['label_uid', 'label_box_batch_id'],
+  'keunikan label dikunci bersama batch pemiliknya'
 );
 
 select ok(
@@ -384,7 +403,7 @@ select is(
     )
   ),
   'duplicate:LABEL_ALREADY_SCANNED',
-  'accepted UID is rejected globally across sessions'
+  'accepted UID is rejected across sessions of the same batch'
 );
 
 select is(
@@ -397,7 +416,7 @@ select is(
       and scan.error_code = 'LABEL_ALREADY_SCANNED'
   ),
   1,
-  'global duplicate outcome is persisted'
+  'duplicate outcome is persisted'
 );
 
 select is(
