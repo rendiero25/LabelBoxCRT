@@ -5,12 +5,48 @@ import {
   PRINTER_STORAGE_KEY,
   autoSelectPrinter,
   clearPreferredPrinter,
+  printerKindFor,
   readPreferredPrinter,
   resolvePrinter,
   savePreferredPrinter,
 } from "@/features/print/printer-preference"
 
 afterEach(() => window.localStorage.clear())
+
+// Mengirim ZPL mentah ke inkjet menghasilkan berlembar-lembar teks "^XA^CI28",
+// jadi pemilahan jenis printer inilah yang menentukan label tercetak atau tidak.
+describe("printerKindFor", () => {
+  it.each([
+    "ZDesigner ZD220-203dpi ZPL",
+    "Zebra Technologies ZTC ZD220-203dpi ZPL",
+    "ZD230",
+  ])("feeds raw ZPL to the label printer %s", (printerName) => {
+    expect(printerKindFor(printerName)).toBe("label")
+  })
+
+  it.each([
+    "Canon G4010 series",
+    "Canon PIXMA G4010",
+    "EPSON L3110 Series",
+    "HP DeskJet 2300 series",
+    "Brother DCP-T720DW",
+  ])("feeds HTML sheets to the paper printer %s", (printerName) => {
+    expect(printerKindFor(printerName)).toBe("paper")
+  })
+
+  // Nama asing tetap diperlakukan seperti sebelum printer kertas didukung:
+  // memindahkannya diam-diam ke jalur HTML akan merusak alur Zebra yang jalan.
+  it("keeps an unrecognised name on the raw ZPL path", () => {
+    expect(printerKindFor("Godex G500")).toBe("label")
+    expect(printerKindFor("")).toBe("label")
+  })
+
+  // "Canon G4010 series" memuat "G4010"; pola printer label mengenali \bzd\d{3}\b
+  // dan tidak boleh ikut menangkapnya lebih dulu.
+  it("does not mistake the Canon model number for a Zebra model", () => {
+    expect(printerKindFor("Canon G4010 series")).toBe("paper")
+  })
+})
 
 describe("printer preference", () => {
   it("round-trips the printer name through localStorage", () => {

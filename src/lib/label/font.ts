@@ -16,7 +16,12 @@
 export const LABEL_FONT_DEVICE = "E:"
 
 export const LABEL_FONT_REGULAR = "OUTFITRG"
-export const LABEL_FONT_BOLD = "OUTFITSB"
+/**
+ * Bold, bukan SemiBold. Label dibaca di gudang: cetakan termal pada media buram
+ * menipiskan garis huruf, dan pada ukuran 24-28 dot SemiBold sudah mendekati
+ * berat biasa. Bold menahan bentuknya setelah dicetak.
+ */
+export const LABEL_FONT_BOLD = "OUTFITBD"
 
 /** Kode ekstensi ~DY, satu huruf: T untuk TrueType, bukan "TTF". */
 const TRUETYPE_EXTENSION_CODE = "T"
@@ -35,7 +40,7 @@ export function labelFontPath(fontName: string): string {
   return `${LABEL_FONT_DEVICE}${fontName}.TTF`
 }
 
-function toBase64(bytes: Uint8Array): string {
+export function toBase64(bytes: Uint8Array): string {
   let binary = ""
   // Dipecah supaya String.fromCharCode tidak menerima puluhan ribu argumen
   // sekaligus, yang melebihi batas argumen di sebagian mesin JS.

@@ -12,12 +12,29 @@ import {
  * isinya dibutuhkan sebagai byte mentah untuk ditanam ke printer, bukan sebagai
  * aset yang dirender browser.
  */
+const BOLD_FONT_URL = "/label-fonts/Outfit-Bold.ttf"
+
 const FONT_SOURCES = [
   { name: LABEL_FONT_REGULAR, url: "/label-fonts/Outfit-Regular.ttf" },
-  { name: LABEL_FONT_BOLD, url: "/label-fonts/Outfit-SemiBold.ttf" },
+  { name: LABEL_FONT_BOLD, url: BOLD_FONT_URL },
 ]
 
 let cachedUploads: LabelFontUpload[] | null = null
+const cachedBytes = new Map<string, Uint8Array>()
+
+async function fetchFontBytes(url: string): Promise<Uint8Array> {
+  const cached = cachedBytes.get(url)
+  if (cached) return cached
+
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Font label ${url} tidak dapat dimuat.`)
+  }
+
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  cachedBytes.set(url, bytes)
+  return bytes
+}
 
 /**
  * Perintah ~DY untuk kedua berat font, dirakit sekali per tab. Perintah ini
@@ -30,15 +47,9 @@ export async function loadLabelFontUploads(): Promise<LabelFontUpload[]> {
   if (cachedUploads) return cachedUploads
 
   const uploads = await Promise.all(
-    FONT_SOURCES.map(async ({ name, url }) => {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Font label ${name} tidak dapat dimuat.`)
-      }
-
-      const bytes = new Uint8Array(await response.arrayBuffer())
-      return buildFontUpload(name, bytes)
-    }),
+    FONT_SOURCES.map(async ({ name, url }) =>
+      buildFontUpload(name, await fetchFontBytes(url)),
+    ),
   )
 
   cachedUploads = uploads

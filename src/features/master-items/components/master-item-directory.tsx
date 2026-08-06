@@ -1,14 +1,18 @@
 "use client"
 
 import { useActionState, useMemo, useState } from "react"
+import Link from "next/link"
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
   BanIcon,
+  BoxIcon,
   CheckIcon,
   CircleAlertIcon,
+  EyeIcon,
   FilterIcon,
+  HistoryIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -25,10 +29,12 @@ import {
   initialLayerProductSelections,
   layerProductSelectionsToPayload,
   MasterItemBoxLayerFields,
+  productLabel,
   type LayerProductSelections,
   type MasterItemBox,
   type ProductOption,
 } from "@/features/master-items/components/master-item-box-layer-editor"
+import { shortenLayerName } from "@/features/master-items/layer-label"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
 import {
   useActionStateToast,
@@ -176,7 +182,10 @@ export function MasterItemDirectory({
     })
   }, [masterItems, query, status, sortColumn, sortDirection])
 
-  const pageCount = Math.max(1, Math.ceil(filteredMasterItems.length / PAGE_SIZE))
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredMasterItems.length / PAGE_SIZE),
+  )
   const currentPage = Math.min(page, pageCount)
   const pagedMasterItems = filteredMasterItems.slice(
     (currentPage - 1) * PAGE_SIZE,
@@ -262,9 +271,7 @@ export function MasterItemDirectory({
                     }}
                   >
                     {sortLabels[column]}
-                    {isActive ? (
-                      <Icon className="ml-auto size-3.5" />
-                    ) : null}
+                    {isActive ? <Icon className="ml-auto size-3.5" /> : null}
                   </DropdownMenuItem>
                 )
               })}
@@ -298,7 +305,9 @@ export function MasterItemDirectory({
             <TableBody>
               {pagedMasterItems.map((masterItem, index) => (
                 <TableRow key={masterItem.id}>
-                  <TableCell>{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                  <TableCell>
+                    {(currentPage - 1) * PAGE_SIZE + index + 1}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">{masterItem.part_no}</span>
@@ -319,6 +328,20 @@ export function MasterItemDirectory({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-start gap-2">
+                      <MasterItemDetailDialog
+                        boxes={boxes}
+                        masterItem={masterItem}
+                        products={products}
+                        suppliers={suppliers}
+                      />
+                      <Button asChild size="sm" variant="outline">
+                        <Link
+                          href={`/admin/master-items/${masterItem.id}/history`}
+                        >
+                          <HistoryIcon data-icon="inline-start" />
+                          Lihat History
+                        </Link>
+                      </Button>
                       <EditMasterItemDialog
                         boxes={boxes}
                         masterItem={masterItem}
@@ -351,7 +374,170 @@ export function MasterItemDirectory({
   )
 }
 
-function CreateMasterItemDialog({ suppliers }: { suppliers: SupplierOption[] }) {
+function MasterItemDetailDialog({
+  boxes,
+  masterItem,
+  products,
+  suppliers,
+}: {
+  boxes: MasterItemBox[]
+  masterItem: MasterItem
+  products: ProductOption[]
+  suppliers: SupplierOption[]
+}) {
+  const ownBoxes = boxes
+    .filter((box) => box.masterItemId === masterItem.id)
+    .sort((first, second) => first.boxNo - second.boxNo)
+  const supplier =
+    suppliers.find((candidate) => candidate.id === masterItem.supplier_id) ??
+    null
+
+  // Halaman scan hanya menawarkan Master Item aktif yang sudah punya Box, jadi
+  // tombolnya dikunci di sini agar operator tidak mendarat di dialog kosong.
+  const canUseForLabelBox = masterItem.is_active && ownBoxes.length > 0
+  const blockedReason = !masterItem.is_active
+    ? "Master Item nonaktif tidak dapat dipakai membuat label box."
+    : "Tambahkan minimal satu Box sebelum membuat label box."
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <EyeIcon data-icon="inline-start" />
+          Lihat Data
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{masterItem.part_no}</DialogTitle>
+          <DialogDescription>{masterItem.part_name}</DialogDescription>
+        </DialogHeader>
+
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <DetailRow label="Kode item" value={masterItem.item_code} />
+          <DetailRow
+            label="Supplier"
+            value={
+              supplier
+                ? `${supplier.supplier_code} — ${supplier.supplier_name}`
+                : "Tanpa supplier"
+            }
+          />
+          <DetailRow label="Unit" value={masterItem.unit} />
+          <DetailRow
+            label="Packing Qty"
+            value={String(masterItem.default_label_qty)}
+          />
+          <DetailRow
+            label="Status"
+            value={masterItem.is_active ? "Aktif" : "Nonaktif"}
+          />
+          <DetailRow label="Jumlah Box" value={`${ownBoxes.length} Box`} />
+        </dl>
+
+        <div className="flex flex-col gap-3 border-t pt-5">
+          <h3 className="text-sm font-medium">Box dan Layer</h3>
+          {ownBoxes.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Belum ada Box. Tambahkan lewat Edit Master Item.
+            </p>
+          ) : (
+            ownBoxes.map((box) => (
+              <section
+                className="flex flex-col gap-2 rounded-lg border p-4"
+                key={box.id}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="font-medium">{box.boxName}</h4>
+                  {box.isUsed ? (
+                    <Badge variant="secondary">Terpakai</Badge>
+                  ) : null}
+                </div>
+                {box.layers.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    Belum ada layer.
+                  </p>
+                ) : (
+                  box.layers.map((layer) => {
+                    const layerProducts = layer.requirements
+                      .map((requirement) =>
+                        products.find(
+                          (product) => product.id === requirement.productId,
+                        ),
+                      )
+                      .filter((product) => product !== undefined)
+                    return (
+                      <div className="rounded-md border p-3" key={layer.id}>
+                        <p className="mb-2 text-sm font-medium">
+                          Layer {layer.layerNo} ·{" "}
+                          {shortenLayerName(layer.layerName)}
+                        </p>
+                        {layerProducts.length === 0 ? (
+                          <p className="text-muted-foreground text-sm">
+                            Belum ada produk dipilih.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {layerProducts.map((product) => (
+                              <span
+                                className="bg-secondary text-secondary-foreground rounded-md border px-2 py-1 text-sm"
+                                key={product.id}
+                              >
+                                {productLabel(product)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </section>
+            ))
+          )}
+        </div>
+
+        {canUseForLabelBox ? null : (
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertDescription>{blockedReason}</AlertDescription>
+          </Alert>
+        )}
+
+        <DialogFooter>
+          <Button asChild={canUseForLabelBox} disabled={!canUseForLabelBox}>
+            {canUseForLabelBox ? (
+              <Link href={`/scan?masterItemId=${masterItem.id}`}>
+                <BoxIcon data-icon="inline-start" />
+                Gunakan untuk Label Box
+              </Link>
+            ) : (
+              <>
+                <BoxIcon data-icon="inline-start" />
+                Gunakan untuk Label Box
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dd className="text-sm font-medium">{value}</dd>
+    </div>
+  )
+}
+
+function CreateMasterItemDialog({
+  suppliers,
+}: {
+  suppliers: SupplierOption[]
+}) {
   const [state, formAction, isPending] = useActionState(
     createMasterItemAction,
     initialMasterItemActionState,
@@ -711,8 +897,8 @@ function DeleteMasterItemAction({
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Master Item {partNo}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Master Item yang masih dipakai Box,
-              Product Mapping, atau riwayat packing tidak dapat dihapus.
+              Tindakan ini permanen. Master Item yang masih dipakai Box, Product
+              Mapping, atau riwayat packing tidak dapat dihapus.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <form action={formAction}>

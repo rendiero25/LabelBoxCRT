@@ -24,6 +24,8 @@ export type FormattedLabelFields = {
   lotNo: string
   boxNumber: string
   deliveryDate: string
+  /** Bulan kirim tanpa angka nol di depan, dicetak besar sebagai penanda FIFO. */
+  deliveryMonth: string
   qrPayload: string
 }
 
@@ -45,6 +47,22 @@ export function formatShortDate(isoTimestamp: string): string {
   return `${dayText}-${monthText}-${yearText}`
 }
 
+/**
+ * Bulan saja, diambil dari tanggal kirim yang sama dengan baris Delivery Date,
+ * supaya angka besar di label tidak pernah berbeda dari tanggalnya. Nol di
+ * depan dibuang: yang dibaca dari jauh angkanya, bukan lebar dua digitnya.
+ */
+export function formatDeliveryMonth(isoTimestamp: string): string {
+  const match = isoDatePattern.exec(isoTimestamp)
+  if (!match) {
+    throw new Error(
+      `formatDeliveryMonth: expected an ISO timestamp (YYYY-MM-DD...), received "${isoTimestamp}"`,
+    )
+  }
+
+  return String(Number(match[2]))
+}
+
 export function formatLabelFields(
   snapshot: FinalizedLabelSnapshot,
 ): FormattedLabelFields {
@@ -57,6 +75,7 @@ export function formatLabelFields(
     lotNo: snapshot.lotNo,
     boxNumber: snapshot.boxNumber,
     deliveryDate: formatShortDate(snapshot.deliveryDate),
+    deliveryMonth: formatDeliveryMonth(snapshot.deliveryDate),
     qrPayload: snapshot.qrPayload,
   }
 }

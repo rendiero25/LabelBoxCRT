@@ -20,6 +20,7 @@ const sampleFields: FormattedLabelFields = {
   lotNo: "M-CRT-004A-581-300726-B001",
   boxNumber: "B101",
   deliveryDate: "15-08-2026",
+  deliveryMonth: "8",
   qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
 }
 
@@ -71,8 +72,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v5 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v5")
+  it("exports template version v6 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v6")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -98,9 +99,9 @@ describe("buildLabelZpl", () => {
       "Qty/Box",
       "Qty/Delivery",
       "Item List",
-      "Lot No",
       "No Box",
       "Delivery Date",
+      "Lot No",
     ]
     const positions = labels.map((label) => zpl.indexOf(`^FD${label}^FS`))
 
@@ -116,25 +117,31 @@ describe("buildLabelZpl", () => {
     }
   })
 
-  it("draws the frame and the label/value divider", () => {
+  // Baris kedelapan berakhir 12 dot di atas bingkai; garis pemisah kolom yang
+  // berhenti di situ menyisakan potongan menggantung di sudut kiri bawah.
+  it("draws the frame and runs the divider down to the frame", () => {
     expect(zpl).toContain("^FO8,8^GB584,424,2^FS")
-    expect(zpl).toContain("^FO200,68^GB0,352,2^FS")
+    expect(zpl).toContain("^FO200,68^GB0,364,2^FS")
   })
 
-  it("runs the QR column from the top edge down to the third row", () => {
-    expect(zpl).toContain("^FO440,8^GB0,192,2^FS")
+  it("runs the right column from the top edge down to the FIFO row", () => {
+    expect(zpl).toContain("^FO440,8^GB0,324,2^FS")
   })
 
-  // Garis mendatar yang melintas di belakang QR akan tercetak menembus
-  // kodenya; di wilayah QR garisnya harus berhenti di kolom itu.
-  it("stops the rules beside the QR and only spans full width below it", () => {
+  // Garis mendatar yang melintas di tengah blok kolom kanan akan tercetak
+  // menembus isinya — QR, angka bulan; di wilayah itu garisnya harus berhenti
+  // di kolom kanan, dan hanya garis penutup blok yang melintang penuh.
+  it("stops the rules inside the right column and spans full width elsewhere", () => {
     const rules = [...zpl.matchAll(/\^FO8,(\d+)\^GB(\d+),0,2\^FS/g)].map(
       ([, y, width]) => ({ width: Number(width), y: Number(y) }),
     )
     expect(rules.length).toBe(8)
 
+    // Garis kop dan dua garis baris berikutnya mengapit QR; garis di 244
+    // jatuh tepat di tengah angka bulan.
+    const insideRightColumn = new Set([68, 112, 156, 244])
     for (const rule of rules) {
-      expect(rule.width).toBe(rule.y < 200 ? 432 : 584)
+      expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 432 : 584)
     }
   })
 
@@ -145,20 +152,43 @@ describe("buildLabelZpl", () => {
   })
 
   // TrueType punya lebar huruf berbeda-beda, jadi pemotongan diserahkan ke
-  // printer lewat ^FB. Kolom nilai tiga baris pertama lebih sempit karena
-  // berbagi tempat dengan QR, dan lebar blok tiap baris harus mengikuti itu.
+  // printer lewat ^FB. Kolom nilai enam baris pertama lebih sempit karena
+  // berbagi tempat dengan kolom kanan, dan lebar blok tiap baris mengikuti itu.
   it("bounds every text field to the width of its own column", () => {
     const blocks = [
-      ...zpl.matchAll(/\^FB(\d+),1,0,L,0\^FH\^FD([^^]*)\^FS/g),
+      ...zpl.matchAll(/\^FB(\d+),1,0,[CL],0\^FH\^FD([^^]*)\^FS/g),
     ].map(([, width, text]) => ({ text, width: Number(width) }))
 
     const supplierId = blocks.find((block) => block.text === "10015")
     const lotNo = blocks.find((block) => block.text.startsWith("M-CRT"))
+    const boxNumber = blocks.find((block) => block.text === "B101")
     const fieldName = blocks.find((block) => block.text === "Delivery Date")
 
     expect(supplierId?.width).toBe(212)
+    // Lot No 26 karakter di baris terakhir: selebar bingkai, 26 x 14 dot.
     expect(lotNo?.width).toBe(364)
+    expect(boxNumber?.width).toBe(212)
     expect(fieldName?.width).toBe(170)
+  })
+
+  // Lot No dipindah ke baris terakhir supaya kolomnya selebar bingkai dan
+  // hurufnya tidak perlu dikecilkan seperti baris yang berbagi tempat dengan
+  // kolom kanan.
+  it("prints Lot No in the same face and size as the other values", () => {
+    expect(zpl).toContain(
+      "^A@N,28,14,E:OUTFITBD.TTF^FB364,1,0,L,0^FH^FDM-CRT-004A-581-300726-B001^FS",
+    )
+  })
+
+  // Penanda FIFO menempati kolom kanan di bawah QR: angka bulan setinggi dua
+  // baris, lalu satu baris teks tetap, keduanya ditengahkan di kolomnya.
+  it("prints the delivery month and the FIFO line under the QR", () => {
+    expect(zpl).toContain(
+      "^FO444,213^A@N,62,34,E:OUTFITBD.TTF^FB144,1,0,C,0^FH^FD8^FS",
+    )
+    expect(zpl).toContain(
+      "^FO444,298^A@N,24,12,E:OUTFITBD.TTF^FB144,1,0,C,0^FH^FDFIFO PT CRT^FS",
+    )
   })
 
   it("matches the golden sample layout", () => {
@@ -194,13 +224,13 @@ describe("buildLabelZpl", () => {
 
   // Berat huruf datang dari berkas font yang ditanam, bukan dari mencetak teks
   // dua kali seperti pada font resident. Nama field dan nilainya sama-sama
-  // SemiBold: dalam satu baris keduanya dibaca bersamaan.
-  it("draws both columns in the SemiBold face", () => {
+  // Bold: dalam satu baris keduanya dibaca bersamaan.
+  it("draws both columns in the Bold face", () => {
     expect(zpl).toContain(
-      "^A@N,32,13,E:OUTFITSB.TTF^FB212,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
+      "^A@N,32,13,E:OUTFITBD.TTF^FB212,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
     )
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITSB.TTF^FB170,1,0,L,0^FH^FDPart No^FS",
+      "^A@N,28,14,E:OUTFITBD.TTF^FB170,1,0,L,0^FH^FDPart No^FS",
     )
     expect(zpl).not.toContain("E:OUTFITRG.TTF")
     expect(zpl).not.toContain("^A0N,")

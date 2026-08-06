@@ -24,7 +24,7 @@ function decode(upload: { data: string }): {
 describe("labelFontPath", () => {
   it("points at the printer memory slot the label template references", () => {
     expect(labelFontPath(LABEL_FONT_REGULAR)).toBe("E:OUTFITRG.TTF")
-    expect(labelFontPath(LABEL_FONT_BOLD)).toBe("E:OUTFITSB.TTF")
+    expect(labelFontPath(LABEL_FONT_BOLD)).toBe("E:OUTFITBD.TTF")
   })
 })
 
@@ -39,7 +39,7 @@ describe("buildFontUpload", () => {
 
   it("carries the font bytes verbatim after the header", () => {
     const fontBytes = new Uint8Array([0, 1, 127, 128, 255])
-    const upload = buildFontUpload("OUTFITSB", fontBytes)
+    const upload = buildFontUpload("OUTFITBD", fontBytes)
 
     expect([...decode(upload).fontBytes]).toEqual([...fontBytes])
   })

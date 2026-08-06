@@ -9,6 +9,7 @@ import {
   useState,
 } from "react"
 import { CircleAlertIcon, CircleCheckIcon, PrinterIcon } from "lucide-react"
+import QRCode from "qrcode"
 
 import {
   claimPrintJobAction,
@@ -20,8 +21,11 @@ import {
   usePreferredPrinter,
 } from "@/features/print/components/use-preferred-printer"
 import { loadLabelFontUploads } from "@/features/print/label-font-loader"
-import { autoSelectPrinter } from "@/features/print/printer-preference"
-import { sendZplBatch } from "@/features/print/qz-client"
+import {
+  autoSelectPrinter,
+  printerKindFor,
+} from "@/features/print/printer-preference"
+import { sendHtmlSheets, sendZplBatch } from "@/features/print/qz-client"
 import { useQzConnection } from "@/features/print/use-qz-connection"
 import {
   createLabelBoxPrintJobsAction,
@@ -35,6 +39,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { formatLabelFields } from "@/lib/label/formatter"
+import { buildLabelHtml, buildLabelSheetsHtml } from "@/lib/label/html"
 import { buildLabelZpl } from "@/lib/label/zpl"
 
 export function LabelBoxBatchPrintCard({
@@ -93,45 +98,68 @@ export function LabelBoxBatchPrintCard({
       setPrintError(null)
       setPrintRun({ done: 0, total: jobsToPrint.length })
 
+      // Printer label diberi ZPL mentah, printer kertas diberi HTML lewat mode
+      // pixel. Canon G4010 dan sejenisnya tidak mengerti ZPL sama sekali, dan
+      // perintah mentah yang dikirim ke sana keluar sebagai halaman berisi teks
+      // "^XA^CI28" apa adanya.
+      const printerKind = printerKindFor(activePrinter)
+
       try {
         // Urutan label mengikuti urutan nomor box supaya operator menempelnya
-        // runtut. ZPL disiapkan lebih dulu untuk semuanya, lalu dikirim dalam
-        // satu panggilan QZ: mengirim satu per satu memunculkan konfirmasi QZ
-        // sebanyak jumlah label.
+        // runtut. Payload disiapkan lebih dulu untuk semuanya, lalu dikirim
+        // dalam satu panggilan QZ: mengirim satu per satu memunculkan
+        // konfirmasi QZ sebanyak jumlah label.
         const payloads: string[] = []
         for (const job of jobsToPrint) {
-          const zpl = buildLabelZpl(
-            formatLabelFields({
-              boxNumber: job.boxNumber,
-              deliveryDate: job.deliveryDate,
-              lotNo: job.lotNo,
-              masterItemRowNo: job.masterItemRowNo,
-              packingQty: job.qty,
-              partNo: job.partNo,
-              qrPayload: job.qrPayload,
-              qtyDelivery: job.qtyDelivery,
-              supplierCode: job.supplierCode,
-            }),
-          )
+          const fields = formatLabelFields({
+            boxNumber: job.boxNumber,
+            deliveryDate: job.deliveryDate,
+            lotNo: job.lotNo,
+            masterItemRowNo: job.masterItemRowNo,
+            packingQty: job.qty,
+            partNo: job.partNo,
+            qrPayload: job.qrPayload,
+            qtyDelivery: job.qtyDelivery,
+            supplierCode: job.supplierCode,
+          })
 
+          // QR dirakit printer sendiri pada jalur ZPL, tapi pada jalur HTML
+          // harus ikut jadi gambar di dalam labelnya.
+          const payload =
+            printerKind === "label"
+              ? buildLabelZpl(fields)
+              : buildLabelHtml(
+                  fields,
+                  await QRCode.toDataURL(fields.qrPayload, {
+                    margin: 0,
+                    width: 240,
+                  }),
+                )
+
+          // Yang disimpan adalah payload yang benar-benar dikirim ke printer,
+          // jadi rekaman job tetap cocok dengan hasil cetaknya saat diperiksa.
           const claim = await claimPrintJobAction({
             printJobId: job.printJobId,
-            zplPayload: zpl,
+            zplPayload: payload,
           })
           if (claim.error) {
             setPrintError(claim.error)
             return
           }
 
-          payloads.push(zpl)
+          payloads.push(payload)
         }
 
         try {
-          // Font Outfit ditanam lebih dulu dalam panggilan yang sama: label
-          // merujuk berkas di memori printer, dan printer yang baru di-reset
-          // tidak lagi memilikinya.
-          const fontUploads = await loadLabelFontUploads()
-          await sendZplBatch(activePrinter, [...fontUploads, ...payloads])
+          if (printerKind === "label") {
+            // Font Outfit ditanam lebih dulu dalam panggilan yang sama: label
+            // merujuk berkas di memori printer, dan printer yang baru di-reset
+            // tidak lagi memilikinya.
+            const fontUploads = await loadLabelFontUploads()
+            await sendZplBatch(activePrinter, [...fontUploads, ...payloads])
+          } else {
+            await sendHtmlSheets(activePrinter, buildLabelSheetsHtml(payloads))
+          }
         } catch {
           await Promise.all(
             jobsToPrint.map((job) =>

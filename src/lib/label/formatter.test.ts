@@ -29,9 +29,29 @@ describe("formatLabelFields", () => {
       lotNo: "M-CRT-004A-581-300726-B001",
       boxNumber: "B101",
       deliveryDate: "15-08-2026",
+      deliveryMonth: "8",
       qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
     })
   })
+
+  // Angka bulan besar di label dibaca sebagai penanda FIFO, jadi ia harus
+  // selalu bulan yang sama dengan baris Delivery Date, bukan bulan berjalan.
+  // Januari sampai September satu digit; nol di depan dibuang.
+  it.each([
+    ["1", "2026-01-01"],
+    ["8", "2026-08-15"],
+    ["9", "2026-09-30"],
+    ["10", "2026-10-01"],
+    ["12", "2026-12-31"],
+  ])(
+    "takes deliveryMonth %s from the delivery date %s",
+    (expected, isoDate) => {
+      expect(
+        formatLabelFields({ ...baseSnapshot, deliveryDate: isoDate })
+          .deliveryMonth,
+      ).toBe(expected)
+    },
+  )
 
   // Qty/Box adalah packing qty Master Item, Qty/Delivery adalah jumlah kiriman.
   // Keduanya angka dan bersebelahan di label, jadi tertukarnya tidak kelihatan.

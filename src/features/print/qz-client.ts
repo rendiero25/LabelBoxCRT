@@ -109,6 +109,40 @@ export async function sendZplBatch(
   )
 }
 
+/**
+ * Cetak lembar HTML ke printer kertas biasa lewat mode pixel QZ.
+ *
+ * Ukuran halaman dinyatakan eksplisit dan scaleContent dimatikan: kalau QZ
+ * dibiarkan menskala isi ke area cetak driver, label 75x55 mm keluar mengecil
+ * beberapa persen mengikuti margin printer, dan stiker tidak lagi jatuh pas di
+ * potongannya. Margin 0 dipakai karena posisi tiap label sudah dihitung dari
+ * tepi kertas di dalam HTML-nya.
+ */
+export async function sendHtmlSheets(
+  printerName: string,
+  sheets: string[],
+): Promise<void> {
+  if (sheets.length === 0) return
+
+  const config = qz.configs.create(printerName, {
+    margins: 0,
+    orientation: "portrait",
+    scaleContent: false,
+    size: { height: 297, width: 210 },
+    units: "mm",
+  })
+
+  await qz.print(
+    config,
+    sheets.map((sheet) => ({
+      data: sheet,
+      flavor: "plain" as const,
+      format: "html" as const,
+      type: "pixel" as const,
+    })),
+  )
+}
+
 // qz-tray's `setClosedCallbacks` is a plain assignment, so registering a
 // handler directly would replace any previously registered one. Instead we
 // register a single stable dispatcher and fan out to a local Set, letting

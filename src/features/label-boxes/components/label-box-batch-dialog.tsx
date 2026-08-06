@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { CircleAlertIcon, PackageCheckIcon, PlusIcon } from "lucide-react"
 import QRCode from "qrcode"
 
@@ -76,9 +77,11 @@ function useResultRevealedOnNewState(state: LabelBoxBatchActionState) {
 
 export function LabelBoxBatchDialog({
   masterItems,
+  prefillMasterItemId = null,
   suppliers,
 }: {
   masterItems: LabelBoxMasterItemOption[]
+  prefillMasterItemId?: string | null
   suppliers: LabelBoxSupplierOption[]
 }) {
   const [state, formAction, isPending] = useActionState(
@@ -87,9 +90,20 @@ export function LabelBoxBatchDialog({
   )
   useActionStateToast(state)
 
-  const [open, setOpen] = useState(false)
-  const [supplierId, setSupplierId] = useState("")
-  const [masterItemId, setMasterItemId] = useState("")
+  const router = useRouter()
+  const pathname = usePathname()
+
+  // "Gunakan untuk Label Box" di Master Item mendarat di sini dengan
+  // ?masterItemId=..., jadi dialognya langsung terbuka dan terisi. Hanya nilai
+  // awal: setelah itu operator bebas mengubah pilihannya.
+  const prefillMasterItem =
+    masterItems.find((item) => item.id === prefillMasterItemId) ?? null
+
+  const [open, setOpen] = useState(prefillMasterItem !== null)
+  const [supplierId, setSupplierId] = useState(
+    prefillMasterItem?.supplierId ?? "",
+  )
+  const [masterItemId, setMasterItemId] = useState(prefillMasterItem?.id ?? "")
   const [showResult, setShowResult] = useResultRevealedOnNewState(state)
 
   const filteredMasterItems = useMemo(
@@ -109,6 +123,9 @@ export function LabelBoxBatchDialog({
     setSupplierId("")
     setMasterItemId("")
     setShowResult(false)
+    // Buang ?masterItemId dari URL supaya refresh atau tombol back tidak
+    // membuka ulang dialog yang baru saja ditutup operator.
+    if (prefillMasterItemId) router.replace(pathname)
   }
 
   function closeDialog() {

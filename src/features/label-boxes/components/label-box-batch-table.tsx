@@ -45,10 +45,12 @@ export type LabelBoxBatchRow = {
 export function LabelBoxBatchTable({
   batches,
   masterItems,
+  prefillMasterItemId = null,
   suppliers,
 }: {
   batches: LabelBoxBatchRow[]
   masterItems: LabelBoxMasterItemOption[]
+  prefillMasterItemId?: string | null
   suppliers: LabelBoxSupplierOption[]
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -62,7 +64,11 @@ export function LabelBoxBatchTable({
             Nomor box dan QR dibuat sekaligus saat data delivery disimpan.
           </p>
         </div>
-        <LabelBoxBatchDialog masterItems={masterItems} suppliers={suppliers} />
+        <LabelBoxBatchDialog
+          masterItems={masterItems}
+          prefillMasterItemId={prefillMasterItemId}
+          suppliers={suppliers}
+        />
       </div>
 
       {batches.length === 0 ? (

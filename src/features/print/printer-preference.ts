@@ -30,6 +30,31 @@ export function resolvePrinter(
 const LABEL_PRINTER_PATTERN = /zdesigner|zebra|\bzd\d{3}\b/i
 
 /**
+ * Printer kertas biasa: inkjet dan laser ber-driver GDI, misalnya Canon G4010.
+ * Perangkat ini tidak mengerti ZPL — perintah mentah yang dikirim ke sana keluar
+ * sebagai halaman berisi teks "^XA^CI28" apa adanya, bukan label.
+ */
+const PAPER_PRINTER_PATTERN =
+  /canon|pixma|\bg\d{4}\b|epson|deskjet|officejet|laserjet|\bhp\b|brother|samsung|ricoh/i
+
+export type PrinterKind = "label" | "paper"
+
+/**
+ * Cara sebuah printer harus diberi makan: "label" berarti ZPL mentah, "paper"
+ * berarti HTML lewat mode pixel QZ.
+ *
+ * Nama yang tidak dikenali dianggap "label", sama seperti perilaku sebelum
+ * printer kertas didukung. Menebak "paper" untuk nama asing memang lebih aman
+ * bagi kertas, tetapi akan diam-diam memindahkan printer Zebra bernama tidak
+ * lazim ke jalur yang salah, dan itu merusak alur yang selama ini jalan.
+ */
+export function printerKindFor(printerName: string): PrinterKind {
+  if (LABEL_PRINTER_PATTERN.test(printerName)) return "label"
+  if (PAPER_PRINTER_PATTERN.test(printerName)) return "paper"
+  return "label"
+}
+
+/**
  * Pilihan printer untuk alur cetak: pakai pilihan tersimpan bila masih ada,
  * kalau belum pernah memilih tebak printer labelnya. Tebakan hanya diambil
  * ketika jawabannya tunggal, karena mencetak ke printer yang salah berarti

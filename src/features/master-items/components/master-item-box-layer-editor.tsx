@@ -96,7 +96,7 @@ export function layerProductSelectionsToPayload(
   )
 }
 
-function productLabel(product: ProductOption) {
+export function productLabel(product: ProductOption) {
   if (
     product.outerDiameter === null ||
     product.innerDiameter === null ||

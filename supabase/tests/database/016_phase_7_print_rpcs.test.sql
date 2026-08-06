@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(26);
+select plan(29);
 
 select ok(
   not has_function_privilege(
@@ -68,11 +68,22 @@ select set_config('request.jwt.claim.sub', 'a7100000-0000-0000-0000-000000000001
 
 select throws_ok(
   $$ select public.claim_print_job('a7700000-0000-0000-0000-000000000001', 'NOPE') $$,
-  'P0001', 'PRINT_PAYLOAD_INVALID', 'payload must be ^XA..^XZ'
+  'P0001', 'PRINT_PAYLOAD_INVALID', 'payload must be ^XA..^XZ or a label div'
 );
 select throws_ok(
-  $$ select public.claim_print_job('a7700000-0000-0000-0000-000000000001', '^XA' || repeat('X', 17000) || '^XZ') $$,
-  'P0001', 'PRINT_PAYLOAD_INVALID', 'payload over 16KB rejected'
+  $$ select public.claim_print_job('a7700000-0000-0000-0000-000000000001', '^XA' || repeat('X', 33000) || '^XZ') $$,
+  'P0001', 'PRINT_PAYLOAD_INVALID', 'payload over 32KB rejected'
+);
+
+-- Printer kertas menyimpan potongan HTML satu label, bukan ZPL. Bentuknya tetap
+-- diperiksa: kolom ini masuk rekaman audit, jadi teks sembarang tidak diterima.
+select throws_ok(
+  $$ select public.claim_print_job('a7700000-0000-0000-0000-000000000001', '<div style="x">unclosed') $$,
+  'P0001', 'PRINT_PAYLOAD_INVALID', 'half-formed HTML payload rejected'
+);
+select throws_ok(
+  $$ select public.claim_print_job('a7700000-0000-0000-0000-000000000001', '<span>wrong element</span>') $$,
+  'P0001', 'PRINT_PAYLOAD_INVALID', 'HTML that is not a label div rejected'
 );
 select throws_ok(
   $$ select public.claim_print_job('00000000-0000-0000-0000-00000000dead', '^XA^FDx^FS^XZ') $$,
@@ -137,11 +148,25 @@ select is(
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'a7100000-0000-0000-0000-000000000001', true);
 
--- Retry: re-claim from failed, then complete sent.
+-- Retry: re-claim from failed, then complete sent. Cetak ulangnya lewat printer
+-- kertas, jadi payload-nya potongan HTML — sekaligus membuktikan bentuk itu
+-- diterima dan tersimpan apa adanya.
 create temporary table phase7_reclaim as
-select * from public.claim_print_job('a7700000-0000-0000-0000-000000000001', '^XA^FDretry^FS^XZ');
+select * from public.claim_print_job(
+  'a7700000-0000-0000-0000-000000000001',
+  '<div style="position:relative">retry</div>'
+);
 select is((select job_status from phase7_reclaim), 'printing'::public.print_job_status, 'failed job re-claimable');
 select is((select session_status from phase7_reclaim), 'printing'::public.packing_session_status, 'failed session returns to printing on re-claim');
+
+reset role;
+select is(
+  (select zpl_payload from public.print_jobs where id = 'a7700000-0000-0000-0000-000000000001'),
+  '<div style="position:relative">retry</div>',
+  'claim persists an HTML label payload for a paper printer'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'a7100000-0000-0000-0000-000000000001', true);
 
 select throws_ok(
   $$ select public.complete_print_job('00000000-0000-0000-0000-00000000dead', 'sent', 'p') $$,

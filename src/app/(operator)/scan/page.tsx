@@ -8,8 +8,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
 
-export default async function ScanPage() {
+export default async function ScanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ masterItemId?: string }>
+}) {
   await requireActiveUser()
+  const { masterItemId } = await searchParams
   const supabase = await createClient()
 
   const [
@@ -87,6 +92,11 @@ export default async function ScanPage() {
       <LabelBoxBatchTable
         batches={batches}
         masterItems={masterItems}
+        prefillMasterItemId={
+          masterItems.some((item) => item.id === masterItemId)
+            ? (masterItemId ?? null)
+            : null
+        }
         suppliers={suppliers}
       />
     </div>
