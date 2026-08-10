@@ -268,6 +268,7 @@ export type Database = {
           part_no_snapshot: string
           qr_generated_at: string | null
           qty_delivery: number
+          qty_delivery_display: number | null
           supplier_code_snapshot: string
           supplier_id: string
           updated_at: string
@@ -290,6 +291,7 @@ export type Database = {
           part_no_snapshot: string
           qr_generated_at?: string | null
           qty_delivery: number
+          qty_delivery_display?: number | null
           supplier_code_snapshot: string
           supplier_id: string
           updated_at?: string
@@ -312,6 +314,7 @@ export type Database = {
           part_no_snapshot?: string
           qr_generated_at?: string | null
           qty_delivery?: number
+          qty_delivery_display?: number | null
           supplier_code_snapshot?: string
           supplier_id?: string
           updated_at?: string
@@ -1118,6 +1121,7 @@ export type Database = {
           p_lot_no: string
           p_master_item_id: string
           p_qty_delivery: number
+          p_qty_delivery_display?: number | null
           p_supplier_id: string
         }
         Returns: {
@@ -1131,6 +1135,7 @@ export type Database = {
           packing_qty: number
           qr_generated_at: string
           qty_delivery: number
+          qty_delivery_display: number
           supplier_code: string
         }[]
       }
@@ -1151,8 +1156,10 @@ export type Database = {
           qr_payload: string
           qty: number
           qty_delivery: number
+          qty_delivery_display: number
           status: Database["public"]["Enums"]["print_job_status"]
           supplier_code: string
+          supplier_name: string
         }[]
       }
       create_label_box_reprint_jobs: {
@@ -1172,8 +1179,10 @@ export type Database = {
           qr_payload: string
           qty: number
           qty_delivery: number
+          qty_delivery_display: number
           status: Database["public"]["Enums"]["print_job_status"]
           supplier_code: string
+          supplier_name: string
         }[]
       }
       create_master_item: {
@@ -1244,6 +1253,15 @@ export type Database = {
         }[]
       }
       delete_box_layer: { Args: { p_box_layer_id: string }; Returns: undefined }
+      delete_label_box_batch: {
+        Args: { p_batch_id: string }
+        Returns: {
+          batch_id: string
+          deleted_label_count: number
+          deleted_print_job_count: number
+          deleted_scan_count: number
+        }[]
+      }
       delete_master_item: {
         Args: { p_master_item_id: string }
         Returns: undefined
@@ -1304,6 +1322,21 @@ export type Database = {
           status: Database["public"]["Enums"]["delivery_status"]
           supplier_id: string
           updated_at: string
+        }[]
+      }
+      update_label_box_batch: {
+        Args: {
+          p_batch_id: string
+          p_delivery_date: string
+          p_delivery_number: string
+          p_lot_no: string
+        }
+        Returns: {
+          batch_id: string
+          delivery_date: string
+          delivery_number: string
+          label_count: number
+          lot_no: string
         }[]
       }
       update_master_item: {

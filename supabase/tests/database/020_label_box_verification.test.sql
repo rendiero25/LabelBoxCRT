@@ -25,8 +25,8 @@ insert into public.master_items (
 );
 
 -- Dua produk: layer box 1 minta produk pertama, layer box 2 minta produk
--- kedua. Batch tidak boleh ditutup sebelum keduanya pernah discan (guard
--- MASTER_ITEM_PRODUCTS_INCOMPLETE di close_label_box_batch).
+-- kedua. Batch tidak boleh ditutup sebelum kedua label box penuh (guard
+-- LABEL_BOX_SETS_INCOMPLETE di close_label_box_batch).
 insert into public.products (
   id, product_code, part_name, outer_diameter, inner_diameter, length, is_active
 ) values
@@ -128,8 +128,8 @@ select is(
   'box penuh setelah layernya terpenuhi'
 );
 
--- Box 1 sudah menutup layernya dengan produk pertama, tetapi box 2 (layer
--- yang meminta produk kedua) belum pernah discan. Batch tidak boleh ditutup.
+-- Box 1 sudah penuh, box 2 belum tersentuh. Batch tidak boleh ditutup selama
+-- masih ada label box yang kuotanya belum habis.
 select throws_ok(
   $$
     select public.close_label_box_batch(
@@ -137,11 +137,11 @@ select throws_ok(
     )
   $$,
   'P0001',
-  'MASTER_ITEM_PRODUCTS_INCOMPLETE',
-  'menutup batch ditolak selama produk kedua belum pernah discan'
+  'LABEL_BOX_SETS_INCOMPLETE',
+  'menutup batch ditolak selama masih ada label box yang belum penuh'
 );
 
--- Cetak memakai syarat cakupan yang sama, bukan syarat "batch sudah ditutup".
+-- Cetak memakai syarat yang sama, bukan syarat "batch sudah ditutup".
 select throws_ok(
   $$
     select public.create_label_box_print_jobs(
@@ -149,8 +149,8 @@ select throws_ok(
     )
   $$,
   'P0001',
-  'MASTER_ITEM_PRODUCTS_INCOMPLETE',
-  'mencetak ditolak selama produk batch belum lengkap discan'
+  'LABEL_BOX_SETS_INCOMPLETE',
+  'mencetak ditolak selama masih ada label box yang belum penuh'
 );
 
 -- Keping yang sama tidak boleh masuk dua box dalam satu kiriman.
@@ -179,7 +179,7 @@ grant select on verify_scan_b to public;
 
 select is(
   (select box_number from verify_scan_b),
-  'B102',
+  'B201',
   'scan berikutnya pindah sendiri ke box kedua'
 );
 

@@ -8,6 +8,7 @@ import {
 
 const baseSnapshot: FinalizedLabelSnapshot = {
   supplierCode: "10015",
+  supplierName: "PT SUMBER KABEL",
   partNo: "3210A-K1Z-NA01-DL",
   packingQty: 100,
   qtyDelivery: 200,
@@ -19,19 +20,41 @@ const baseSnapshot: FinalizedLabelSnapshot = {
 }
 
 describe("formatLabelFields", () => {
-  it("maps a snapshot to the eight rows printed on the label", () => {
+  it("maps a snapshot to the rows printed on the label", () => {
     expect(formatLabelFields(baseSnapshot)).toEqual({
       supplierCode: "10015",
+      supplierName: "PT SUMBER KABEL",
       partNo: "3210A-K1Z-NA01-DL",
-      packingQty: "100",
-      qtyDelivery: "200",
-      masterItemRowNo: "1",
-      lotNo: "M-CRT-004A-581-300726-B001",
-      boxNumber: "B101",
+      packingQty: "100 pcs",
+      qtyDelivery: "200 pcs",
+      lotNo: "01-M-CRT-004A-581-300726-B001-B101",
       deliveryDate: "15-08-2026",
       deliveryMonth: "8",
       qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
     })
+  })
+
+  // Nomor urut Master Item, Lot No, dan nomor box dulu punya barisnya
+  // masing-masing. Sekarang ketiganya satu baris, jadi urutan dan pemisahnya
+  // yang membuat operator bisa membacanya kembali sebagai tiga hal berbeda.
+  it("prefixes the master item row number to two digits", () => {
+    expect(
+      formatLabelFields({ ...baseSnapshot, masterItemRowNo: 7 }).lotNo,
+    ).toBe("07-M-CRT-004A-581-300726-B001-B101")
+  })
+
+  // Memotong nomor di atas 99 akan menunjuk item yang salah; lebar barisnya
+  // yang mengalah, bukan angkanya.
+  it("leaves a row number past 99 at its full length", () => {
+    expect(
+      formatLabelFields({ ...baseSnapshot, masterItemRowNo: 128 }).lotNo,
+    ).toBe("128-M-CRT-004A-581-300726-B001-B101")
+  })
+
+  it("takes the box number from the snapshot into the Lot No line", () => {
+    expect(formatLabelFields({ ...baseSnapshot, boxNumber: "B302" }).lotNo).toBe(
+      "01-M-CRT-004A-581-300726-B001-B302",
+    )
   })
 
   // Angka bulan besar di label dibaca sebagai penanda FIFO, jadi ia harus
@@ -61,14 +84,16 @@ describe("formatLabelFields", () => {
       packingQty: 50,
       qtyDelivery: 1500,
     })
-    expect(result.packingQty).toBe("50")
-    expect(result.qtyDelivery).toBe("1500")
+    expect(result.packingQty).toBe("50 pcs")
+    expect(result.qtyDelivery).toBe("1500 pcs")
   })
 
+  // Ribuan tanpa pemisah: titik atau koma di label akan terbaca sebagai koma
+  // desimal oleh sebagian operator.
   it("formats quantities as plain digits with no thousands separator", () => {
     expect(
       formatLabelFields({ ...baseSnapshot, qtyDelivery: 12345 }).qtyDelivery,
-    ).toBe("12345")
+    ).toBe("12345 pcs")
   })
 
   it.each([
@@ -93,7 +118,19 @@ describe("formatLabelFields", () => {
       partNo: longPartNo,
     })
     expect(result.partNo).toBe(longPartNo)
-    expect(result.lotNo).toBe(longLotNo)
+    expect(result.lotNo).toContain(longLotNo)
+  })
+
+  // Satu kolom yang null di RPC — atau belum ada karena migrasinya belum
+  // jalan — hanya boleh mengosongkan barisnya. Sebelumnya nilai undefined itu
+  // menjatuhkan perender HTML dan seluruh lembar cetak ikut gagal.
+  it("renders a missing snapshot field as an empty row instead of throwing", () => {
+    const incomplete = {
+      ...baseSnapshot,
+      supplierName: undefined,
+    } as unknown as FinalizedLabelSnapshot
+
+    expect(formatLabelFields(incomplete).supplierName).toBe("")
   })
 
   it("throws when deliveryDate is not a parseable ISO date", () => {

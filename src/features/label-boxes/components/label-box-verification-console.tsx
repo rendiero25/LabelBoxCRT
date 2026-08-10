@@ -36,6 +36,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 export type VerificationLayerProduct = {
+  acceptedQty: number
   expectedQty: number
   id: string
   innerDiameter: number
@@ -43,7 +44,6 @@ export type VerificationLayerProduct = {
   outerDiameter: number
   partName: string
   productCode: string
-  scanned: boolean
 }
 
 export type VerificationBoxLayer = {
@@ -53,50 +53,39 @@ export type VerificationBoxLayer = {
   products: VerificationLayerProduct[]
 }
 
-/**
- * Susunan box milik Master Item, satu baris per box fisik. Qty delivery hanya
- * menggandakan box yang sama menjadi beberapa set label, dan penggandaan itu
- * tidak menambah informasi bagi operator yang sedang mengisi rak.
- */
-export type VerificationBox = {
-  boxName: string
-  id: string
-  layers: VerificationBoxLayer[]
-}
-
-export type VerificationLabelBox = {
+/** Satu label box: satu box fisik pada satu set, dengan kuota layernya sendiri. */
+export type VerificationSetBox = {
   acceptedQty: number
-  boxId: string
   boxName: string
   boxNumber: string
   expectedQty: number
   id: string
-  setNo: number
+  layers: VerificationBoxLayer[]
   verified: boolean
 }
 
-export type VerificationMasterItemProduct = {
-  id: string
-  innerDiameter: number
-  length: number
-  outerDiameter: number
-  partName: string
-  productCode: string
-  scanned: boolean
+/**
+ * Satu set label, yaitu satu putaran pengepakan seluruh box Master Item. Qty
+ * Delivery dibagi Packing Qty menentukan jumlahnya: qty 200 dengan packing qty
+ * 100 dan 3 box berarti dua set, dan tiap set discan sampai penuh sendiri.
+ * Sebelumnya penggandaan ini disembunyikan, sehingga operator mengira 3 box
+ * yang tampil di panel sudah mewakili seluruh pekerjaannya.
+ */
+export type VerificationSet = {
+  boxes: VerificationSetBox[]
+  setNo: number
 }
 
 export type VerificationBatchView = {
-  boxes: VerificationBox[]
   deliveryDate: string
   deliveryNumber: string
   id: string
-  labelBoxes: VerificationLabelBox[]
   /** Seluruh label batch ini sudah pernah terkirim ke printer. */
   labelsPrinted: boolean
   lotNo: string
-  masterItemProducts: VerificationMasterItemProduct[]
   partNo: string
   qtyDelivery: number
+  sets: VerificationSet[]
   supplierCode: string
 }
 
@@ -332,25 +321,39 @@ export function LabelBoxVerificationConsole({
     router.push("/scan")
   }, [closeState.success, router])
 
-  const activeBox = batch.labelBoxes.find((labelBox) => !labelBox.verified)
+  const allBoxes = batch.sets.flatMap((set) => set.boxes)
+  const activeBox = allBoxes.find((labelBox) => !labelBox.verified)
   const scanState = resolveScanState({
     activeBoxNumber: activeBox?.boxNumber ?? null,
     lastScan: scanner.lastScan,
     pageFocused,
     pending: scanner.pending,
   })
-  const unscannedProducts = batch.masterItemProducts.filter(
-    (product) => !product.scanned,
+  /**
+   * Progress dihitung dari keping yang diminta seluruh label box, bukan dari
+   * cakupan produk Master Item. Syarat menutup batch adalah setiap label box
+   * penuh, jadi angka yang menghitung tiap produk sekali akan menjanjikan
+   * pekerjaan setengah: qty delivery menggandakan box, dan penggandaan itu
+   * membuat set kedua tidak pernah terhitung.
+   */
+  const expectedTotal = allBoxes.reduce(
+    (total, labelBox) => total + labelBox.expectedQty,
+    0,
+  )
+  const acceptedTotal = allBoxes.reduce(
+    (total, labelBox) => total + labelBox.acceptedQty,
+    0,
   )
   /**
-   * Progress dihitung dari cakupan produk Master Item, bukan dari jumlah keping
-   * yang diminta seluruh label box. Syarat menutup batch memang "setiap produk
-   * pernah discan", jadi angka lain akan menjanjikan pekerjaan yang tidak
-   * pernah diminta: qty delivery menggandakan box, dan penggandaan itu membuat
-   * 23 produk terbaca sebagai 46 langkah.
+   * Box yang layernya tidak meminta produk apa pun tidak pernah bisa penuh,
+   * jadi ia tidak menahan penutupan batch — aturan yang sama dipakai penjaga
+   * di close_label_box_batch.
    */
-  const expectedTotal = batch.masterItemProducts.length
-  const acceptedTotal = expectedTotal - unscannedProducts.length
+  const isPending = (labelBox: VerificationSetBox) =>
+    !labelBox.verified && labelBox.expectedQty > 0
+  const pendingBoxes = allBoxes.filter(isPending)
+  const pendingSets = batch.sets.filter((set) => set.boxes.some(isPending))
+  const allBoxesVerified = allBoxes.length > 0 && pendingBoxes.length === 0
 
   return (
     <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -390,7 +393,7 @@ export function LabelBoxVerificationConsole({
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="text-muted-foreground text-sm">
-                  Produk Master Item
+                  Keping terscan · {batch.sets.length} set
                 </p>
                 <p className="text-3xl font-semibold tabular-nums">
                   {acceptedTotal} / {expectedTotal}
@@ -481,7 +484,7 @@ export function LabelBoxVerificationConsole({
 
         {/* Cetak dilakukan di halaman ini, sebelum batch ditutup: operator
             harus melihat labelnya benar-benar keluar sebelum menyimpan batch. */}
-        {unscannedProducts.length === 0 ? (
+        {allBoxesVerified ? (
           <LabelBoxBatchPrintCard
             batchId={batch.id}
             onPrinted={() => setPrintedThisSession(true)}
@@ -505,10 +508,10 @@ export function LabelBoxVerificationConsole({
               <AlertDescription>{closeState.error}</AlertDescription>
             </Alert>
           ) : null}
-          {unscannedProducts.length > 0 ? (
+          {pendingBoxes.length > 0 ? (
             <p className="text-muted-foreground mb-3 text-sm">
-              Masih {unscannedProducts.length} produk Master Item yang belum
-              discan.
+              Masih {pendingBoxes.length} box yang belum penuh, tersebar di{" "}
+              {pendingSets.length} set.
             </p>
           ) : !printed ? (
             <p className="text-muted-foreground mb-3 text-sm">
@@ -516,7 +519,7 @@ export function LabelBoxVerificationConsole({
             </p>
           ) : null}
           <Button
-            disabled={closePending || unscannedProducts.length > 0 || !printed}
+            disabled={closePending || !allBoxesVerified || !printed}
             type="submit"
           >
             {closePending ? (
@@ -529,63 +532,103 @@ export function LabelBoxVerificationConsole({
         </form>
       </div>
 
-      {/* Satu panel monitoring: produk dikelompokkan sesuai bentuk datanya,
-          box lalu layer, sehingga operator membaca daftar ini persis seperti
-          ia mengisi box di meja. Box yang sedang diisi disorot. */}
+      {/* Satu section per set label, dan di dalamnya box lalu layer — bentuk
+          yang sama dengan urutan pengepakan di meja. Set kedua berdiri
+          sendiri: kepingnya lain, kuotanya lain, dan operator harus melihat
+          bahwa pekerjaannya belum selesai setelah set pertama penuh. */}
       <aside className="rounded-xl border p-5 xl:sticky xl:top-6">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="font-semibold">Box &amp; layer</h2>
+          <h2 className="font-semibold">Set, box &amp; layer</h2>
           <span className="text-muted-foreground text-sm tabular-nums">
-            {batch.masterItemProducts.length - unscannedProducts.length}/
-            {batch.masterItemProducts.length} produk
+            {allBoxes.length - pendingBoxes.length}/{allBoxes.length} box
           </span>
         </div>
         {/* Daftar panjang hanya digulung sendiri saat panel jadi kolom
             terpisah; di layar sempit ia ikut gulungan halaman. */}
-        <div className="grid gap-4 xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto">
-          {batch.boxes.length > 0 ? (
-            batch.boxes.map((box) => (
-              <div key={box.id}>
-                <div className="mb-1 flex items-baseline justify-between gap-2">
-                  <p className="text-sm font-semibold">{box.boxName}</p>
-                  {box.id === activeBox?.boxId ? <Badge>Diisi</Badge> : null}
+        <div className="grid gap-5 xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto">
+          {batch.sets.length > 0 ? (
+            batch.sets.map((set) => (
+              <div key={set.setNo}>
+                <div className="bg-background sticky top-0 mb-2 flex items-baseline justify-between gap-2 border-b pb-1">
+                  <p className="text-sm font-semibold">Set {set.setNo}</p>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {set.boxes.filter((labelBox) => labelBox.verified).length}/
+                    {set.boxes.length} box penuh
+                  </span>
                 </div>
 
-                {box.layers.map((layer) => (
-                  <div className="mt-2" key={layer.id}>
-                    <p className="text-muted-foreground mb-1 text-xs">
-                      Layer {layer.layerNo} ·{" "}
-                      {shortenLayerName(layer.layerName)}
-                    </p>
-                    <div className="grid gap-1">
-                      {layer.products.map((product) => (
-                        <div
-                          className={cn(
-                            "flex items-center justify-between gap-2 rounded-md border px-2 py-1.5",
-                            product.scanned
-                              ? "border-success/30 bg-success/10"
-                              : "bg-muted/50 border-transparent",
-                          )}
-                          key={product.id}
-                        >
-                          <span className="text-xs">
-                            {formatProductPreview(
-                              product.partName,
-                              product.outerDiameter,
-                              product.innerDiameter,
-                              product.length,
-                            )}
+                <div className="grid gap-3">
+                  {set.boxes.map((labelBox) => (
+                    <div key={labelBox.id}>
+                      <div className="mb-1 flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-medium">
+                          <span className="font-mono">{labelBox.boxNumber}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {labelBox.boxName}
                           </span>
-                          {product.scanned ? (
-                            <CircleCheckIcon className="text-success size-4 shrink-0" />
-                          ) : (
-                            <XCircleIcon className="text-destructive size-4 shrink-0" />
-                          )}
+                        </p>
+                        {labelBox.id === activeBox?.id ? (
+                          <Badge>Diisi</Badge>
+                        ) : labelBox.verified ? (
+                          <Badge variant="secondary">Penuh</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs tabular-nums">
+                            {labelBox.acceptedQty}/{labelBox.expectedQty}
+                          </span>
+                        )}
+                      </div>
+
+                      {labelBox.layers.map((layer) => (
+                        <div className="mt-2" key={layer.id}>
+                          <p className="text-muted-foreground mb-1 text-xs">
+                            Layer {layer.layerNo} ·{" "}
+                            {shortenLayerName(layer.layerName)}
+                          </p>
+                          <div className="grid gap-1">
+                            {layer.products.map((product) => {
+                              const complete =
+                                product.acceptedQty >= product.expectedQty
+                              return (
+                                <div
+                                  className={cn(
+                                    "flex items-center justify-between gap-2 rounded-md border px-2 py-1.5",
+                                    complete
+                                      ? "border-success/30 bg-success/10"
+                                      : "bg-muted/50 border-transparent",
+                                  )}
+                                  key={product.id}
+                                >
+                                  <span className="text-xs">
+                                    {formatProductPreview(
+                                      product.partName,
+                                      product.outerDiameter,
+                                      product.innerDiameter,
+                                      product.length,
+                                    )}
+                                  </span>
+                                  <span className="flex shrink-0 items-center gap-1.5">
+                                    <span className="text-muted-foreground text-xs tabular-nums">
+                                      {Math.min(
+                                        product.acceptedQty,
+                                        product.expectedQty,
+                                      )}
+                                      /{product.expectedQty}
+                                    </span>
+                                    {complete ? (
+                                      <CircleCheckIcon className="text-success size-4" />
+                                    ) : (
+                                      <XCircleIcon className="text-destructive size-4" />
+                                    )}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ))
           ) : (

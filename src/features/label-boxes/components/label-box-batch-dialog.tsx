@@ -254,22 +254,26 @@ export function LabelBoxBatchDialog({
                   </Select>
                 </Field>
 
+                {/* Packing Qty yang menentukan berapa label dicetak; Qty
+                    Delivery hanya angka yang tercetak di labelnya. Keduanya
+                    berdampingan supaya operator melihat bahwa keduanya memang
+                    dua angka, bukan satu yang tertulis dua kali. */}
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="label-box-packing-qty">
                       Packing Qty
                     </FieldLabel>
                     <Input
-                      disabled
                       id="label-box-packing-qty"
-                      value={
-                        selectedMasterItem
-                          ? String(selectedMasterItem.packingQty)
-                          : "Pilih Master Item terlebih dahulu"
-                      }
+                      inputMode="numeric"
+                      name="packingQty"
+                      placeholder="100"
+                      required
                     />
                     <FieldDescription>
-                      Ikut master data, tidak bisa diubah.
+                      {selectedMasterItem
+                        ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label.`
+                        : "Harus kelipatan Qty/Box Master Item."}
                     </FieldDescription>
                   </Field>
                   <Field>
@@ -284,7 +288,7 @@ export function LabelBoxBatchDialog({
                       required
                     />
                     <FieldDescription>
-                      Harus kelipatan Packing Qty.
+                      Dicetak di baris Qty/Delivery label.
                     </FieldDescription>
                   </Field>
                 </div>

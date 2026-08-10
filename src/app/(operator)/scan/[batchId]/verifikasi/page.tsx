@@ -2,9 +2,8 @@ import { notFound } from "next/navigation"
 
 import {
   LabelBoxVerificationConsole,
-  type VerificationBox,
-  type VerificationLabelBox,
-  type VerificationMasterItemProduct,
+  type VerificationSet,
+  type VerificationSetBox,
 } from "@/features/label-boxes/components/label-box-verification-console"
 import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
@@ -72,132 +71,110 @@ export default async function LabelBoxVerificationPage({
     )
     .order("sort_order")
 
-  function expectedQtyForBox(boxId: string): number {
-    return (requirementRows ?? [])
-      .filter((layer) => layer.box_id === boxId)
-      .reduce(
-        (total, layer) =>
-          total +
-          layer.box_layer_requirements.reduce(
-            (layerTotal, requirement) => layerTotal + requirement.expected_qty,
-            0,
-          ),
-        0,
-      )
-  }
-
   // Nama box datang dari Master Item; nomor B101/B201 hanya penanda label.
-  // Operator memantau pekerjaannya per box dan per layer, jadi keduanya
-  // dikirim lengkap dengan progress masing-masing.
   const { data: boxRows } = await supabase
     .from("boxes")
     .select("id, box_no, box_code, box_name")
 
-  const labelBoxes: VerificationLabelBox[] = [...batch.label_boxes]
-    .sort((left, right) =>
-      left.set_no === right.set_no
-        ? left.box_no - right.box_no
-        : left.set_no - right.set_no,
-    )
-    .map((labelBox) => ({
-      acceptedQty: (scanRows ?? []).filter(
-        (scan) => scan.packing_session_id === labelBox.packing_session_id,
-      ).length,
-      boxId: labelBox.box_id,
-      boxName:
-        (boxRows ?? []).find((box) => box.id === labelBox.box_id)?.box_name ??
-        labelBox.box_number,
-      boxNumber: labelBox.box_number,
-      expectedQty: expectedQtyForBox(labelBox.box_id),
-      id: labelBox.id,
-      setNo: labelBox.set_no,
-      verified: labelBox.status === "verified",
-    }))
-
-  const batchBoxIds = new Set(
-    batch.label_boxes.map((labelBox) => labelBox.box_id),
-  )
-  const coveredProductIds = new Set(
-    (scanRows ?? [])
-      .map((scan) => scan.product_id)
-      .filter((productId): productId is string => productId !== null),
-  )
-
-  const masterItemProductsById = new Map<
-    string,
-    VerificationMasterItemProduct
-  >()
-  for (const layer of requirementRows ?? []) {
-    if (!batchBoxIds.has(layer.box_id)) continue
-    for (const requirement of layer.box_layer_requirements) {
-      const product = requirement.products
-      if (!product || masterItemProductsById.has(product.id)) continue
-      masterItemProductsById.set(product.id, {
-        id: product.id,
-        innerDiameter: product.inner_diameter,
-        length: product.length,
-        outerDiameter: product.outer_diameter,
-        partName: product.part_name,
-        productCode: product.product_code,
-        scanned: coveredProductIds.has(product.id),
-      })
-    }
+  /**
+   * Keping yang sudah diterima untuk satu produk di satu layer pada satu label
+   * box. Disaring lewat sesi milik label box itu, bukan lewat batch: qty
+   * delivery menggandakan box yang sama menjadi beberapa set, dan tiap set
+   * punya kuotanya sendiri.
+   */
+  function acceptedQtyFor(
+    sessionId: string | null,
+    layerId: string,
+    productId: string | null,
+  ): number {
+    if (!sessionId || !productId) return 0
+    return (scanRows ?? []).filter(
+      (scan) =>
+        scan.packing_session_id === sessionId &&
+        scan.box_layer_id === layerId &&
+        scan.product_id === productId,
+    ).length
   }
-  const masterItemProducts = [...masterItemProductsById.values()].sort(
-    (left, right) => left.productCode.localeCompare(right.productCode),
-  )
 
-  // Susunan box Master Item, satu baris per box fisik. Qty delivery menggandakan
-  // box yang sama menjadi beberapa set label (B101, B102, …); penggandaan itu
-  // tidak menambah informasi bagi operator yang sedang mengisi rak, jadi panel
-  // monitoring memakai bentuk aslinya.
-  const boxes: VerificationBox[] = [...batchBoxIds]
-    .map((boxId) => ({
-      boxNo: (boxRows ?? []).find((box) => box.id === boxId)?.box_no ?? 0,
-      id: boxId,
-    }))
-    .sort((left, right) => left.boxNo - right.boxNo)
-    .map(({ id }) => ({
-      boxName:
-        (boxRows ?? []).find((box) => box.id === id)?.box_name ??
-        "Box tanpa nama",
-      id,
-      layers: (requirementRows ?? [])
-        .filter((layer) => layer.box_id === id)
-        .map((layer) => ({
-          id: layer.id,
-          layerName: layer.layer_name,
-          layerNo: layer.layer_no,
-          products: [...layer.box_layer_requirements]
-            .sort((left, right) => left.sort_order - right.sort_order)
-            .map((requirement) => ({
-              expectedQty: requirement.expected_qty,
-              id: requirement.product_id ?? layer.id,
-              innerDiameter: requirement.products?.inner_diameter ?? 0,
-              length: requirement.products?.length ?? 0,
-              outerDiameter: requirement.products?.outer_diameter ?? 0,
-              partName: requirement.products?.part_name ?? "Produk terhapus",
-              productCode: requirement.products?.product_code ?? "-",
-              scanned: requirement.product_id
-                ? coveredProductIds.has(requirement.product_id)
-                : false,
-            })),
-        })),
-    }))
+  function layersFor(
+    boxId: string,
+    sessionId: string | null,
+  ): VerificationSetBox["layers"] {
+    return (requirementRows ?? [])
+      .filter((layer) => layer.box_id === boxId)
+      .map((layer) => ({
+        id: layer.id,
+        layerName: layer.layer_name,
+        layerNo: layer.layer_no,
+        products: [...layer.box_layer_requirements]
+          .sort((left, right) => left.sort_order - right.sort_order)
+          .map((requirement) => ({
+            acceptedQty: acceptedQtyFor(
+              sessionId,
+              layer.id,
+              requirement.product_id,
+            ),
+            expectedQty: requirement.expected_qty,
+            id: `${layer.id}-${requirement.product_id ?? "kosong"}`,
+            innerDiameter: requirement.products?.inner_diameter ?? 0,
+            length: requirement.products?.length ?? 0,
+            outerDiameter: requirement.products?.outer_diameter ?? 0,
+            partName: requirement.products?.part_name ?? "Produk terhapus",
+            productCode: requirement.products?.product_code ?? "-",
+          })),
+      }))
+  }
+
+  /**
+   * Satu section per set label. Set adalah Qty Delivery dibagi Packing Qty:
+   * qty 200 dengan packing qty 100 dan 3 box berarti dua set, dan tiap set
+   * discan sendiri-sendiri sampai ketiga boxnya penuh.
+   */
+  const setNumbers = [
+    ...new Set(batch.label_boxes.map((labelBox) => labelBox.set_no)),
+  ].sort((left, right) => left - right)
+
+  const sets: VerificationSet[] = setNumbers.map((setNo) => ({
+    boxes: batch.label_boxes
+      .filter((labelBox) => labelBox.set_no === setNo)
+      .sort((left, right) => left.box_no - right.box_no)
+      .map((labelBox) => {
+        const layers = layersFor(labelBox.box_id, labelBox.packing_session_id)
+        const products = layers.flatMap((layer) => layer.products)
+
+        return {
+          acceptedQty: products.reduce(
+            (total, product) =>
+              total + Math.min(product.acceptedQty, product.expectedQty),
+            0,
+          ),
+          boxName:
+            (boxRows ?? []).find((box) => box.id === labelBox.box_id)
+              ?.box_name ?? labelBox.box_number,
+          boxNumber: labelBox.box_number,
+          expectedQty: products.reduce(
+            (total, product) => total + product.expectedQty,
+            0,
+          ),
+          id: labelBox.id,
+          layers,
+          verified: labelBox.status === "verified",
+        }
+      }),
+    setNo,
+  }))
 
   return (
     <LabelBoxVerificationConsole
       batch={{
-        boxes,
         deliveryDate: batch.delivery_date_snapshot,
         deliveryNumber: batch.delivery_number_snapshot,
         id: batch.id,
-        labelBoxes,
         labelsPrinted,
         lotNo: batch.lot_no,
-        masterItemProducts,
         partNo: batch.part_no_snapshot,
         qtyDelivery: batch.qty_delivery,
+        sets,
         supplierCode: batch.supplier_code_snapshot,
       }}
     />

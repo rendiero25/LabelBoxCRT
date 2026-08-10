@@ -37,9 +37,15 @@ export type LabelBoxPrintJob = {
   printJobId: string
   qrPayload: string
   qty: number
+  /**
+   * Angka yang dicetak di baris Qty/Delivery. Bukan qty_delivery batch — kolom
+   * itu keping yang dipak, yaitu penentu jumlah label.
+   */
   qtyDelivery: number
   status: string
   supplierCode: string
+  /** Nama supplier; dicetak di baris Customer pada label box. */
+  supplierName: string
 }
 
 export type LabelBoxPrintJobsActionState = {

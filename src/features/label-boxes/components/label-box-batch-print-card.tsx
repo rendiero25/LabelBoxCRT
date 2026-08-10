@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  startTransition,
   useActionState,
   useCallback,
   useEffect,
@@ -82,7 +83,10 @@ export function LabelBoxBatchPrintCard({
     prepared.current = true
     const formData = new FormData()
     formData.set("batchId", batchId)
-    jobsAction(formData)
+    // Aksi useActionState yang dipanggil dari efek, bukan dari prop action
+    // sebuah form, harus dibungkus transition sendiri; tanpa itu React tidak
+    // memperbarui isPending dan tombol Cetak tidak pernah kelihatan menunggu.
+    startTransition(() => jobsAction(formData))
   }, [batchId, jobs.length, jobsAction, jobsPending])
 
   /**
@@ -121,6 +125,7 @@ export function LabelBoxBatchPrintCard({
             qrPayload: job.qrPayload,
             qtyDelivery: job.qtyDelivery,
             supplierCode: job.supplierCode,
+            supplierName: job.supplierName,
           })
 
           // QR dirakit printer sendiri pada jalur ZPL, tapi pada jalur HTML

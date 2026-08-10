@@ -18,7 +18,7 @@ import {
  * ZPL, dibagi 8 dot/mm. Menyalin ulang ukurannya ke sini akan membuat label
  * Zebra dan label Canon perlahan berbeda bentuk tanpa ada yang menyadari.
  */
-export const HTML_TEMPLATE_VERSION = "v6-html"
+export const HTML_TEMPLATE_VERSION = "v7-html"
 
 const L = LABEL_LAYOUT
 
@@ -61,12 +61,13 @@ type Box = {
 }
 
 /**
- * Lebar rata-rata satu karakter tebal sebagai pecahan em, untuk campuran huruf
- * besar, angka, dan tanda hubung yang dipakai nilai-nilai label. Diambil agak
- * longgar: menaksir terlalu lebar hanya membuat huruf sedikit lebih kecil dari
- * perlunya, sedangkan menaksir terlalu sempit membuat teksnya terpotong.
+ * Lebar rata-rata satu karakter tebal sebagai pecahan em. Seluruh kolom nilai
+ * kini huruf besar, dan huruf besar lebih lebar dari campuran besar-kecil yang
+ * dulu ditaksir 0.62. Diambil agak longgar: menaksir terlalu lebar hanya
+ * membuat huruf sedikit lebih kecil dari perlunya, sedangkan menaksir terlalu
+ * sempit membuat teksnya melewati garis kolomnya.
  */
-const AVERAGE_ADVANCE_EM = 0.62
+const AVERAGE_ADVANCE_EM = 0.72
 
 /**
  * QR dicetak 5% lebih kecil dari lebar kolomnya supaya ada jarak ke garis.
@@ -119,20 +120,49 @@ function verticalRule(left: number, top: number, height: number): string {
  * nowrap + overflow hidden menyamai pemotongan ^FB: teks yang kepanjangan
  * terpotong di tepi kolomnya, bukan turun ke baris kedua dan merusak barisnya.
  */
+/**
+ * Faktor rapat huruf yang membuat teks muat tanpa memendekkannya, sepadan
+ * dengan lebar huruf ^A@N di jalur ZPL. Dipakai baris yang nilainya kata bebas:
+ * memendekkan huruf membuat barisnya terlihat kurang penting dari tetangganya,
+ * sedangkan merapatkan tidak.
+ */
+function condenseScale(
+  text: string,
+  boxWidthDots: number,
+  fontHeightDots: number,
+): number {
+  if (text.length === 0) return 1
+
+  const natural = text.length * AVERAGE_ADVANCE_EM * fontHeightDots
+  return natural <= boxWidthDots ? 1 : boxWidthDots / natural
+}
+
 function textBox(
   box: Box,
   fontHeightDots: number,
   text: string,
   align: "center" | "left",
+  bold = true,
+  condense = false,
 ): string {
-  const fitted = fitFontHeight(text, box.width, fontHeightDots)
+  const fitted = condense
+    ? fontHeightDots
+    : fitFontHeight(text, box.width, fontHeightDots)
+  const scale = condense
+    ? condenseScale(text, box.width, fontHeightDots)
+    : 1
+  const content =
+    scale === 1
+      ? escapeHtml(text)
+      : `<span style="display:inline-block;transform:scaleX(${Number(scale.toFixed(4))});` +
+        `transform-origin:left center">${escapeHtml(text)}</span>`
 
   return (
     `<div style="position:absolute;left:${mm(box.left)};top:${mm(box.top)};` +
     `width:${mm(box.width)};height:${mm(box.height)};` +
     `display:flex;align-items:center;justify-content:${align === "center" ? "center" : "flex-start"};` +
-    `font-size:${mm(fitted)};line-height:1;` +
-    `white-space:nowrap;overflow:hidden">${escapeHtml(text)}</div>`
+    `font-size:${mm(fitted)};font-weight:${bold ? 700 : 400};line-height:1;` +
+    `white-space:nowrap;overflow:hidden">${content}</div>`
   )
 }
 
@@ -158,24 +188,34 @@ function rowMarkup(row: LabelRow, index: number): string {
         height: L.rowHeight,
         left: L.labelColumnX,
         top: rowTop,
-        width: L.valueDividerX - L.labelColumnX - 8,
+        // Baris tanpa kolom nilai memakai seluruh lebar bingkai untuk namanya.
+        width: row.spansRow
+          ? L.frameX + L.frameWidth - L.labelColumnX - 14
+          : L.valueDividerX - L.labelColumnX - 8,
       },
-      L.labelFont.height,
+      (row.labelFont ?? L.labelFont).height,
       row.label,
-      "left",
-    ),
-    textBox(
-      {
-        height: L.rowHeight,
-        left: L.valueColumnX,
-        top: rowTop,
-        width: valueRight - L.valueColumnX - 14,
-      },
-      row.font.height,
-      row.value,
-      "left",
+      row.spansRow ? "center" : "left",
     ),
   )
+
+  if (!row.spansRow) {
+    parts.push(
+      textBox(
+        {
+          height: L.rowHeight,
+          left: L.valueColumnX,
+          top: rowTop,
+          width: valueRight - L.valueColumnX - 14,
+        },
+        row.font.height,
+        row.value,
+        "left",
+        row.boldValue === true,
+        row.fitValueToColumn === true,
+      ),
+    )
+  }
 
   return parts.join("")
 }
@@ -195,7 +235,7 @@ export function buildLabelHtml(
   const parts: string[] = [
     `<div style="position:relative;box-sizing:border-box;` +
       `width:${mm(L.labelWidth)};height:${mm(L.labelHeight)};` +
-      `background:#fff;color:#000;font-family:${FONT_STACK};font-weight:700;` +
+      `background:#fff;color:#000;font-family:${FONT_STACK};` +
       `overflow:hidden">`,
     // Bingkai luar.
     `<div style="position:absolute;box-sizing:border-box;` +
@@ -203,11 +243,7 @@ export function buildLabelHtml(
       `width:${mm(L.frameWidth)};height:${mm(L.frameHeight)};` +
       `border:${BORDER_MM} solid #000"></div>`,
     rule(L.frameX, L.rowsTop, ruleWidth(L.rowsTop)),
-    verticalRule(
-      L.valueDividerX,
-      L.rowsTop,
-      L.frameY + L.frameHeight - L.rowsTop,
-    ),
+    verticalRule(L.valueDividerX, L.rowsTop, L.fullWidthRowTop - L.rowsTop),
     verticalRule(L.qrColumnX, L.frameY, L.rightColumnBottom - L.frameY),
     textBox(
       {

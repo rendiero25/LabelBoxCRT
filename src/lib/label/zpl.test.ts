@@ -13,12 +13,11 @@ import {
 
 const sampleFields: FormattedLabelFields = {
   supplierCode: "10015",
+  supplierName: "PT SUMBER KABEL",
   partNo: "3210A-K1Z-NA01-DL",
-  packingQty: "100",
-  qtyDelivery: "200",
-  masterItemRowNo: "1",
-  lotNo: "M-CRT-004A-581-300726-B001",
-  boxNumber: "B101",
+  packingQty: "100 pcs",
+  qtyDelivery: "200 pcs",
+  lotNo: "01-M-CRT-004A-581-300726-B001-B101",
   deliveryDate: "15-08-2026",
   deliveryMonth: "8",
   qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
@@ -72,8 +71,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v6 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v6")
+  it("exports template version v7 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v7")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -92,16 +91,17 @@ describe("buildLabelZpl", () => {
     expect(zpl).toContain("PT. CRT KABELITA")
   })
 
-  it("prints the eight row labels in the order of the approved layout", () => {
+  it("prints the nine row labels in the order of the approved layout", () => {
     const labels = [
-      "Supplier ID",
-      "Part No",
-      "Qty/Box",
-      "Qty/Delivery",
-      "Item List",
-      "No Box",
-      "Delivery Date",
-      "Lot No",
+      "CUSTOMER",
+      "SUPPLIER ID",
+      "PART NO",
+      "QTY/BOX",
+      "QTY/DELIVERY",
+      "DELIVERY DATE",
+      "LOT NO",
+      "OPERATOR PACK",
+      "QC Passes",
     ]
     const positions = labels.map((label) => zpl.indexOf(`^FD${label}^FS`))
 
@@ -111,21 +111,23 @@ describe("buildLabelZpl", () => {
     )
   })
 
-  it("renders every field value", () => {
+  // Kolom nilai dicetak huruf besar; nilai mentahnya sendiri dibiarkan apa
+  // adanya di FormattedLabelFields supaya QR payload tidak ikut berubah.
+  it("renders every field value in upper case", () => {
     for (const value of Object.values(sampleFields)) {
-      expect(zpl).toContain(value)
+      expect(zpl).toContain(value.toUpperCase())
     }
   })
 
-  // Baris kedelapan berakhir 12 dot di atas bingkai; garis pemisah kolom yang
-  // berhenti di situ menyisakan potongan menggantung di sudut kiri bawah.
-  it("draws the frame and runs the divider down to the frame", () => {
+  // Baris terakhir dipakai cap QC dan tidak berkolom, jadi garis pemisah kolom
+  // berhenti di atasnya; garis yang menembusnya membelah ruang capnya jadi dua.
+  it("draws the frame and stops the divider above the QC row", () => {
     expect(zpl).toContain("^FO8,8^GB584,424,2^FS")
-    expect(zpl).toContain("^FO200,68^GB0,364,2^FS")
+    expect(zpl).toContain("^FO146,68^GB0,320,2^FS")
   })
 
   it("runs the right column from the top edge down to the FIFO row", () => {
-    expect(zpl).toContain("^FO440,8^GB0,324,2^FS")
+    expect(zpl).toContain("^FO452,8^GB0,300,2^FS")
   })
 
   // Garis mendatar yang melintas di tengah blok kolom kanan akan tercetak
@@ -135,18 +137,18 @@ describe("buildLabelZpl", () => {
     const rules = [...zpl.matchAll(/\^FO8,(\d+)\^GB(\d+),0,2\^FS/g)].map(
       ([, y, width]) => ({ width: Number(width), y: Number(y) }),
     )
-    expect(rules.length).toBe(8)
+    expect(rules.length).toBe(9)
 
-    // Garis kop dan dua garis baris berikutnya mengapit QR; garis di 244
+    // Garis kop dan dua garis baris berikutnya mengapit QR; garis di 228
     // jatuh tepat di tengah angka bulan.
-    const insideRightColumn = new Set([68, 112, 156, 244])
+    const insideRightColumn = new Set([68, 108, 148, 228])
     for (const rule of rules) {
-      expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 432 : 584)
+      expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 444 : 584)
     }
   })
 
   it("escapes ZPL control characters in dynamic values", () => {
-    const zplEscaped = buildLabelZpl({ ...sampleFields, boxNumber: "B^1~X_2" })
+    const zplEscaped = buildLabelZpl({ ...sampleFields, lotNo: "B^1~X_2" })
     expect(zplEscaped).toContain("B_5e1_7eX_5f2")
     expect(zplEscaped).not.toContain("B^1~")
   })
@@ -160,34 +162,81 @@ describe("buildLabelZpl", () => {
     ].map(([, width, text]) => ({ text, width: Number(width) }))
 
     const supplierId = blocks.find((block) => block.text === "10015")
-    const lotNo = blocks.find((block) => block.text.startsWith("M-CRT"))
-    const boxNumber = blocks.find((block) => block.text === "B101")
-    const fieldName = blocks.find((block) => block.text === "Delivery Date")
+    const lotNo = blocks.find((block) => block.text.startsWith("01-M-CRT"))
+    const operatorPack = blocks.find((block) => block.text === "AD | SR | ST")
+    const fieldName = blocks.find((block) => block.text === "DELIVERY DATE")
+    const qcPasses = blocks.find((block) => block.text === "QC Passes")
 
-    expect(supplierId?.width).toBe(212)
-    // Lot No 26 karakter di baris terakhir: selebar bingkai, 26 x 14 dot.
-    expect(lotNo?.width).toBe(364)
-    expect(boxNumber?.width).toBe(212)
-    expect(fieldName?.width).toBe(170)
+    expect(supplierId?.width).toBe(278)
+    // Tiga baris terakhir ada di bawah kolom kanan: kolom nilainya selebar
+    // bingkai, bukan berhenti di kolom QR seperti enam baris di atasnya.
+    expect(lotNo?.width).toBe(418)
+    expect(operatorPack?.width).toBe(418)
+    expect(fieldName?.width).toBe(116)
+    // QC Passes tidak punya kolom nilai; namanya sendiri yang selebar bingkai.
+    expect(qcPasses?.width).toBe(556)
   })
 
-  // Lot No dipindah ke baris terakhir supaya kolomnya selebar bingkai dan
-  // hurufnya tidak perlu dikecilkan seperti baris yang berbagi tempat dengan
-  // kolom kanan.
-  it("prints Lot No in the same face and size as the other values", () => {
+  // Lot No seukuran Delivery Date dan nilai lain, dan barisnya selebar bingkai.
+  it("prints Lot No at the same size as the other values", () => {
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITBD.TTF^FB364,1,0,L,0^FH^FDM-CRT-004A-581-300726-B001^FS",
+      "^A@N,28,14,E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FD01-M-CRT-004A-581-300726-B001-B101^FS",
     )
+  })
+
+  // Kop nama perusahaan seukuran isinya, bukan judul yang menjulang di atasnya.
+  it("prints the company header at the same size as Supplier ID", () => {
+    expect(zpl).toContain(
+      "^A@N,28,14,E:OUTFITBD.TTF^FB416,1,0,L,0^FH^FDPT. CRT KABELITA^FS",
+    )
+  })
+
+  // Nama supplier satu-satunya nilai berupa kata: panjangnya tidak bisa
+  // diperkirakan saat tata letak dirancang, jadi hurufnya dirapatkan sendiri
+  // sampai muat. Nama sepanjang kolomnya dicetak apa adanya.
+  it("prints the supplier name at its nominal width when it fits", () => {
+    expect(zpl).toContain(
+      "^A@N,28,14,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT SUMBER KABEL^FS",
+    )
+  })
+
+  it("keeps a 26-character supplier name uncondensed and uncut", () => {
+    const zplLong = buildLabelZpl({
+      ...sampleFields,
+      supplierName: "PT CIPTA MANDIRI WIRASAKTI",
+    })
+    expect(zplLong).toContain(
+      "^A@N,28,14,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT CIPTA MANDIRI WIRASAKTI^FS",
+    )
+  })
+
+  it("condenses a supplier name too long for its column", () => {
+    const zplLonger = buildLabelZpl({
+      ...sampleFields,
+      supplierName: "PT SUMBER KABEL NUSANTARA SEJAHTERA ABADI",
+    })
+    // 41 karakter di blok 236 dot: 236 / (41 x 0.75) = 7.
+    expect(zplLonger).toContain("^A@N,28,9,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT")
+  })
+
+  // Ruang di sekitar "QC Passes" sengaja kosong untuk cap QC, jadi baris itu
+  // tidak punya kolom nilai sama sekali dan namanya ditengahkan.
+  it("centres the QC row and leaves it without a value column", () => {
+    expect(zpl).toContain("^FB556,1,0,C,0^FH^FDQC Passes^FS")
+
+    const qcIndex = zpl.indexOf("^FDQC Passes^FS")
+    expect(qcIndex).toBeGreaterThan(0)
+    expect(zpl.slice(qcIndex)).not.toContain("^FO214,")
   })
 
   // Penanda FIFO menempati kolom kanan di bawah QR: angka bulan setinggi dua
   // baris, lalu satu baris teks tetap, keduanya ditengahkan di kolomnya.
   it("prints the delivery month and the FIFO line under the QR", () => {
     expect(zpl).toContain(
-      "^FO444,213^A@N,62,34,E:OUTFITBD.TTF^FB144,1,0,C,0^FH^FD8^FS",
+      "^FO456,197^A@N,62,34,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FD8^FS",
     )
     expect(zpl).toContain(
-      "^FO444,298^A@N,24,12,E:OUTFITBD.TTF^FB144,1,0,C,0^FH^FDFIFO PT CRT^FS",
+      "^FO456,276^A@N,24,12,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FDFIFO PT CRT^FS",
     )
   })
 
@@ -216,24 +265,44 @@ describe("buildLabelZpl", () => {
     expect(qrOrigin).not.toBeNull()
 
     const [, x, y] = qrOrigin as RegExpExecArray
-    expect(Number(x)).toBeGreaterThanOrEqual(440)
-    expect(Number(x) + 135).toBeLessThanOrEqual(592)
+    expect(Number(x)).toBeGreaterThanOrEqual(452)
+    expect(Number(x) + 132).toBeLessThanOrEqual(592)
     expect(Number(y)).toBeGreaterThanOrEqual(8)
-    expect(Number(y) + 135).toBeLessThanOrEqual(200)
+    expect(Number(y) + 132).toBeLessThanOrEqual(188)
   })
 
   // Berat huruf datang dari berkas font yang ditanam, bukan dari mencetak teks
-  // dua kali seperti pada font resident. Nama field dan nilainya sama-sama
-  // Bold: dalam satu baris keduanya dibaca bersamaan.
-  it("draws both columns in the Bold face", () => {
+  // dua kali seperti pada font resident. Nama field seluruhnya Bold; di kolom
+  // nilai hanya yang dicari operator lebih dulu.
+  it("draws the field names in Bold and only the sought values with them", () => {
     expect(zpl).toContain(
-      "^A@N,32,13,E:OUTFITBD.TTF^FB212,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
+      "^A@N,12,6,E:OUTFITBD.TTF^FB116,1,0,L,0^FH^FDPART NO^FS",
     )
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITBD.TTF^FB170,1,0,L,0^FH^FDPart No^FS",
+      "^A@N,32,13,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
     )
-    expect(zpl).not.toContain("E:OUTFITRG.TTF")
+    expect(zpl).toContain(
+      "^A@N,28,14,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD100 PCS^FS",
+    )
+    expect(zpl).toContain(
+      "^A@N,28,14,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD200 PCS^FS",
+    )
+    expect(zpl).toContain(
+      "^A@N,28,14,E:OUTFITBD.TTF^FB556,1,0,C,0^FH^FDQC Passes^FS",
+    )
     expect(zpl).not.toContain("^A0N,")
+  })
+
+  // Sisa kolom nilai berat biasa. Kalau semuanya Bold, tidak ada satu pun yang
+  // menonjol dan operator membaca seluruh label untuk menemukan satu angka.
+  it("draws the remaining values in the Regular face", () => {
+    for (const value of ["10015", "15-08-2026"]) {
+      expect(zpl).toContain(`E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FD${value}^FS`)
+    }
+    // Dua baris terbawah selebar bingkai, bukan berhenti di kolom QR.
+    expect(zpl).toContain(
+      "E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FDAD | SR | ST^FS",
+    )
   })
 
   it("escapes ZPL control characters inside the QR payload", () => {

@@ -31,6 +31,8 @@ const safeRpcMessages: Record<string, string> = {
   LABEL_BOX_BATCH_NOT_CLOSED:
     "Tutup verifikasi batch ini dulu sebelum mencetak.",
   LABEL_BOX_BATCH_NOT_FOUND: "Batch label box tidak ditemukan.",
+  LABEL_BOX_SETS_INCOMPLETE:
+    "Masih ada label box yang belum penuh. Setiap set harus discan sampai habis.",
   LABEL_UID_INVALID: "Label UID dari QR tidak valid.",
   LABEL_UID_MISSING: "QR tidak memiliki Label UID unik.",
   LAYER_QUANTITY_FULL: "Kebutuhan layer untuk produk ini sudah penuh.",
@@ -178,9 +180,10 @@ export async function createLabelBoxPrintJobsAction(
       printJobId: row.print_job_id,
       qrPayload: row.qr_payload,
       qty: row.qty,
-      qtyDelivery: row.qty_delivery,
+      qtyDelivery: row.qty_delivery_display,
       status: row.status,
       supplierCode: row.supplier_code,
+      supplierName: row.supplier_name,
     })),
     success: `${data.length} label siap dicetak.`,
   }
@@ -228,9 +231,10 @@ export async function createLabelBoxReprintJobsAction(input: {
       printJobId: row.print_job_id,
       qrPayload: row.qr_payload,
       qty: row.qty,
-      qtyDelivery: row.qty_delivery,
+      qtyDelivery: row.qty_delivery_display,
       status: row.status,
       supplierCode: row.supplier_code,
+      supplierName: row.supplier_name,
     })),
     success: `${data.length} label siap dicetak ulang.`,
   }

@@ -9,6 +9,10 @@ import {
   type LabelBoxMasterItemOption,
   type LabelBoxSupplierOption,
 } from "@/features/label-boxes/components/label-box-batch-dialog"
+import {
+  DeleteLabelBoxBatchAction,
+  EditLabelBoxBatchDialog,
+} from "@/features/label-boxes/components/label-box-batch-row-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -145,18 +149,25 @@ export function LabelBoxBatchTable({
                         <Badge variant="outline">Terbuka</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {batch.closed ? (
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/scan/${batch.id}/cetak`}>Cetak</Link>
-                        </Button>
-                      ) : (
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/scan/${batch.id}/verifikasi`}>
-                            Verifikasi
-                          </Link>
-                        </Button>
-                      )}
+                    <TableCell className="whitespace-nowrap">
+                      {/* Ketiganya sebaris: tabelnya sudah bisa digeser
+                          mendatar, jadi tombol yang membungkus hanya membuat
+                          tinggi barisnya berbeda-beda tanpa memuat apa pun. */}
+                      <div className="flex justify-end gap-2">
+                        {batch.closed ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/scan/${batch.id}/cetak`}>Cetak</Link>
+                          </Button>
+                        ) : (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/scan/${batch.id}/verifikasi`}>
+                              Verifikasi
+                            </Link>
+                          </Button>
+                        )}
+                        <EditLabelBoxBatchDialog batch={batch} />
+                        <DeleteLabelBoxBatchAction batch={batch} />
+                      </div>
                     </TableCell>
                   </TableRow>
                   {expandedId === batch.id ? (

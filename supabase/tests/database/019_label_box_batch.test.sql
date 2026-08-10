@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(21);
+select plan(23);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -41,8 +41,8 @@ insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
 select has_function(
   'public',
   'create_label_box_batch',
-  array['uuid', 'text', 'date', 'uuid', 'integer', 'text'],
-  'create_label_box_batch RPC takes supplier, DN, date, master item, qty, lot'
+  array['uuid', 'text', 'date', 'uuid', 'integer', 'text', 'integer'],
+  'create_label_box_batch RPC takes supplier, DN, date, master item, qty, lot, qty cetak'
 );
 
 select has_table('public', 'label_box_batches', 'label_box_batches table exists');
@@ -80,8 +80,8 @@ select is(
     from public.label_boxes
     where batch_id = (select batch_id from labelbox_batch_a)
   ),
-  'B101,B102,B103',
-  'satu set menghasilkan B101, B102, B103'
+  'B101,B201,B301',
+  'satu set menghasilkan B101, B201, B301'
 );
 
 select is(
@@ -100,6 +100,32 @@ select isnt(
   (select qr_generated_at from labelbox_batch_a),
   null,
   'batch menyimpan waktu generate QR'
+);
+
+-- Angka yang dicetak di baris Qty/Delivery berdiri sendiri dari angka yang
+-- menentukan jumlah label. Tanpa nilai sendiri ia mengikuti keping yang dipak,
+-- persis seperti perilaku lama.
+select is(
+  (select qty_delivery_display from labelbox_batch_a),
+  (select qty_delivery from labelbox_batch_a),
+  'tanpa qty cetak, angka yang dicetak mengikuti keping yang dipak'
+);
+
+select is(
+  (
+    select qty_delivery_display::text || '|' || qty_delivery::text
+    from public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-1',
+      date '2026-07-28',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-DISPLAY',
+      2500
+    )
+  ),
+  '2500|100',
+  'qty cetak disimpan apa adanya dan tidak mengubah keping yang dipak'
 );
 
 -- Snapshot field tampilan disimpan di batch itu sendiri, supaya baris ini
@@ -168,8 +194,8 @@ select is(
     from public.label_boxes
     where batch_id = (select batch_id from labelbox_batch_b)
   ),
-  'B101,B102,B103,B201,B202,B203',
-  'set kedua memakai awalan 2'
+  'B101,B201,B301,B102,B202,B302',
+  'set kedua memakai akhiran 02'
 );
 
 select is(

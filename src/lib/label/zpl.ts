@@ -9,10 +9,15 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * ZPL template v4 for Zebra ZD220 (203 dpi), media 75 mm x 55 mm landscape
  * with 3 mm gap, thermal-transfer wax ribbon.
  *
+ * v7 menyusun ulang isi barisnya. "Item List" dan "No Box" tidak lagi berdiri
+ * sendiri: keduanya masuk ke baris Lot No sebagai satu rangkaian penanda.
+ * Tempat yang terbebas dipakai baris Customer (nama supplier), Operator Pack,
+ * dan satu baris penuh "QC Passes" tanpa kolom nilai untuk cap QC. Barisnya
+ * jadi sembilan, jadi tingginya turun dari 44 ke 40 dot.
+ *
  * v6 memanjangkan kolom kanan ke bawah QR untuk dua penanda FIFO: angka bulan
- * setinggi dua baris lalu satu baris "FIFO PT CRT". Kolom nilai tiga baris di
- * sebelahnya ikut menyempit, jadi Lot No dicetak dengan huruf lebih kecil.
- * Seluruh teksnya juga naik dari SemiBold ke Bold.
+ * setinggi dua baris lalu satu baris "FIFO PT CRT". Seluruh teksnya juga naik
+ * dari SemiBold ke Bold.
  *
  * v5 memakai font TrueType Outfit yang ditanam ke memori printer, sama dengan
  * font aplikasi, menggantikan font resident ^A0. Lebar hurufnya tidak seragam
@@ -23,7 +28,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v6"
+export const TEMPLATE_VERSION = "v7"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600
@@ -40,16 +45,20 @@ const FRAME_HEIGHT = LABEL_LENGTH_DOTS - FRAME_Y * 2 // 424
 
 const HEADER_HEIGHT = 60
 const ROWS_TOP = FRAME_Y + HEADER_HEIGHT // 68
-const ROW_COUNT = 8
-const ROW_HEIGHT = 44 // 8 x 44 = 352; 68 + 352 = 420, sisa 12 dot di bawah
+const ROW_COUNT = 9
+const ROW_HEIGHT = 40 // 9 x 40 = 360; 68 + 360 = 428, sisa 4 dot di bawah
 const ROWS_BOTTOM = ROWS_TOP + ROW_COUNT * ROW_HEIGHT
+/** Baris terakhir tidak berkolom; garis pemisah kolom berhenti di atasnya. */
+const FULL_WIDTH_ROW_TOP = ROWS_TOP + (ROW_COUNT - 1) * ROW_HEIGHT
 
 /**
- * Kolom kiri memuat nama field, kolom kanan nilainya. Lebar kolom kiri diambil
- * dari nama terpanjang ("Delivery Date"); sisanya jadi kolom nilai.
+ * Kolom kiri memuat nama field, kolom kanan nilainya. Lebar kolom kiri pas untuk
+ * nama terpanjang ("Delivery Date", "Operator Pack") dan tidak lebih: yang
+ * panjang dan berubah-ubah nilainya, bukan namanya, jadi sisa ruang diberikan
+ * ke kolom nilai.
  */
 const LABEL_COLUMN_X = FRAME_X + 14
-const VALUE_DIVIDER_X = 200
+const VALUE_DIVIDER_X = 146
 const VALUE_COLUMN_X = VALUE_DIVIDER_X + 14
 
 /**
@@ -62,7 +71,7 @@ const VALUE_COLUMN_X = VALUE_DIVIDER_X + 14
  * yang dipatok akan meleset ke dua arah: menembus bingkai saat payload panjang,
  * atau menyisakan kolom setengah kosong saat payload pendek.
  */
-const QR_COLUMN_X = 440
+const QR_COLUMN_X = 452
 const QR_ROWS = 3
 const QR_COLUMN_BOTTOM = ROWS_TOP + QR_ROWS * ROW_HEIGHT
 /** Sisa 2 dot di tiap sisi supaya QR tidak menyentuh garis kolomnya. */
@@ -72,9 +81,9 @@ const QR_AVAILABLE_HEIGHT = QR_COLUMN_BOTTOM - FRAME_Y - QR_PADDING * 2
 
 /**
  * Di bawah QR, kolom kanan tetap berdiri untuk dua blok penanda FIFO: angka
- * bulan setinggi dua baris (sejajar Qty/Delivery dan Item List) lalu satu baris
- * "FIFO PT CRT" (sejajar Lot No). Keduanya blok utuh tanpa nama field, jadi
- * garis antar baris di dalam blok bulan tidak digambar.
+ * bulan setinggi dua baris (sejajar Qty/Box dan Qty/Delivery) lalu satu baris
+ * "FIFO PT CRT" (sejajar Delivery Date). Keduanya blok utuh tanpa nama field,
+ * jadi garis antar baris di dalam blok bulan tidak digambar.
  */
 const MONTH_TOP = QR_COLUMN_BOTTOM
 const MONTH_ROWS = 2
@@ -114,16 +123,30 @@ export function qrMagnificationFor(
   return Math.min(10, Math.max(1, Math.floor(availableDots / modules)))
 }
 
-const COMPANY_FONT = { height: 44, width: 25 }
 /**
- * Nama field dan nilainya seukuran dan seberat: keduanya dibaca bersamaan dalam
- * satu baris, dan membedakan salah satunya membuat baris terasa timpang. Yang
- * memisahkan kolom cukup garis pemisahnya.
+ * Nama field satu ukuran untuk seluruh kolom kiri, diambil dari nama terpanjang
+ * ("Delivery Date", "Operator Pack") yang masih muat di 146 dot. Sebelumnya
+ * tiap nama dikecilkan sendiri-sendiri oleh perender HTML kalau kepanjangan,
+ * sehingga kolom kiri terbaca bergerigi: "Customer" besar, "Operator Pack"
+ * kecil, padahal keduanya nama field yang sederajat.
  */
-const LABEL_FONT = { height: 28, width: 14 }
+const LABEL_FONT = { height: 12, width: 6 }
 const VALUE_FONT = { height: 28, width: 14 }
+/** Kop nama perusahaan seukuran isinya, bukan judul yang menjulang di atasnya. */
+const COMPANY_FONT = VALUE_FONT
+/**
+ * "QC Passes" bukan nama field: ia judul ruang kosong tempat QC membubuhkan
+ * capnya, jadi ia tetap sebesar nilai-nilai di atasnya.
+ */
+const QC_FONT = VALUE_FONT
 /** Part No dicetak paling tinggi; itu field yang dicari operator lebih dulu. */
 const PART_NO_FONT = { height: 32, width: 13 }
+/**
+ * Nama supplier setinggi nilai lain. Lebarnya tidak dipatok — fitValueToColumn
+ * yang merapatkan hurufnya sampai muat di kolomnya, jadi nama pendek tercetak
+ * penuh dan nama panjang tetap utuh, tidak terpotong.
+ */
+const CUSTOMER_FONT = VALUE_FONT
 /** Angka bulan mengisi tinggi dua baris; ini penanda yang dibaca dari jauh. */
 const MONTH_FONT = { height: 62, width: 34 }
 const FIFO_FONT = { height: 24, width: 12 }
@@ -142,30 +165,136 @@ export function escapeZplText(value: string): string {
     .replace(/[\x00-\x1f\x7f]/g, "")
 }
 
+/**
+ * Taksiran advance rata-rata satu huruf sebagai pecahan lebar nominal. Outfit
+ * lebih rapat dari ini; taksiran yang longgar hanya membuat huruf sedikit lebih
+ * kecil dari perlunya, sedangkan taksiran yang terlalu sempit membuat ^FB
+ * memotong teksnya diam-diam dan potongannya baru ketahuan setelah label
+ * menempel di box.
+ */
+const AVERAGE_ADVANCE_RATIO = 0.75
+
+/**
+ * Lebar huruf terbesar yang teksnya masih muat utuh di bloknya, dibatasi lebar
+ * nominal barisnya. Tingginya tidak ikut turun: dalam satu tabel, baris yang
+ * tiba-tiba lebih pendek terbaca sebagai baris yang kurang penting.
+ */
+export function fitFontWidth(
+  text: string,
+  blockWidthDots: number,
+  nominalWidth: number,
+): number {
+  if (text.length === 0) return nominalWidth
+
+  const fitted = Math.floor(
+    blockWidthDots / (text.length * AVERAGE_ADVANCE_RATIO),
+  )
+  return Math.max(1, Math.min(nominalWidth, fitted))
+}
+
 export type LabelRow = {
+  /**
+   * Nilainya dicetak Bold. Hanya untuk angka yang dicari operator lebih dulu;
+   * kalau seluruh kolom nilai Bold, tidak ada satu pun yang menonjol.
+   */
+  boldValue?: boolean
+  /**
+   * Rapatkan huruf nilainya kalau tidak muat. Dipakai baris yang nilainya kata
+   * bebas, bukan kode berformat tetap: panjangnya tidak bisa diperkirakan saat
+   * tata letaknya dirancang.
+   */
+  fitValueToColumn?: boolean
   font: ZplFont
   label: string
+  /** Huruf nama fieldnya, kalau baris itu bukan nama field biasa. */
+  labelFont?: ZplFont
+  /**
+   * Baris tanpa kolom nilai: nama barisnya ditengahkan selebar bingkai dan
+   * sisanya sengaja dikosongkan untuk dibubuhi tangan atau cap.
+   */
+  spansRow?: boolean
   value: string
 }
 
+/** Ketiga operator packing dicetak tetap; yang mengepak melingkari namanya. */
+const OPERATOR_PACK_TEXT = "AD | SR | ST"
+const QC_PASSES_TEXT = "QC Passes"
+
 /**
- * Delapan baris label beserta beratnya, dipisahkan dari perakit ZPL supaya
+ * Kedua kolom dicetak huruf besar. Huruf kecil pada cetakan termal di media
+ * buram lebih cepat kehilangan bentuk daripada huruf besar, dan nama field
+ * yang setengah besar setengah kecil terbaca sebagai dua jenis keterangan.
+ */
+function upper(value: string): string {
+  return value.toUpperCase()
+}
+
+/**
+ * Sembilan baris label beserta beratnya, dipisahkan dari perakit ZPL supaya
  * perender HTML untuk printer kertas memakai daftar yang sama persis. Urutan
  * dan pilihan hurufnya cuma boleh berubah di satu tempat.
  */
 export function labelRowsFor(fields: FormattedLabelFields): LabelRow[] {
   return [
-    { font: VALUE_FONT, label: "Supplier ID", value: fields.supplierCode },
-    { font: PART_NO_FONT, label: "Part No", value: fields.partNo },
-    { font: VALUE_FONT, label: "Qty/Box", value: fields.packingQty },
-    { font: VALUE_FONT, label: "Qty/Delivery", value: fields.qtyDelivery },
-    { font: VALUE_FONT, label: "Item List", value: fields.masterItemRowNo },
-    { font: VALUE_FONT, label: "No Box", value: fields.boxNumber },
-    { font: VALUE_FONT, label: "Delivery Date", value: fields.deliveryDate },
-    // Lot No paling bawah: 26 karakter, dan hanya baris di bawah kolom kanan
-    // yang selebar bingkai. Di posisi mana pun di atasnya nilainya harus
-    // dikecilkan supaya muat, dan itu yang bikin barisnya timpang.
-    { font: VALUE_FONT, label: "Lot No", value: fields.lotNo },
+    {
+      fitValueToColumn: true,
+      font: CUSTOMER_FONT,
+      label: upper("Customer"),
+      value: upper(fields.supplierName),
+    },
+    {
+      font: VALUE_FONT,
+      label: upper("Supplier ID"),
+      value: upper(fields.supplierCode),
+    },
+    // Ketiga baris inilah yang dicari operator lebih dulu di gudang, jadi cuma
+    // nilai-nilai ini yang Bold; sisanya berat biasa supaya keduanya terbedakan
+    // dari seberang meja, bukan cuma setelah dibaca.
+    {
+      boldValue: true,
+      fitValueToColumn: true,
+      font: PART_NO_FONT,
+      label: upper("Part No"),
+      value: upper(fields.partNo),
+    },
+    {
+      boldValue: true,
+      font: VALUE_FONT,
+      label: upper("Qty/Box"),
+      value: upper(fields.packingQty),
+    },
+    {
+      boldValue: true,
+      font: VALUE_FONT,
+      label: upper("Qty/Delivery"),
+      value: upper(fields.qtyDelivery),
+    },
+    {
+      font: VALUE_FONT,
+      label: upper("Delivery Date"),
+      value: fields.deliveryDate,
+    },
+    // Tiga baris terakhir ada di bawah kolom kanan, jadi hanya di sini nilainya
+    // selebar bingkai. Lot No yang memuat tiga penanda sekaligus ditaruh di
+    // baris pertamanya karena itu nilai terpanjang di label.
+    {
+      fitValueToColumn: true,
+      font: VALUE_FONT,
+      label: upper("Lot No"),
+      value: upper(fields.lotNo),
+    },
+    {
+      font: VALUE_FONT,
+      label: upper("Operator Pack"),
+      value: OPERATOR_PACK_TEXT,
+    },
+    {
+      font: VALUE_FONT,
+      label: QC_PASSES_TEXT,
+      labelFont: QC_FONT,
+      spansRow: true,
+      value: "",
+    },
   ]
 }
 
@@ -185,6 +314,7 @@ export const LABEL_LAYOUT = {
   frameWidth: FRAME_WIDTH,
   frameX: FRAME_X,
   frameY: FRAME_Y,
+  fullWidthRowTop: FULL_WIDTH_ROW_TOP,
   headerHeight: HEADER_HEIGHT,
   labelColumnX: LABEL_COLUMN_X,
   labelFont: LABEL_FONT,
@@ -257,10 +387,10 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
   commands.push(
     `^FO${FRAME_X},${FRAME_Y}^GB${FRAME_WIDTH},${FRAME_HEIGHT},${BORDER_DOTS}^FS`,
     `^FO${FRAME_X},${ROWS_TOP}^GB${ruleWidth(ROWS_TOP)},0,${BORDER_DOTS}^FS`,
-    // Garis pemisah kolom turun sampai dasar bingkai, bukan berhenti di akhir
-    // baris terakhir: baris kedelapan berakhir 12 dot di atas bingkai, dan
-    // garis yang berhenti di situ menyisakan potongan menggantung di sudut.
-    `^FO${VALUE_DIVIDER_X},${ROWS_TOP}^GB0,${FRAME_Y + FRAME_HEIGHT - ROWS_TOP},${BORDER_DOTS}^FS`,
+    // Garis pemisah kolom berhenti di baris terakhir, bukan di dasar bingkai:
+    // baris QC Passes tidak berkolom, dan garis yang menembusnya membelah
+    // ruang cap QC jadi dua.
+    `^FO${VALUE_DIVIDER_X},${ROWS_TOP}^GB0,${FULL_WIDTH_ROW_TOP - ROWS_TOP},${BORDER_DOTS}^FS`,
     // Kolom kanan berdiri dari tepi atas bingkai sampai akhir baris FIFO.
     `^FO${QR_COLUMN_X},${FRAME_Y}^GB0,${RIGHT_COLUMN_BOTTOM - FRAME_Y},${BORDER_DOTS}^FS`,
   )
@@ -270,7 +400,9 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
   commands.push(
     textCommand(
       LABEL_COLUMN_X,
-      FRAME_Y + 8,
+      // Ditengahkan di kopnya seperti perender HTML menengahkannya lewat
+      // flexbox; angka tetap hanya kebetulan pas pada tinggi huruf yang lama.
+      FRAME_Y + Math.floor((HEADER_HEIGHT - COMPANY_FONT.height) / 2),
       COMPANY_FONT,
       QR_COLUMN_X - LABEL_COLUMN_X - 14,
       escapeZplText(COMPANY_NAME),
@@ -280,10 +412,15 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
 
   rows.forEach((row, index) => {
     const rowTop = ROWS_TOP + index * ROW_HEIGHT
-    const font = row.font
     const valueRight =
       rowTop < RIGHT_COLUMN_BOTTOM ? QR_COLUMN_X : FRAME_X + FRAME_WIDTH
     const valueBlockWidth = valueRight - VALUE_COLUMN_X - 14
+    const font = row.fitValueToColumn
+      ? {
+          height: row.font.height,
+          width: fitFontWidth(row.value, valueBlockWidth, row.font.width),
+        }
+      : row.font
 
     // Garis pemisah antar baris; baris pertama sudah dibatasi garis kop.
     if (index > 0) {
@@ -292,26 +429,36 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
       )
     }
 
+    const labelFont = row.labelFont ?? LABEL_FONT
     const labelBaseline =
-      rowTop + Math.floor((ROW_HEIGHT - LABEL_FONT.height) / 2)
+      rowTop + Math.floor((ROW_HEIGHT - labelFont.height) / 2)
     const valueBaseline = rowTop + Math.floor((ROW_HEIGHT - font.height) / 2)
 
     commands.push(
       textCommand(
         LABEL_COLUMN_X,
         labelBaseline,
-        LABEL_FONT,
-        labelBlockWidth,
+        labelFont,
+        // Baris tanpa kolom nilai memakai seluruh lebar bingkai untuk namanya.
+        row.spansRow
+          ? FRAME_X + FRAME_WIDTH - LABEL_COLUMN_X - 14
+          : labelBlockWidth,
         escapeZplText(row.label),
         true,
+        row.spansRow ? "C" : "L",
       ),
+    )
+
+    if (row.spansRow) return
+
+    commands.push(
       textCommand(
         VALUE_COLUMN_X,
         valueBaseline,
         font,
         valueBlockWidth,
         escapeZplText(row.value),
-        true,
+        row.boldValue === true,
       ),
     )
   })

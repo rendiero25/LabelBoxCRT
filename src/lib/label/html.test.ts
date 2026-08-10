@@ -15,12 +15,11 @@ import {
 
 const sampleFields: FormattedLabelFields = {
   supplierCode: "10015",
+  supplierName: "PT SUMBER KABEL",
   partNo: "3210A-K1Z-NA01-DL",
-  packingQty: "100",
-  qtyDelivery: "200",
-  masterItemRowNo: "1",
-  lotNo: "M-CRT-004A-581-300726-B001",
-  boxNumber: "B101",
+  packingQty: "100 pcs",
+  qtyDelivery: "200 pcs",
+  lotNo: "01-M-CRT-004A-581-300726-B001-B101",
   deliveryDate: "15-08-2026",
   deliveryMonth: "8",
   qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
@@ -51,7 +50,7 @@ describe("fitFontHeight", () => {
   it("shrinks text that would overflow its column", () => {
     const fitted = fitFontHeight("M-CRT-004A-581-300726-B001", 212, 24)
     expect(fitted).toBeLessThan(24)
-    expect(fitted * 26 * 0.62).toBeCloseTo(212, 5)
+    expect(fitted * 26 * 0.72).toBeCloseTo(212, 5)
   })
 
   it("never returns a size whose estimated width exceeds the column", () => {
@@ -62,7 +61,7 @@ describe("fitFontHeight", () => {
       "FIFO PT CRT",
     ]) {
       const fitted = fitFontHeight(text, 212, 32)
-      expect(text.length * 0.62 * fitted).toBeLessThanOrEqual(212 + 1e-9)
+      expect(text.length * 0.72 * fitted).toBeLessThanOrEqual(212 + 1e-9)
     }
   })
 
@@ -78,41 +77,59 @@ describe("buildLabelHtml", () => {
     expect(html).toContain("width:75mm;height:55mm")
   })
 
-  it("prints the company name and all eight field names", () => {
+  it("prints the company name and all nine field names", () => {
     for (const name of [
       "PT. CRT KABELITA",
-      "Supplier ID",
-      "Part No",
-      "Qty/Box",
-      "Qty/Delivery",
-      "Item List",
-      "Lot No",
-      "No Box",
-      "Delivery Date",
+      "CUSTOMER",
+      "SUPPLIER ID",
+      "PART NO",
+      "QTY/BOX",
+      "QTY/DELIVERY",
+      "DELIVERY DATE",
+      "LOT NO",
+      "OPERATOR PACK",
+      "QC Passes",
     ]) {
       expect(html).toContain(`>${name}</div>`)
     }
   })
 
-  it("renders every field value", () => {
+  // Kolom nilai dicetak huruf besar. Nama supplier dan Lot No dibungkus span
+  // yang merapatkan hurufnya, jadi keduanya diperiksa tanpa penutup </div>.
+  it("renders every field value in upper case", () => {
     for (const value of [
       sampleFields.supplierCode,
-      sampleFields.partNo,
       sampleFields.packingQty,
       sampleFields.qtyDelivery,
-      sampleFields.masterItemRowNo,
-      sampleFields.lotNo,
-      sampleFields.boxNumber,
       sampleFields.deliveryDate,
+      "AD | SR | ST",
     ]) {
-      expect(html).toContain(`>${value}</div>`)
+      expect(html).toContain(`>${value.toUpperCase()}</div>`)
+    }
+
+    for (const value of [
+      sampleFields.supplierName,
+      sampleFields.partNo,
+      sampleFields.lotNo,
+    ]) {
+      expect(html).toContain(`>${value.toUpperCase()}<`)
     }
   })
 
-  // Baris kedelapan berakhir 12 dot di atas bingkai. Garis pemisah kolom yang
-  // berhenti di situ menyisakan potongan menggantung di sudut kiri bawah.
-  it("runs the column divider down to the frame, not to the last row", () => {
-    expect(html).toContain("left:25mm;top:8.5mm;width:0.25mm;height:45.5mm")
+  // Baris terakhir dipakai cap QC dan tidak berkolom; garis pemisah kolom yang
+  // menembusnya membelah ruang capnya jadi dua.
+  it("stops the column divider above the QC row", () => {
+    expect(html).toContain("left:18.25mm;top:8.5mm;width:0.25mm;height:40mm")
+  })
+
+  // Nama baris QC Passes membentang selebar bingkai: 592 - 22 - 14 = 556 dot,
+  // dan ditengahkan di dalamnya.
+  it("centres the QC row across the frame with no value column", () => {
+    expect(html).toContain("left:2.75mm;top:48.5mm;width:69.5mm")
+    expect(html).toContain("justify-content:center;font-size:3.5mm")
+    expect(html.slice(html.indexOf(">QC Passes</div>"))).not.toContain(
+      "left:26.75mm",
+    )
   })
 
   it("prints the FIFO markers under the QR", () => {
@@ -124,10 +141,10 @@ describe("buildLabelHtml", () => {
     expect(html).toContain(`src="${qrDataUrl}"`)
   })
 
-  // 148 dot lebar kolom QR, dikecilkan 5% jadi 140.6 dot = 17.575mm, lalu
+  // 136 dot lebar kolom QR, dikecilkan 5% jadi 129.2 dot = 16.15mm, lalu
   // ditengahkan lagi di kolomnya.
   it("prints the QR 5% smaller than its column", () => {
-    expect(html).toContain("width:17.575mm;height:17.575mm")
+    expect(html).toContain("width:16.15mm;height:16.15mm")
   })
 
   // Nilai label datang dari data pengguna. Tanpa escape, part no yang memuat
@@ -137,8 +154,9 @@ describe("buildLabelHtml", () => {
       { ...sampleFields, partNo: '<script>"x"' },
       qrDataUrl,
     )
-    expect(escaped).toContain("&lt;script&gt;&quot;x&quot;")
+    expect(escaped).toContain("&lt;SCRIPT&gt;&quot;X&quot;")
     expect(escaped).not.toContain("<script>")
+    expect(escaped).not.toContain("<SCRIPT>")
   })
 
   // Kolom nilai enam baris pertama berbagi tempat dengan kolom kanan, sama

@@ -13,6 +13,9 @@ const safeRpcMessages: Record<string, string> = {
   DELIVERY_DATE_INVALID: "Tanggal delivery tidak valid.",
   DELIVERY_NUMBER_DATE_MISMATCH:
     "Delivery Number ini sudah terdaftar dengan tanggal berbeda.",
+  DELIVERY_NUMBER_DATE_SHARED:
+    "Delivery Number ini dipakai batch lain, jadi tanggalnya tidak bisa diubah dari sini.",
+  LABEL_BOX_BATCH_NOT_FOUND: "Data label box tidak ditemukan.",
   DELIVERY_NUMBER_INVALID:
     "Delivery Number wajib diisi (maksimal 100 karakter).",
   DELIVERY_NUMBER_NOT_ACTIVE:
@@ -29,11 +32,46 @@ const safeRpcMessages: Record<string, string> = {
   SUPPLIER_INVALID: "Supplier tidak aktif atau tidak ditemukan.",
 }
 
-function rpcErrorMessage(code: string): string {
-  return (
-    safeRpcMessages[code] ??
-    "Gagal membuat label box. Coba lagi atau hubungi admin."
-  )
+/**
+ * Pesan cadangannya ikut aksinya. Kegagalan hapus yang berbunyi "gagal membuat
+ * label box" mengirim operator mencari masalah di tempat yang salah.
+ */
+function rpcErrorMessage(code: string, fallback: string): string {
+  return safeRpcMessages[code] ?? fallback
+}
+
+/**
+ * Ketiga field yang boleh disunting, dibaca dan divalidasi sekali supaya
+ * pesan salahnya sama persis dengan yang dipakai saat membuat batch.
+ */
+function deliveryFieldsFromFormData(formData: FormData):
+  | { error: string }
+  | {
+      deliveryDate: string
+      deliveryNumber: string
+      lotNo: string
+    } {
+  const deliveryNumber = valueFromFormData(formData, "deliveryNumber")
+  const deliveryDate = valueFromFormData(formData, "deliveryDate")
+  const lotNo = valueFromFormData(formData, "lotNo")
+
+  if (!deliveryNumber || deliveryNumber.trim().length > 100) {
+    return { error: "Delivery Number wajib diisi (maksimal 100 karakter)." }
+  }
+
+  if (!deliveryDate || !isIsoDate(deliveryDate)) {
+    return { error: "Tanggal delivery tidak valid." }
+  }
+
+  if (!lotNo || lotNo.trim().length > 100) {
+    return { error: "Lot No wajib diisi (maksimal 100 karakter)." }
+  }
+
+  return {
+    deliveryDate,
+    deliveryNumber: deliveryNumber.trim(),
+    lotNo: lotNo.trim(),
+  }
 }
 
 function valueFromFormData(formData: FormData, name: string): string | null {
@@ -55,9 +93,14 @@ export async function createLabelBoxBatchAction(
 ): Promise<LabelBoxBatchActionState> {
   const supplierId = valueFromFormData(formData, "supplierId")
   const masterItemId = valueFromFormData(formData, "masterItemId")
-  const deliveryNumber = valueFromFormData(formData, "deliveryNumber")
-  const deliveryDate = valueFromFormData(formData, "deliveryDate")
-  const lotNo = valueFromFormData(formData, "lotNo")
+  /**
+   * Dua angka yang mudah tertukar. Yang diisi di field "Packing Qty" adalah
+   * keping yang dipak: itu yang dibagi Qty/Box Master Item menjadi jumlah set
+   * label, dan di database namanya qty_delivery. Yang diisi di field "Qty
+   * Delivery" hanya dicetak di baris Qty/Delivery label dan tidak menentukan
+   * apa pun.
+   */
+  const rawPackingQty = String(formData.get("packingQty") ?? "").trim()
   const rawQtyDelivery = String(formData.get("qtyDelivery") ?? "").trim()
 
   if (
@@ -69,34 +112,35 @@ export async function createLabelBoxBatchAction(
     return { error: "Supplier dan Master Item wajib dipilih." }
   }
 
-  if (!deliveryNumber || deliveryNumber.trim().length > 100) {
-    return { error: "Delivery Number wajib diisi (maksimal 100 karakter)." }
-  }
+  const delivery = deliveryFieldsFromFormData(formData)
+  if ("error" in delivery) return delivery
 
-  if (!deliveryDate || !isIsoDate(deliveryDate)) {
-    return { error: "Tanggal delivery tidak valid." }
+  if (!/^[1-9]\d{0,6}$/.test(rawPackingQty)) {
+    return { error: "Packing Qty harus bilangan bulat lebih besar dari 0." }
   }
 
   if (!/^[1-9]\d{0,6}$/.test(rawQtyDelivery)) {
     return { error: "Qty Delivery harus bilangan bulat lebih besar dari 0." }
   }
 
-  if (!lotNo || lotNo.trim().length > 100) {
-    return { error: "Lot No wajib diisi (maksimal 100 karakter)." }
-  }
-
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("create_label_box_batch", {
-    p_delivery_date: deliveryDate,
-    p_delivery_number: deliveryNumber.trim(),
-    p_lot_no: lotNo.trim(),
+    p_delivery_date: delivery.deliveryDate,
+    p_delivery_number: delivery.deliveryNumber,
+    p_lot_no: delivery.lotNo,
     p_master_item_id: masterItemId,
-    p_qty_delivery: Number(rawQtyDelivery),
+    p_qty_delivery: Number(rawPackingQty),
+    p_qty_delivery_display: Number(rawQtyDelivery),
     p_supplier_id: supplierId,
   })
 
   if (error || !data?.[0]) {
-    return { error: rpcErrorMessage(error?.message ?? "") }
+    return {
+      error: rpcErrorMessage(
+        error?.message ?? "",
+        "Gagal membuat label box. Coba lagi atau hubungi admin.",
+      ),
+    }
   }
 
   const batch = data[0]
@@ -128,9 +172,78 @@ export async function createLabelBoxBatchAction(
       lotNo: batch.lot_no,
       masterItemRowNo: batch.master_item_row_no,
       packingQty: batch.packing_qty,
-      qtyDelivery: batch.qty_delivery,
+      qtyDelivery: batch.qty_delivery_display,
       supplierCode: batch.supplier_code,
     },
     success: `${batch.label_count} label box dibuat untuk ${batch.delivery_number}.`,
+  }
+}
+
+/**
+ * Hanya Delivery Number, tanggalnya, dan Lot No yang bisa disunting. Supplier,
+ * Master Item, dan Qty Delivery menentukan berapa dan nomor berapa saja label
+ * boxnya; mengubah itu berarti membuat batch baru, bukan menyunting yang ada.
+ */
+export async function updateLabelBoxBatchAction(
+  _previousState: LabelBoxBatchActionState,
+  formData: FormData,
+): Promise<LabelBoxBatchActionState> {
+  const batchId = valueFromFormData(formData, "batchId")
+  if (!batchId || !uuidPattern.test(batchId)) {
+    return { error: "Data label box tidak valid." }
+  }
+
+  const delivery = deliveryFieldsFromFormData(formData)
+  if ("error" in delivery) return delivery
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("update_label_box_batch", {
+    p_batch_id: batchId,
+    p_delivery_date: delivery.deliveryDate,
+    p_delivery_number: delivery.deliveryNumber,
+    p_lot_no: delivery.lotNo,
+  })
+
+  if (error || !data?.[0]) {
+    return {
+      error: rpcErrorMessage(
+        error?.message ?? "",
+        "Gagal memperbarui data label box. Coba lagi atau hubungi admin.",
+      ),
+    }
+  }
+
+  revalidatePath("/scan")
+  return {
+    success: `Data label box ${data[0].delivery_number} diperbarui.`,
+  }
+}
+
+export async function deleteLabelBoxBatchAction(
+  _previousState: LabelBoxBatchActionState,
+  formData: FormData,
+): Promise<LabelBoxBatchActionState> {
+  const batchId = valueFromFormData(formData, "batchId")
+  if (!batchId || !uuidPattern.test(batchId)) {
+    return { error: "Data label box tidak valid." }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("delete_label_box_batch", {
+    p_batch_id: batchId,
+  })
+
+  if (error || !data?.[0]) {
+    return {
+      error: rpcErrorMessage(
+        error?.message ?? "",
+        "Gagal menghapus data label box. Coba lagi atau hubungi admin.",
+      ),
+    }
+  }
+
+  revalidatePath("/scan")
+  return {
+    success: `Data label box dihapus berikut ${data[0].deleted_label_count} nomor box.`,
   }
 }
