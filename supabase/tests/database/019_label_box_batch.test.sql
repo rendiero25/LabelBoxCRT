@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(23);
+select plan(25);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -41,8 +41,8 @@ insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
 select has_function(
   'public',
   'create_label_box_batch',
-  array['uuid', 'text', 'date', 'uuid', 'integer', 'text', 'integer'],
-  'create_label_box_batch RPC takes supplier, DN, date, master item, qty, lot, qty cetak'
+  array['uuid', 'text', 'date', 'date', 'uuid', 'integer', 'text', 'integer'],
+  'create_label_box_batch RPC takes supplier, DN, date, packing date, master item, qty, lot, qty cetak'
 );
 
 select has_table('public', 'label_box_batches', 'label_box_batches table exists');
@@ -62,6 +62,7 @@ from public.create_label_box_batch(
   '95190000-0000-0000-0000-000000000001',
   'DN-LABELBOX-1',
   date '2026-07-28',
+  date '2026-07-25',
   '96190000-0000-0000-0000-000000000001',
   100,
   'LOT-LB-A'
@@ -118,6 +119,7 @@ select is(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-1',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
       'LOT-LB-DISPLAY',
@@ -157,6 +159,31 @@ select is(
   'batch menyimpan snapshot part no master item'
 );
 
+-- Tanggal packing milik batch sendiri, bukan turunan tanggal delivery: ia
+-- dicetak sebagai barisnya sendiri di atas Delivery Date.
+select is(
+  (select packing_date from labelbox_batch_a),
+  date '2026-07-25',
+  'batch menyimpan packing date apa adanya'
+);
+
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-9',
+      date '2026-07-28',
+      null,
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-F'
+    )
+  $$,
+  'P0001',
+  'PACKING_DATE_INVALID',
+  'packing date kosong ditolak'
+);
+
 -- Dihitung ulang tanpa membaca batch, supaya kesalahan pada row_number()
 -- di RPC benar-benar tertangkap.
 select is(
@@ -176,6 +203,7 @@ from public.create_label_box_batch(
   '95190000-0000-0000-0000-000000000001',
   'DN-LABELBOX-1',
   date '2026-07-28',
+  date '2026-07-25',
   '96190000-0000-0000-0000-000000000001',
   200,
   'LOT-LB-B'
@@ -217,6 +245,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-1',
       date '2026-08-01',
+      date '2026-07-31',
       '96190000-0000-0000-0000-000000000001',
       100,
       'LOT-LB-C'
@@ -233,6 +262,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-2',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       150,
       'LOT-LB-C'
@@ -249,6 +279,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-2',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       10000,
       'LOT-LB-C'
@@ -265,6 +296,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-2',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000002',
       100,
       'LOT-LB-C'
@@ -281,6 +313,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000002',
       'DN-LABELBOX-2',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
       'LOT-LB-C'
@@ -297,6 +330,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-2',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
       '   '
@@ -328,6 +362,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-1',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
       'LOT-LB-E'
@@ -347,6 +382,7 @@ select throws_ok(
       '95190000-0000-0000-0000-000000000001',
       'DN-LABELBOX-3',
       date '2026-07-28',
+      date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
       'LOT-LB-D'

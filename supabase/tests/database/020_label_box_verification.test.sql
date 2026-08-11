@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(26);
+select plan(28);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -93,6 +93,7 @@ from public.create_label_box_batch(
   '95200000-0000-0000-0000-000000000001',
   'DN-VERIFY-1',
   date '2026-07-29',
+  date '2026-07-27',
   '96200000-0000-0000-0000-000000000001',
   2,
   'LOT-VF-A'
@@ -229,6 +230,18 @@ select is(
   'print job membawa nomor urut Master Item dari batch'
 );
 
+-- Baris "Packing Date" dicetak dari snapshot milik print job, jadi nilainya
+-- harus sudah terisi dari batch sejak job itu dibuat.
+select is(
+  (select distinct packing_date from verify_jobs_open),
+  (
+    select packing_date
+    from public.label_box_batches
+    where id = (select batch_id from verify_batch)
+  ),
+  'create_label_box_print_jobs mengembalikan packing_date dari batch'
+);
+
 -- Kedua produk sudah pernah discan (produk pertama di box 1, produk kedua
 -- di box 2), jadi penutupan batch sekarang berhasil.
 create temporary table verify_close as
@@ -341,6 +354,22 @@ select is(
   'cetak ulang menyalin referensi, nomor urut, dan QR dari label aslinya'
 );
 
+-- Packing date label pengganti disalin dari job induknya, bukan dibaca ulang
+-- dari batch: label yang sudah tertempel tidak boleh berubah kalau batch-nya
+-- diedit belakangan.
+select is(
+  (select packing_date from verify_reprint_one),
+  (
+    select parent.packing_date_snapshot
+    from public.print_jobs parent
+    where parent.id = (
+      select job.parent_print_job_id from public.print_jobs job
+      where job.id = (select print_job_id from verify_reprint_one)
+    )
+  ),
+  'cetak ulang menyalin packing date dari label aslinya'
+);
+
 select is(
   (
     select count(*)::integer
@@ -370,6 +399,7 @@ from public.create_label_box_batch(
   '95200000-0000-0000-0000-000000000001',
   'DN-VERIFY-2',
   date '2026-07-30',
+  date '2026-07-28',
   '96200000-0000-0000-0000-000000000001',
   2,
   'LOT-VF-B'

@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(19);
+select plan(21);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -34,8 +34,8 @@ insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
 select has_function(
   'public',
   'update_label_box_batch',
-  array['uuid', 'text', 'date', 'text'],
-  'update_label_box_batch RPC takes batch, DN, date, lot'
+  array['uuid', 'text', 'date', 'date', 'text'],
+  'update_label_box_batch RPC takes batch, DN, date, packing date, lot'
 );
 
 select has_function(
@@ -58,6 +58,7 @@ from public.create_label_box_batch(
   '95210000-0000-0000-0000-000000000001',
   'DN-LB-EDIT-1',
   date '2026-08-07',
+  date '2026-08-05',
   '96210000-0000-0000-0000-000000000001',
   100,
   'LOT-EDIT-A'
@@ -70,6 +71,7 @@ from public.update_label_box_batch(
   (select batch_id from edit_batch),
   'DN-LB-EDIT-2',
   date '2026-08-09',
+  date '2026-08-08',
   'LOT-EDIT-B'
 );
 grant select on edit_result to public;
@@ -90,6 +92,27 @@ select is(
   ),
   'DN-LB-EDIT-2|2026-08-09|LOT-EDIT-B',
   'snapshot DN, tanggal, dan lot batch ikut berubah'
+);
+
+select is(
+  (
+    select packing_date from public.label_box_batches
+    where id = (select batch_id from edit_batch)
+  ),
+  date '2026-08-08',
+  'packing date batch ikut diperbarui'
+);
+
+select throws_ok(
+  $$
+    select public.update_label_box_batch(
+      (select batch_id from edit_batch), 'DN-LB-EDIT-2', date '2026-08-09',
+      null, 'LOT-EDIT-B'
+    )
+  $$,
+  'P0001',
+  'PACKING_DATE_INVALID',
+  'packing date kosong ditolak saat update'
 );
 
 -- Nomor box tidak boleh bergeser: yang berubah cuma keterangan kirimannya.
@@ -140,7 +163,8 @@ select is(
 select throws_ok(
   $$
     select public.update_label_box_batch(
-      (select batch_id from edit_batch), '   ', date '2026-08-09', 'LOT-EDIT-B'
+      (select batch_id from edit_batch), '   ', date '2026-08-09',
+      date '2026-08-08', 'LOT-EDIT-B'
     )
   $$,
   'P0001',
@@ -151,7 +175,8 @@ select throws_ok(
 select throws_ok(
   $$
     select public.update_label_box_batch(
-      (select batch_id from edit_batch), 'DN-LB-EDIT-2', date '2026-08-09', ''
+      (select batch_id from edit_batch), 'DN-LB-EDIT-2', date '2026-08-09',
+      date '2026-08-08', ''
     )
   $$,
   'P0001',
@@ -163,7 +188,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       '00000000-0000-0000-0000-000000000000',
-      'DN-LB-EDIT-2', date '2026-08-09', 'LOT-EDIT-B'
+      'DN-LB-EDIT-2', date '2026-08-09', date '2026-08-08', 'LOT-EDIT-B'
     )
   $$,
   'P0001',
@@ -179,6 +204,7 @@ from public.create_label_box_batch(
   '95210000-0000-0000-0000-000000000001',
   'DN-LB-EDIT-2',
   date '2026-08-09',
+  date '2026-08-08',
   '96210000-0000-0000-0000-000000000001',
   100,
   'LOT-EDIT-C'
@@ -189,7 +215,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       (select batch_id from edit_batch),
-      'DN-LB-EDIT-2', date '2026-08-10', 'LOT-EDIT-B'
+      'DN-LB-EDIT-2', date '2026-08-10', date '2026-08-08', 'LOT-EDIT-B'
     )
   $$,
   'P0001',

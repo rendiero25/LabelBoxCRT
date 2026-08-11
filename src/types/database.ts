@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       audit_logs: {
@@ -264,6 +239,7 @@ export type Database = {
           lot_no: string
           master_item_id: string
           master_item_row_no: number
+          packing_date: string
           packing_qty: number
           part_no_snapshot: string
           qr_generated_at: string | null
@@ -287,6 +263,7 @@ export type Database = {
           lot_no: string
           master_item_id: string
           master_item_row_no: number
+          packing_date: string
           packing_qty: number
           part_no_snapshot: string
           qr_generated_at?: string | null
@@ -310,6 +287,7 @@ export type Database = {
           lot_no?: string
           master_item_id?: string
           master_item_row_no?: number
+          packing_date?: string
           packing_qty?: number
           part_no_snapshot?: string
           qr_generated_at?: string | null
@@ -513,6 +491,7 @@ export type Database = {
           correlation_id: string
           error_code: string | null
           id: string
+          label_box_batch_id: string | null
           label_uid: string | null
           normalized_size: string
           packing_session_id: string
@@ -529,6 +508,7 @@ export type Database = {
           correlation_id?: string
           error_code?: string | null
           id?: string
+          label_box_batch_id?: string | null
           label_uid?: string | null
           normalized_size: string
           packing_session_id: string
@@ -545,6 +525,7 @@ export type Database = {
           correlation_id?: string
           error_code?: string | null
           id?: string
+          label_box_batch_id?: string | null
           label_uid?: string | null
           normalized_size?: string
           packing_session_id?: string
@@ -562,6 +543,13 @@ export type Database = {
             columns: ["box_layer_id"]
             isOneToOne: false
             referencedRelation: "box_layers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_session_scans_label_box_batch_id_fkey"
+            columns: ["label_box_batch_id"]
+            isOneToOne: false
+            referencedRelation: "label_box_batches"
             referencedColumns: ["id"]
           },
           {
@@ -724,6 +712,7 @@ export type Database = {
           id: string
           label_reference: string
           lot_no_snapshot: string | null
+          packing_date_snapshot: string
           packing_session_id: string
           parent_print_job_id: string | null
           part_name_snapshot: string
@@ -753,6 +742,7 @@ export type Database = {
           id?: string
           label_reference: string
           lot_no_snapshot?: string | null
+          packing_date_snapshot: string
           packing_session_id: string
           parent_print_job_id?: string | null
           part_name_snapshot: string
@@ -782,6 +772,7 @@ export type Database = {
           id?: string
           label_reference?: string
           lot_no_snapshot?: string | null
+          packing_date_snapshot?: string
           packing_session_id?: string
           parent_print_job_id?: string | null
           part_name_snapshot?: string
@@ -1120,8 +1111,9 @@ export type Database = {
           p_delivery_number: string
           p_lot_no: string
           p_master_item_id: string
+          p_packing_date: string
           p_qty_delivery: number
-          p_qty_delivery_display?: number | null
+          p_qty_delivery_display?: number
           p_supplier_id: string
         }
         Returns: {
@@ -1132,6 +1124,7 @@ export type Database = {
           label_count: number
           lot_no: string
           master_item_row_no: number
+          packing_date: string
           packing_qty: number
           qr_generated_at: string
           qty_delivery: number
@@ -1150,6 +1143,7 @@ export type Database = {
           label_reference: string
           lot_no: string
           master_item_row_no: number
+          packing_date: string
           part_name: string
           part_no: string
           print_job_id: string
@@ -1163,7 +1157,7 @@ export type Database = {
         }[]
       }
       create_label_box_reprint_jobs: {
-        Args: { p_batch_id: string; p_label_box_ids?: string[] | null }
+        Args: { p_batch_id: string; p_label_box_ids?: string[] }
         Returns: {
           box_name: string
           box_number: string
@@ -1173,6 +1167,7 @@ export type Database = {
           label_reference: string
           lot_no: string
           master_item_row_no: number
+          packing_date: string
           part_name: string
           part_no: string
           print_job_id: string
@@ -1330,6 +1325,7 @@ export type Database = {
           p_delivery_date: string
           p_delivery_number: string
           p_lot_no: string
+          p_packing_date: string
         }
         Returns: {
           batch_id: string
@@ -1337,6 +1333,7 @@ export type Database = {
           delivery_number: string
           label_count: number
           lot_no: string
+          packing_date: string
         }[]
       }
       update_master_item: {
@@ -1542,9 +1539,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       delivery_status: ["draft", "active", "closed", "cancelled"],

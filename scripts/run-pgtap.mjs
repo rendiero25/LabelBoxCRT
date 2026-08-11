@@ -22,6 +22,32 @@ function readAccessToken() {
   return matched?.[1]?.trim().replace(/^["']|["']$/g, "") ?? ""
 }
 
+/**
+ * The Management API answers with the rows of the last statement that produced
+ * any — and `finish()` produces none when every assertion passed. Left alone,
+ * a failing file therefore answers with whatever assertion happened to return
+ * a row last, which reads exactly like a pass. Parking finish()'s output in a
+ * temporary table and selecting it back with `coalesce` makes the final
+ * statement return one row either way, so silence means success and nothing
+ * else can be mistaken for it.
+ */
+function withDiagnosticsLast(sql, testPath) {
+  const finishCall = /select\s+\*\s+from\s+finish\s*\(\s*\)\s*;/i
+
+  if (!finishCall.test(sql)) {
+    console.error(`FAIL  ${testPath}`)
+    console.error("No `select * from finish();` found in the test file.")
+    return 1
+  }
+
+  return sql.replace(
+    finishCall,
+    "create temporary table pgtap_diagnostics as select * from finish();\n" +
+      "select coalesce(string_agg(line.finish, chr(10)), '') as diagnostics\n" +
+      "from pgtap_diagnostics line;",
+  )
+}
+
 async function runTest(testPath) {
   const token = readAccessToken()
   if (!token) {
@@ -30,7 +56,8 @@ async function runTest(testPath) {
   }
 
   const projectRef = readFileSync("supabase/.temp/project-ref", "utf8").trim()
-  const sql = readFileSync(testPath, "utf8")
+  const sql = withDiagnosticsLast(readFileSync(testPath, "utf8"), testPath)
+  if (typeof sql !== "string") return sql
 
   const response = await fetch(
     `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
@@ -70,8 +97,14 @@ async function runTest(testPath) {
   // finish() emits nothing when every assertion passed, and a
   // "# Looks like you failed N tests of M" diagnostic otherwise.
   const diagnostics = rows
-    .map((row) => row.finish)
+    .map((row) => row.diagnostics)
     .filter((line) => typeof line === "string" && line.trim() !== "")
+
+  if (rows.length !== 1 || !("diagnostics" in rows[0])) {
+    console.error(`FAIL  ${testPath}`)
+    console.error(`Expected the diagnostics row, got: ${body.slice(0, 500)}`)
+    return 1
+  }
 
   if (diagnostics.length === 0) {
     console.log(`PASS  ${testPath}`)
