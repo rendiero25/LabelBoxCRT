@@ -130,7 +130,7 @@ describe("buildLabelHtml", () => {
   it("keeps even the longest field name at its nominal size", () => {
     for (const name of ["DELIVERY DATE", "OPERATOR PACK"]) {
       expect(html).toContain(
-        `font-size:1.5mm;font-weight:700;line-height:1;` +
+        `font-size:2mm;font-weight:700;line-height:1;` +
           `white-space:nowrap;overflow:hidden">${name}</div>`,
       )
     }
@@ -162,7 +162,7 @@ describe("buildLabelHtml", () => {
   // Baris terakhir dipakai cap QC dan tidak berkolom; garis pemisah kolom yang
   // menembusnya membelah ruang capnya jadi dua.
   it("stops the column divider above the QC row", () => {
-    expect(html).toContain("left:18.25mm;top:8.5mm;width:0.25mm;height:41.25mm")
+    expect(html).toContain("left:23mm;top:8.5mm;width:0.25mm;height:41.25mm")
   })
 
   // Nama baris QC Passes membentang selebar bingkai: 592 - 22 - 14 = 556 dot,

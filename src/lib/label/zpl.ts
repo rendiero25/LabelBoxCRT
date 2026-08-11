@@ -58,12 +58,16 @@ const FULL_WIDTH_ROW_TOP = ROWS_TOP + (ROW_COUNT - 1) * ROW_HEIGHT
 
 /**
  * Kolom kiri memuat nama field, kolom kanan nilainya. Lebar kolom kiri pas untuk
- * nama terpanjang ("Delivery Date", "Operator Pack") dan tidak lebih: yang
- * panjang dan berubah-ubah nilainya, bukan namanya, jadi sisa ruang diberikan
- * ke kolom nilai.
+ * nama terpanjang ("Delivery Date", "Operator Pack") pada ukuran hurufnya dan
+ * tidak lebih; sisa ruangnya diberikan ke kolom nilai.
+ *
+ * Garisnya digeser dari 146 ke 184 dot supaya nama fieldnya muat pada 16 dot:
+ * 13 huruf x 0.72 x 16 = 150 dot, sedangkan blok namanya 184 - 22 - 8 = 154.
+ * Kolom nilai kehilangan 38 dot yang sama, jadi nilai terpanjang — nama
+ * supplier dan Lot No — dirapatkan sedikit lebih jauh dari sebelumnya.
  */
 const LABEL_COLUMN_X = FRAME_X + 14
-const VALUE_DIVIDER_X = 146
+const VALUE_DIVIDER_X = 184
 const VALUE_COLUMN_X = VALUE_DIVIDER_X + 14
 
 /**
@@ -135,13 +139,13 @@ export function qrMagnificationFor(
  * sehingga kolom kiri terbaca bergerigi: "Customer" besar, "Operator Pack"
  * kecil, padahal keduanya nama field yang sederajat.
  *
- * 12 adalah batas atasnya, bukan pilihan bebas: nama terpanjang 13 huruf di
- * blok 116 dot menghabiskan 13 x 0.72 x 12 = 112 dot. Satu angka lebih tinggi
- * membuat justru nama terpanjang itu saja yang menyusut, dan kolom kiri
- * kembali bergerigi. Melebihi ini kolom nama harus dilebarkan lebih dulu,
- * yang berarti menggeser garis pemisah ke kanan.
+ * Tingginya terikat lebar kolomnya: nama terpanjang 13 huruf menghabiskan
+ * 13 x 0.72 x tinggi dot, dan itu harus tetap di bawah lebar blok namanya.
+ * Pada 16 dot butuh 150 dari 154 dot yang tersedia. Menaikkannya lagi berarti
+ * menggeser VALUE_DIVIDER_X ke kanan lebih dulu — kalau tidak, justru nama
+ * terpanjang saja yang menyusut dan kolom kiri kembali bergerigi.
  */
-const LABEL_FONT = { height: 12, width: 6 }
+const LABEL_FONT = { height: 16, width: 8 }
 const VALUE_FONT = { height: 23, width: 12 }
 /** Kop nama perusahaan seukuran isinya, bukan judul yang menjulang di atasnya. */
 const COMPANY_FONT = VALUE_FONT
