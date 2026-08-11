@@ -405,6 +405,14 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
   // Lebar garis mendatar: garis yang jatuh di tengah blok kolom kanan berhenti
   // di kolom itu, sedangkan garis yang justru menutup sebuah blok — di bawah
   // QR, di bawah angka bulan, di bawah FIFO — melintang penuh.
+  //
+  // Empat garis karenanya berhenti di x=452: tiga mengapit QR, dan satu jatuh
+  // di tengah blok angka bulan yang setinggi dua baris. Ini disengaja, bukan
+  // garis yang terlupa. Menembus QR membuatnya gagal dipindai, dan menembus
+  // angka bulan membelah angkanya. Kolom kanan adalah kolomnya sendiri dengan
+  // sel yang lebih tinggi; batas selnya tetap digambar di y=167, 233, dan 266.
+  // Setiap batas baris lain wajib punya garisnya — dijaga oleh tes yang
+  // mencocokkan posisi seluruh garis, bukan cuma jumlahnya.
   const ruleWidth = (y: number) =>
     y < QR_COLUMN_BOTTOM || (y > MONTH_TOP && y < MONTH_BOTTOM)
       ? QR_COLUMN_X - FRAME_X

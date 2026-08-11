@@ -18,7 +18,7 @@ import {
  * ZPL, dibagi 8 dot/mm. Menyalin ulang ukurannya ke sini akan membuat label
  * Zebra dan label Canon perlahan berbeda bentuk tanpa ada yang menyadari.
  */
-export const HTML_TEMPLATE_VERSION = "v7-html"
+export const HTML_TEMPLATE_VERSION = "v8-html"
 
 const L = LABEL_LAYOUT
 
@@ -148,9 +148,7 @@ function textBox(
   const fitted = condense
     ? fontHeightDots
     : fitFontHeight(text, box.width, fontHeightDots)
-  const scale = condense
-    ? condenseScale(text, box.width, fontHeightDots)
-    : 1
+  const scale = condense ? condenseScale(text, box.width, fontHeightDots) : 1
   const content =
     scale === 1
       ? escapeHtml(text)

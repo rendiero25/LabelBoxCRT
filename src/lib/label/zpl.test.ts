@@ -140,13 +140,29 @@ describe("buildLabelZpl", () => {
     const rules = [...zpl.matchAll(/\^FO8,(\d+)\^GB(\d+),0,2\^FS/g)].map(
       ([, y, width]) => ({ width: Number(width), y: Number(y) }),
     )
-    expect(rules.length).toBe(11)
+    // Setiap batas baris punya garisnya, dicocokkan per posisi dan bukan cuma
+    // dihitung: garis yang hilang di tengah tabel menggabungkan dua baris jadi
+    // satu di mata operator, dan itu baru ketahuan setelah label tertempel.
+    expect(rules.map((rule) => rule.y)).toEqual(
+      Array.from({ length: 11 }, (_, index) => 68 + index * 33),
+    )
 
     // Garis kop dan dua garis baris berikutnya mengapit QR; garis di 200
-    // jatuh tepat di tengah angka bulan.
+    // jatuh tepat di tengah angka bulan. Keempatnya sengaja berhenti di kolom
+    // kanan — menembus QR membuatnya gagal dipindai, menembus angka bulan
+    // membelah angkanya.
     const insideRightColumn = new Set([68, 101, 134, 200])
     for (const rule of rules) {
       expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 444 : 584)
+    }
+  })
+
+  // Kolom kanan tetap punya batas selnya sendiri walau baris kiri tidak
+  // diteruskan menembusnya: di bawah QR, di bawah angka bulan, dan di bawah
+  // baris FIFO. Tanpa ketiganya blok kanan mengambang tanpa pemisah.
+  it("closes every block in the right column with a full-width rule", () => {
+    for (const y of [167, 233, 266]) {
+      expect(zpl).toContain(`^FO8,${y}^GB584,0,2^FS`)
     }
   })
 

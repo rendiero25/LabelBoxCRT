@@ -136,6 +136,29 @@ describe("buildLabelHtml", () => {
     }
   })
 
+  // Jalur kertas harus punya pemisah yang sama persis dengan jalur Zebra:
+  // garis yang hilang di salah satunya membuat kedua label tidak sebangun,
+  // dan yang dipegang QC belum tentu yang diperiksa di layar.
+  it("draws a separator at every row boundary, same as the ZPL path", () => {
+    const tops = [
+      ...html.matchAll(/top:([\d.]+)mm;width:([\d.]+)mm;height:0\.25mm/g),
+    ]
+      .map(([, top, width]) => ({ top: Number(top), width: Number(width) }))
+      .sort((left, right) => left.top - right.top)
+
+    // 11 batas baris mulai 8.5mm (68 dot), tiap baris 4.125mm (33 dot).
+    expect(tops.map((rule) => rule.top)).toEqual(
+      Array.from({ length: 11 }, (_, index) => 8.5 + index * 4.125),
+    )
+
+    // Empat garis berhenti di kolom kanan (55.5mm): tiga mengapit QR, satu
+    // jatuh di tengah blok angka bulan. Sisanya selebar bingkai (73mm).
+    const stopsAtRightColumn = new Set([8.5, 12.625, 16.75, 25])
+    for (const rule of tops) {
+      expect(rule.width).toBe(stopsAtRightColumn.has(rule.top) ? 55.5 : 73)
+    }
+  })
+
   // Baris terakhir dipakai cap QC dan tidak berkolom; garis pemisah kolom yang
   // menembusnya membelah ruang capnya jadi dua.
   it("stops the column divider above the QC row", () => {
@@ -143,8 +166,8 @@ describe("buildLabelHtml", () => {
   })
 
   // Nama baris QC Passes membentang selebar bingkai: 592 - 22 - 14 = 556 dot,
-  // dan barisnya kini yang kesebelas, bukan kesembilan.
-  // dan ditengahkan di dalamnya.
+  // dan ditengahkan di dalamnya. Barisnya kini yang kesebelas, bukan
+  // kesembilan.
   it("centres the QC row across the frame with no value column", () => {
     expect(html).toContain("left:2.75mm;top:49.75mm;width:69.5mm")
     expect(html).toContain("justify-content:center;font-size:2.875mm")
