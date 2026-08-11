@@ -11,6 +11,7 @@ export type FinalizedLabelSnapshot = {
   masterItemRowNo: number
   lotNo: string
   boxNumber: string
+  packingDate: string
   deliveryDate: string
   /** QR payload yang sudah dirakit dan disimpan di label_boxes.qr_payload. */
   qrPayload: string
@@ -29,6 +30,7 @@ export type FormattedLabelFields = {
    * ("Item List", "Lot No", "No Box") dan menghabiskan tiga baris label.
    */
   lotNo: string
+  packingDate: string
   deliveryDate: string
   /** Bulan kirim tanpa angka nol di depan, dicetak besar sebagai penanda FIFO. */
   deliveryMonth: string
@@ -108,6 +110,7 @@ export function formatLabelFields(
     packingQty: withUnit(snapshot.packingQty),
     qtyDelivery: withUnit(snapshot.qtyDelivery),
     lotNo: formatLotNoLine(snapshot),
+    packingDate: formatShortDate(snapshot.packingDate),
     deliveryDate: formatShortDate(snapshot.deliveryDate),
     deliveryMonth: formatDeliveryMonth(snapshot.deliveryDate),
     qrPayload: text(snapshot.qrPayload),

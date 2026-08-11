@@ -120,6 +120,7 @@ export function LabelBoxBatchPrintCard({
             deliveryDate: job.deliveryDate,
             lotNo: job.lotNo,
             masterItemRowNo: job.masterItemRowNo,
+            packingDate: job.packingDate,
             packingQty: job.qty,
             partNo: job.partNo,
             qrPayload: job.qrPayload,

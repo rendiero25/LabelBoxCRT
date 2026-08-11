@@ -18,6 +18,7 @@ const sampleFields: FormattedLabelFields = {
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
+  packingDate: "10-08-2026",
   deliveryDate: "15-08-2026",
   deliveryMonth: "8",
   qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
@@ -71,8 +72,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v7 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v7")
+  it("exports template version v8 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v8")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -91,13 +92,15 @@ describe("buildLabelZpl", () => {
     expect(zpl).toContain("PT. CRT KABELITA")
   })
 
-  it("prints the nine row labels in the order of the approved layout", () => {
+  it("prints the eleven row labels in the order of the approved layout", () => {
     const labels = [
       "CUSTOMER",
       "SUPPLIER ID",
       "PART NO",
+      "PART NAME",
       "QTY/BOX",
       "QTY/DELIVERY",
+      "PACKING DATE",
       "DELIVERY DATE",
       "LOT NO",
       "OPERATOR PACK",
@@ -123,11 +126,11 @@ describe("buildLabelZpl", () => {
   // berhenti di atasnya; garis yang menembusnya membelah ruang capnya jadi dua.
   it("draws the frame and stops the divider above the QC row", () => {
     expect(zpl).toContain("^FO8,8^GB584,424,2^FS")
-    expect(zpl).toContain("^FO146,68^GB0,320,2^FS")
+    expect(zpl).toContain("^FO146,68^GB0,330,2^FS")
   })
 
   it("runs the right column from the top edge down to the FIFO row", () => {
-    expect(zpl).toContain("^FO452,8^GB0,300,2^FS")
+    expect(zpl).toContain("^FO452,8^GB0,258,2^FS")
   })
 
   // Garis mendatar yang melintas di tengah blok kolom kanan akan tercetak
@@ -137,11 +140,11 @@ describe("buildLabelZpl", () => {
     const rules = [...zpl.matchAll(/\^FO8,(\d+)\^GB(\d+),0,2\^FS/g)].map(
       ([, y, width]) => ({ width: Number(width), y: Number(y) }),
     )
-    expect(rules.length).toBe(9)
+    expect(rules.length).toBe(11)
 
-    // Garis kop dan dua garis baris berikutnya mengapit QR; garis di 228
+    // Garis kop dan dua garis baris berikutnya mengapit QR; garis di 200
     // jatuh tepat di tengah angka bulan.
-    const insideRightColumn = new Set([68, 108, 148, 228])
+    const insideRightColumn = new Set([68, 101, 134, 200])
     for (const rule of rules) {
       expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 444 : 584)
     }
@@ -180,14 +183,14 @@ describe("buildLabelZpl", () => {
   // Lot No seukuran Delivery Date dan nilai lain, dan barisnya selebar bingkai.
   it("prints Lot No at the same size as the other values", () => {
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FD01-M-CRT-004A-581-300726-B001-B101^FS",
+      "^A@N,23,12,E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FD01-M-CRT-004A-581-300726-B001-B101^FS",
     )
   })
 
   // Kop nama perusahaan seukuran isinya, bukan judul yang menjulang di atasnya.
   it("prints the company header at the same size as Supplier ID", () => {
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITBD.TTF^FB416,1,0,L,0^FH^FDPT. CRT KABELITA^FS",
+      "^A@N,23,12,E:OUTFITBD.TTF^FB416,1,0,L,0^FH^FDPT. CRT KABELITA^FS",
     )
   })
 
@@ -196,7 +199,7 @@ describe("buildLabelZpl", () => {
   // sampai muat. Nama sepanjang kolomnya dicetak apa adanya.
   it("prints the supplier name at its nominal width when it fits", () => {
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT SUMBER KABEL^FS",
+      "^A@N,23,12,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT SUMBER KABEL^FS",
     )
   })
 
@@ -206,7 +209,7 @@ describe("buildLabelZpl", () => {
       supplierName: "PT CIPTA MANDIRI WIRASAKTI",
     })
     expect(zplLong).toContain(
-      "^A@N,28,14,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT CIPTA MANDIRI WIRASAKTI^FS",
+      "^A@N,23,12,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT CIPTA MANDIRI WIRASAKTI^FS",
     )
   })
 
@@ -215,8 +218,10 @@ describe("buildLabelZpl", () => {
       ...sampleFields,
       supplierName: "PT SUMBER KABEL NUSANTARA SEJAHTERA ABADI",
     })
-    // 41 karakter di blok 236 dot: 236 / (41 x 0.75) = 7.
-    expect(zplLonger).toContain("^A@N,28,9,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT")
+    // 41 karakter di blok 278 dot: floor(278 / (41 x 0.75)) = 9.
+    expect(zplLonger).toContain(
+      "^A@N,23,9,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDPT",
+    )
   })
 
   // Ruang di sekitar "QC Passes" sengaja kosong untuk cap QC, jadi baris itu
@@ -233,10 +238,10 @@ describe("buildLabelZpl", () => {
   // baris, lalu satu baris teks tetap, keduanya ditengahkan di kolomnya.
   it("prints the delivery month and the FIFO line under the QR", () => {
     expect(zpl).toContain(
-      "^FO456,197^A@N,62,34,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FD8^FS",
+      "^FO456,174^A@N,51,28,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FD8^FS",
     )
     expect(zpl).toContain(
-      "^FO456,276^A@N,24,12,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FDFIFO PT CRT^FS",
+      "^FO456,239^A@N,20,10,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FDFIFO PT CRT^FS",
     )
   })
 
@@ -268,7 +273,7 @@ describe("buildLabelZpl", () => {
     expect(Number(x)).toBeGreaterThanOrEqual(452)
     expect(Number(x) + 132).toBeLessThanOrEqual(592)
     expect(Number(y)).toBeGreaterThanOrEqual(8)
-    expect(Number(y) + 132).toBeLessThanOrEqual(188)
+    expect(Number(y) + 132).toBeLessThanOrEqual(167)
   })
 
   // Berat huruf datang dari berkas font yang ditanam, bukan dari mencetak teks
@@ -276,19 +281,19 @@ describe("buildLabelZpl", () => {
   // nilai hanya yang dicari operator lebih dulu.
   it("draws the field names in Bold and only the sought values with them", () => {
     expect(zpl).toContain(
-      "^A@N,12,6,E:OUTFITBD.TTF^FB116,1,0,L,0^FH^FDPART NO^FS",
+      "^A@N,10,5,E:OUTFITBD.TTF^FB116,1,0,L,0^FH^FDPART NO^FS",
     )
     expect(zpl).toContain(
-      "^A@N,32,13,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
+      "^A@N,26,11,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",
     )
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD100 PCS^FS",
+      "^A@N,23,12,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD100 PCS^FS",
     )
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD200 PCS^FS",
+      "^A@N,23,12,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD200 PCS^FS",
     )
     expect(zpl).toContain(
-      "^A@N,28,14,E:OUTFITBD.TTF^FB556,1,0,C,0^FH^FDQC Passes^FS",
+      "^A@N,23,12,E:OUTFITBD.TTF^FB556,1,0,C,0^FH^FDQC Passes^FS",
     )
     expect(zpl).not.toContain("^A0N,")
   })
@@ -296,12 +301,26 @@ describe("buildLabelZpl", () => {
   // Sisa kolom nilai berat biasa. Kalau semuanya Bold, tidak ada satu pun yang
   // menonjol dan operator membaca seluruh label untuk menemukan satu angka.
   it("draws the remaining values in the Regular face", () => {
-    for (const value of ["10015", "15-08-2026"]) {
-      expect(zpl).toContain(`E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FD${value}^FS`)
-    }
-    // Dua baris terbawah selebar bingkai, bukan berhenti di kolom QR.
+    expect(zpl).toContain("E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FD10015^FS")
+    // Packing Date, Delivery Date, dan Operator Pack sudah di luar kolom
+    // kanan, jadi selebar bingkai (418), bukan berhenti di kolom QR (278).
+    expect(zpl).toContain("E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FD15-08-2026^FS")
+    expect(zpl).toContain("E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FDAD | SR | ST^FS")
+  })
+
+  it("prints the fixed Part Name value regardless of the input fields", () => {
     expect(zpl).toContain(
-      "E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FDAD | SR | ST^FS",
+      "^A@N,23,12,E:OUTFITRG.TTF^FB278,1,0,L,0^FH^FDTUBE^FS",
+    )
+  })
+
+  it("prints Packing Date above Delivery Date, both spanning the full frame width", () => {
+    const packingDateIndex = zpl.indexOf("^FDPACKING DATE^FS")
+    const deliveryDateIndex = zpl.indexOf("^FDDELIVERY DATE^FS")
+    expect(packingDateIndex).toBeGreaterThan(0)
+    expect(deliveryDateIndex).toBeGreaterThan(packingDateIndex)
+    expect(zpl).toContain(
+      "^A@N,23,12,E:OUTFITRG.TTF^FB418,1,0,L,0^FH^FD10-08-2026^FS",
     )
   })
 

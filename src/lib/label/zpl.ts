@@ -9,6 +9,11 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * ZPL template v4 for Zebra ZD220 (203 dpi), media 75 mm x 55 mm landscape
  * with 3 mm gap, thermal-transfer wax ribbon.
  *
+ * v8 menambah dua baris: "Part Name" (nilai tetap "Tube", di bawah Part No)
+ * dan "Packing Date" (di atas Delivery Date). Sembilan baris jadi sebelas,
+ * dan supaya tetap muat di tinggi label yang tetap, seluruh baris menyempit
+ * dari 40 ke 33 dot dan setiap font ikut mengecil sebanding.
+ *
  * v7 menyusun ulang isi barisnya. "Item List" dan "No Box" tidak lagi berdiri
  * sendiri: keduanya masuk ke baris Lot No sebagai satu rangkaian penanda.
  * Tempat yang terbebas dipakai baris Customer (nama supplier), Operator Pack,
@@ -28,7 +33,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v7"
+export const TEMPLATE_VERSION = "v8"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600
@@ -45,8 +50,8 @@ const FRAME_HEIGHT = LABEL_LENGTH_DOTS - FRAME_Y * 2 // 424
 
 const HEADER_HEIGHT = 60
 const ROWS_TOP = FRAME_Y + HEADER_HEIGHT // 68
-const ROW_COUNT = 9
-const ROW_HEIGHT = 40 // 9 x 40 = 360; 68 + 360 = 428, sisa 4 dot di bawah
+const ROW_COUNT = 11
+const ROW_HEIGHT = 33 // 11 x 33 = 363; 68 + 363 = 431, sisa 1 dot di bawah
 const ROWS_BOTTOM = ROWS_TOP + ROW_COUNT * ROW_HEIGHT
 /** Baris terakhir tidak berkolom; garis pemisah kolom berhenti di atasnya. */
 const FULL_WIDTH_ROW_TOP = ROWS_TOP + (ROW_COUNT - 1) * ROW_HEIGHT
@@ -130,8 +135,8 @@ export function qrMagnificationFor(
  * sehingga kolom kiri terbaca bergerigi: "Customer" besar, "Operator Pack"
  * kecil, padahal keduanya nama field yang sederajat.
  */
-const LABEL_FONT = { height: 12, width: 6 }
-const VALUE_FONT = { height: 28, width: 14 }
+const LABEL_FONT = { height: 10, width: 5 }
+const VALUE_FONT = { height: 23, width: 12 }
 /** Kop nama perusahaan seukuran isinya, bukan judul yang menjulang di atasnya. */
 const COMPANY_FONT = VALUE_FONT
 /**
@@ -140,7 +145,7 @@ const COMPANY_FONT = VALUE_FONT
  */
 const QC_FONT = VALUE_FONT
 /** Part No dicetak paling tinggi; itu field yang dicari operator lebih dulu. */
-const PART_NO_FONT = { height: 32, width: 13 }
+const PART_NO_FONT = { height: 26, width: 11 }
 /**
  * Nama supplier setinggi nilai lain. Lebarnya tidak dipatok — fitValueToColumn
  * yang merapatkan hurufnya sampai muat di kolomnya, jadi nama pendek tercetak
@@ -148,8 +153,8 @@ const PART_NO_FONT = { height: 32, width: 13 }
  */
 const CUSTOMER_FONT = VALUE_FONT
 /** Angka bulan mengisi tinggi dua baris; ini penanda yang dibaca dari jauh. */
-const MONTH_FONT = { height: 62, width: 34 }
-const FIFO_FONT = { height: 24, width: 12 }
+const MONTH_FONT = { height: 51, width: 28 }
+const FIFO_FONT = { height: 20, width: 10 }
 
 type ZplFont = { height: number; width: number }
 
@@ -219,6 +224,8 @@ export type LabelRow = {
 /** Ketiga operator packing dicetak tetap; yang mengepak melingkari namanya. */
 const OPERATOR_PACK_TEXT = "AD | SR | ST"
 const QC_PASSES_TEXT = "QC Passes"
+/** Semua Master Item saat ini bertipe tube; nilainya tetap, bukan dari fields. */
+const PART_NAME_TEXT = "Tube"
 
 /**
  * Kedua kolom dicetak huruf besar. Huruf kecil pada cetakan termal di media
@@ -230,7 +237,7 @@ function upper(value: string): string {
 }
 
 /**
- * Sembilan baris label beserta beratnya, dipisahkan dari perakit ZPL supaya
+ * Sebelas baris label beserta beratnya, dipisahkan dari perakit ZPL supaya
  * perender HTML untuk printer kertas memakai daftar yang sama persis. Urutan
  * dan pilihan hurufnya cuma boleh berubah di satu tempat.
  */
@@ -257,6 +264,13 @@ export function labelRowsFor(fields: FormattedLabelFields): LabelRow[] {
       label: upper("Part No"),
       value: upper(fields.partNo),
     },
+    // Semua Master Item saat ini bertipe tube; nilainya konstan, berbeda
+    // dengan baris lain yang datanya ikut batch/master item.
+    {
+      font: VALUE_FONT,
+      label: upper("Part Name"),
+      value: upper(PART_NAME_TEXT),
+    },
     {
       boldValue: true,
       font: VALUE_FONT,
@@ -269,14 +283,20 @@ export function labelRowsFor(fields: FormattedLabelFields): LabelRow[] {
       label: upper("Qty/Delivery"),
       value: upper(fields.qtyDelivery),
     },
+    // Packing Date dan keempat baris di bawahnya sudah di luar kolom kanan
+    // (QR, bulan, dan FIFO berhenti sebelum baris ini), jadi nilainya selebar
+    // bingkai. Lot No yang memuat tiga penanda sekaligus ditaruh di baris
+    // pertamanya karena itu nilai terpanjang di label.
+    {
+      font: VALUE_FONT,
+      label: upper("Packing Date"),
+      value: fields.packingDate,
+    },
     {
       font: VALUE_FONT,
       label: upper("Delivery Date"),
       value: fields.deliveryDate,
     },
-    // Tiga baris terakhir ada di bawah kolom kanan, jadi hanya di sini nilainya
-    // selebar bingkai. Lot No yang memuat tiga penanda sekaligus ditaruh di
-    // baris pertamanya karena itu nilai terpanjang di label.
     {
       fitValueToColumn: true,
       font: VALUE_FONT,

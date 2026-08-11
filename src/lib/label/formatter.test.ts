@@ -15,6 +15,7 @@ const baseSnapshot: FinalizedLabelSnapshot = {
   masterItemRowNo: 1,
   lotNo: "M-CRT-004A-581-300726-B001",
   boxNumber: "B101",
+  packingDate: "2026-08-05",
   deliveryDate: "2026-08-15",
   qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
 }
@@ -28,6 +29,7 @@ describe("formatLabelFields", () => {
       packingQty: "100 pcs",
       qtyDelivery: "200 pcs",
       lotNo: "01-M-CRT-004A-581-300726-B001-B101",
+      packingDate: "05-08-2026",
       deliveryDate: "15-08-2026",
       deliveryMonth: "8",
       qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
@@ -52,9 +54,9 @@ describe("formatLabelFields", () => {
   })
 
   it("takes the box number from the snapshot into the Lot No line", () => {
-    expect(formatLabelFields({ ...baseSnapshot, boxNumber: "B302" }).lotNo).toBe(
-      "01-M-CRT-004A-581-300726-B001-B302",
-    )
+    expect(
+      formatLabelFields({ ...baseSnapshot, boxNumber: "B302" }).lotNo,
+    ).toBe("01-M-CRT-004A-581-300726-B001-B302")
   })
 
   // Angka bulan besar di label dibaca sebagai penanda FIFO, jadi ia harus

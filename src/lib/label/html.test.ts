@@ -20,6 +20,7 @@ const sampleFields: FormattedLabelFields = {
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
+  packingDate: "10-08-2026",
   deliveryDate: "15-08-2026",
   deliveryMonth: "8",
   qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
@@ -77,14 +78,16 @@ describe("buildLabelHtml", () => {
     expect(html).toContain("width:75mm;height:55mm")
   })
 
-  it("prints the company name and all nine field names", () => {
+  it("prints the company name and all eleven field names", () => {
     for (const name of [
       "PT. CRT KABELITA",
       "CUSTOMER",
       "SUPPLIER ID",
       "PART NO",
+      "PART NAME",
       "QTY/BOX",
       "QTY/DELIVERY",
+      "PACKING DATE",
       "DELIVERY DATE",
       "LOT NO",
       "OPERATOR PACK",
@@ -101,6 +104,7 @@ describe("buildLabelHtml", () => {
       sampleFields.supplierCode,
       sampleFields.packingQty,
       sampleFields.qtyDelivery,
+      sampleFields.packingDate,
       sampleFields.deliveryDate,
       "AD | SR | ST",
     ]) {
@@ -116,17 +120,22 @@ describe("buildLabelHtml", () => {
     }
   })
 
+  it("prints the fixed Part Name value regardless of the input fields", () => {
+    expect(html).toContain(">TUBE</div>")
+  })
+
   // Baris terakhir dipakai cap QC dan tidak berkolom; garis pemisah kolom yang
   // menembusnya membelah ruang capnya jadi dua.
   it("stops the column divider above the QC row", () => {
-    expect(html).toContain("left:18.25mm;top:8.5mm;width:0.25mm;height:40mm")
+    expect(html).toContain("left:18.25mm;top:8.5mm;width:0.25mm;height:41.25mm")
   })
 
   // Nama baris QC Passes membentang selebar bingkai: 592 - 22 - 14 = 556 dot,
+  // dan barisnya kini yang kesebelas, bukan kesembilan.
   // dan ditengahkan di dalamnya.
   it("centres the QC row across the frame with no value column", () => {
-    expect(html).toContain("left:2.75mm;top:48.5mm;width:69.5mm")
-    expect(html).toContain("justify-content:center;font-size:3.5mm")
+    expect(html).toContain("left:2.75mm;top:49.75mm;width:69.5mm")
+    expect(html).toContain("justify-content:center;font-size:2.875mm")
     expect(html.slice(html.indexOf(">QC Passes</div>"))).not.toContain(
       "left:26.75mm",
     )
