@@ -39,6 +39,18 @@ import {
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 
+/**
+ * Tanggal hari ini menurut jam workstation. `toISOString()` memberi tanggal
+ * UTC, dan di WIB (UTC+7) shift pagi berjalan saat UTC masih di hari
+ * sebelumnya — fieldnya akan terisi tanggal kemarin.
+ */
+function todayIsoDate(): string {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
 export type LabelBoxSupplierOption = {
   id: string
   supplierCode: string
@@ -173,6 +185,22 @@ export function LabelBoxBatchDialog({
               <input name="supplierId" type="hidden" value={supplierId} />
               <input name="masterItemId" type="hidden" value={masterItemId} />
               <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="label-box-packing-date">
+                    Packing Date
+                  </FieldLabel>
+                  <Input
+                    defaultValue={todayIsoDate()}
+                    id="label-box-packing-date"
+                    name="packingDate"
+                    required
+                    type="date"
+                  />
+                  <FieldDescription>
+                    Dicetak di atas baris Delivery Date pada label.
+                  </FieldDescription>
+                </Field>
+
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="label-box-dn">
