@@ -11,6 +11,7 @@ export type LabelBoxBatchResult = {
   labelCount: number
   lotNo: string
   masterItemRowNo: number
+  packingDate: string
   packingQty: number
   qtyDelivery: number
   supplierCode: string

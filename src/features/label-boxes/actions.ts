@@ -25,6 +25,7 @@ const safeRpcMessages: Record<string, string> = {
   MASTER_ITEM_NOT_ACTIVE: "Master Item tidak aktif atau tidak ditemukan.",
   MASTER_ITEM_SUPPLIER_MISMATCH:
     "Master Item ini tidak terdaftar untuk supplier yang dipilih.",
+  PACKING_DATE_INVALID: "Tanggal Packing tidak valid.",
   QTY_DELIVERY_INVALID:
     "Qty Delivery tidak valid (maksimal 99 kali Packing Qty).",
   QTY_DELIVERY_NOT_MULTIPLE:
@@ -41,18 +42,20 @@ function rpcErrorMessage(code: string, fallback: string): string {
 }
 
 /**
- * Ketiga field yang boleh disunting, dibaca dan divalidasi sekali supaya
+ * Keempat field yang boleh disunting, dibaca dan divalidasi sekali supaya
  * pesan salahnya sama persis dengan yang dipakai saat membuat batch.
  */
-function deliveryFieldsFromFormData(formData: FormData):
+function batchFieldsFromFormData(formData: FormData):
   | { error: string }
   | {
       deliveryDate: string
       deliveryNumber: string
       lotNo: string
+      packingDate: string
     } {
   const deliveryNumber = valueFromFormData(formData, "deliveryNumber")
   const deliveryDate = valueFromFormData(formData, "deliveryDate")
+  const packingDate = valueFromFormData(formData, "packingDate")
   const lotNo = valueFromFormData(formData, "lotNo")
 
   if (!deliveryNumber || deliveryNumber.trim().length > 100) {
@@ -63,6 +66,10 @@ function deliveryFieldsFromFormData(formData: FormData):
     return { error: "Tanggal delivery tidak valid." }
   }
 
+  if (!packingDate || !isIsoDate(packingDate)) {
+    return { error: "Tanggal Packing tidak valid." }
+  }
+
   if (!lotNo || lotNo.trim().length > 100) {
     return { error: "Lot No wajib diisi (maksimal 100 karakter)." }
   }
@@ -71,6 +78,7 @@ function deliveryFieldsFromFormData(formData: FormData):
     deliveryDate,
     deliveryNumber: deliveryNumber.trim(),
     lotNo: lotNo.trim(),
+    packingDate,
   }
 }
 
@@ -112,7 +120,7 @@ export async function createLabelBoxBatchAction(
     return { error: "Supplier dan Master Item wajib dipilih." }
   }
 
-  const delivery = deliveryFieldsFromFormData(formData)
+  const delivery = batchFieldsFromFormData(formData)
   if ("error" in delivery) return delivery
 
   if (!/^[1-9]\d{0,6}$/.test(rawPackingQty)) {
@@ -129,6 +137,7 @@ export async function createLabelBoxBatchAction(
     p_delivery_number: delivery.deliveryNumber,
     p_lot_no: delivery.lotNo,
     p_master_item_id: masterItemId,
+    p_packing_date: delivery.packingDate,
     p_qty_delivery: Number(rawPackingQty),
     p_qty_delivery_display: Number(rawQtyDelivery),
     p_supplier_id: supplierId,
@@ -171,6 +180,7 @@ export async function createLabelBoxBatchAction(
       labelCount: batch.label_count,
       lotNo: batch.lot_no,
       masterItemRowNo: batch.master_item_row_no,
+      packingDate: batch.packing_date,
       packingQty: batch.packing_qty,
       qtyDelivery: batch.qty_delivery_display,
       supplierCode: batch.supplier_code,
@@ -180,7 +190,7 @@ export async function createLabelBoxBatchAction(
 }
 
 /**
- * Hanya Delivery Number, tanggalnya, dan Lot No yang bisa disunting. Supplier,
+ * Hanya Delivery Number, kedua tanggalnya, dan Lot No yang bisa disunting. Supplier,
  * Master Item, dan Qty Delivery menentukan berapa dan nomor berapa saja label
  * boxnya; mengubah itu berarti membuat batch baru, bukan menyunting yang ada.
  */
@@ -193,7 +203,7 @@ export async function updateLabelBoxBatchAction(
     return { error: "Data label box tidak valid." }
   }
 
-  const delivery = deliveryFieldsFromFormData(formData)
+  const delivery = batchFieldsFromFormData(formData)
   if ("error" in delivery) return delivery
 
   const supabase = await createClient()
@@ -202,6 +212,7 @@ export async function updateLabelBoxBatchAction(
     p_delivery_date: delivery.deliveryDate,
     p_delivery_number: delivery.deliveryNumber,
     p_lot_no: delivery.lotNo,
+    p_packing_date: delivery.packingDate,
   })
 
   if (error || !data?.[0]) {

@@ -208,7 +208,9 @@ export async function createLabelBoxReprintJobsAction(input: {
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("create_label_box_reprint_jobs", {
     p_batch_id: input.batchId,
-    p_label_box_ids: input.labelBoxIds?.length ? input.labelBoxIds : null,
+    // Dihilangkan, bukan dikirim null: argumennya sudah `default null` di RPC,
+    // dan tipe hasil generate tidak lagi menerima null di sini.
+    p_label_box_ids: input.labelBoxIds?.length ? input.labelBoxIds : undefined,
   })
 
   if (error || !data) {
