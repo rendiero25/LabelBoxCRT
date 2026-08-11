@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(25);
+select plan(26);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -43,6 +43,18 @@ select has_function(
   'create_label_box_batch',
   array['uuid', 'text', 'date', 'date', 'uuid', 'integer', 'text', 'integer'],
   'create_label_box_batch RPC takes supplier, DN, date, packing date, master item, qty, lot, qty cetak'
+);
+
+-- Empat bulan yang singkatan Indonesianya berbeda dari singkatan Inggris.
+-- to_char(..., 'MON') memberi MAY/AUG/OCT/DEC dan ikut lc_time server, jadi
+-- justru keempat inilah yang membuktikan pemetaannya benar-benar dipakai.
+select is(
+  private.label_date_text(date '2026-08-18') || ',' ||
+    private.label_date_text(date '2026-05-01') || ',' ||
+    private.label_date_text(date '2026-10-09') || ',' ||
+    private.label_date_text(date '2026-12-25'),
+  '18-AGS-2026,01-MEI-2026,09-OKT-2026,25-DES-2026',
+  'bulan Indonesia yang berbeda dari singkatan Inggris ditulis benar'
 );
 
 select has_table('public', 'label_box_batches', 'label_box_batches table exists');
@@ -93,8 +105,8 @@ select is(
   ),
   'LB1SUP|LABELBOX-PART|100|' ||
     (select master_item_row_no from labelbox_batch_a)::text ||
-    '|LOT-LB-A|B101|28-07-2026',
-  'QR payload berisi tujuh field dengan urutan yang dikunci spec'
+    '-LOT-LB-A-B101|28-JUL-2026',
+  'QR payload berisi lima field dengan urutan yang dikunci spec'
 );
 
 select isnt(

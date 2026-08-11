@@ -40,8 +40,36 @@ export type FormattedLabelFields = {
 const isoDatePattern = /^(\d{4})-(\d{2})-(\d{2})/
 
 /**
- * Tanggal ringkas DD-MM-YYYY. Dipakai label box, QR payload, dan kolom tanggal
+ * Singkatan bulan Indonesia tiga huruf, kembar dengan private.label_date_text
+ * di Postgres yang merakit tanggal di dalam QR payload. Keduanya harus
+ * memberi bunyi yang sama: yang dibaca mata dari label dan yang terbaca dari
+ * QR-nya tidak boleh menyebut bulan dengan dua cara berbeda.
+ *
+ * Agustus disingkat AGS, bukan AGU. Bukan tiga huruf pertamanya, tapi itu
+ * bentuk yang dipakai di lapangan dan yang diminta.
+ */
+const MONTH_NAMES = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MEI",
+  "JUN",
+  "JUL",
+  "AGS",
+  "SEP",
+  "OKT",
+  "NOV",
+  "DES",
+]
+
+/**
+ * Tanggal ringkas DD-MMM-YYYY. Dipakai label box, QR payload, dan kolom tanggal
  * di tabel batch label box, jadi ketiganya selalu terbaca sama oleh operator.
+ *
+ * Bulannya huruf, bukan angka: "08-11-2026" dan "11-08-2026" tidak bisa
+ * dibedakan sekilas oleh yang membacanya di gudang, sedangkan "11-AGS-2026"
+ * tidak punya bacaan kedua.
  */
 export function formatShortDate(isoTimestamp: string): string {
   const match = isoDatePattern.exec(isoTimestamp)
@@ -52,7 +80,12 @@ export function formatShortDate(isoTimestamp: string): string {
   }
 
   const [, yearText, monthText, dayText] = match
-  return `${dayText}-${monthText}-${yearText}`
+  const monthName = MONTH_NAMES[Number(monthText) - 1]
+  if (monthName === undefined) {
+    throw new Error(`formatShortDate: month out of range in "${isoTimestamp}"`)
+  }
+
+  return `${dayText}-${monthName}-${yearText}`
 }
 
 /**

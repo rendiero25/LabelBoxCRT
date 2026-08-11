@@ -17,7 +17,7 @@ const baseSnapshot: FinalizedLabelSnapshot = {
   boxNumber: "B101",
   packingDate: "2026-08-05",
   deliveryDate: "2026-08-15",
-  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
+  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AGS-2026",
 }
 
 describe("formatLabelFields", () => {
@@ -29,10 +29,10 @@ describe("formatLabelFields", () => {
       packingQty: "100 pcs",
       qtyDelivery: "200 pcs",
       lotNo: "01-M-CRT-004A-581-300726-B001-B101",
-      packingDate: "05-08-2026",
-      deliveryDate: "15-08-2026",
+      packingDate: "05-AGS-2026",
+      deliveryDate: "15-AGS-2026",
       deliveryMonth: "8",
-      qrPayload: "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
+      qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AGS-2026",
     })
   })
 
@@ -99,10 +99,10 @@ describe("formatLabelFields", () => {
   })
 
   it.each([
-    ["01-01-2026", "2026-01-01"],
-    ["15-08-2026", "2026-08-15"],
-    ["31-12-2026", "2026-12-31"],
-    ["29-02-2024", "2024-02-29"],
+    ["01-JAN-2026", "2026-01-01"],
+    ["15-AGS-2026", "2026-08-15"],
+    ["31-DES-2026", "2026-12-31"],
+    ["29-FEB-2024", "2024-02-29"],
   ])("formats deliveryDate as %s for input %s", (expected, isoDate) => {
     expect(
       formatLabelFields({ ...baseSnapshot, deliveryDate: isoDate })
@@ -143,18 +143,31 @@ describe("formatLabelFields", () => {
 
   it("passes the stored QR payload through untouched", () => {
     expect(formatLabelFields(baseSnapshot).qrPayload).toBe(
-      "10015|3210A-K1Z-NA01-DL|100|1|LOT-A|B101|15-08-2026",
+      "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AGS-2026",
     )
   })
 })
 
 describe("formatShortDate", () => {
-  it("formats an ISO date as DD-MM-YYYY", () => {
-    expect(formatShortDate("2026-07-28")).toBe("28-07-2026")
+  it("formats an ISO date as DD-MMM-YYYY", () => {
+    expect(formatShortDate("2026-07-28")).toBe("28-JUL-2026")
   })
 
   it("accepts a full ISO timestamp", () => {
-    expect(formatShortDate("2026-12-31T23:59:59.123Z")).toBe("31-12-2026")
+    expect(formatShortDate("2026-12-31T23:59:59.123Z")).toBe("31-DES-2026")
+  })
+
+  // Kembaran dari private.label_date_text di Postgres, yang merakit tanggal di
+  // dalam QR payload. Keempat bulan ini yang singkatan Indonesianya berbeda
+  // dari singkatan Inggris; kalau salah satu meleset, label dan QR-nya menyebut
+  // bulan dengan dua cara berbeda.
+  it.each([
+    ["01-MEI-2026", "2026-05-01"],
+    ["18-AGS-2026", "2026-08-18"],
+    ["09-OKT-2026", "2026-10-09"],
+    ["25-DES-2026", "2026-12-25"],
+  ])("matches the Postgres month abbreviation %s", (expected, isoDate) => {
+    expect(formatShortDate(isoDate)).toBe(expected)
   })
 
   it("throws when the value is not an ISO date", () => {

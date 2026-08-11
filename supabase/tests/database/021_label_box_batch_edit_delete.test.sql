@@ -134,7 +134,7 @@ select is(
   ),
   'LB2SUP|LABELBOX-EDIT|100|' ||
     (select master_item_row_no from edit_batch)::text ||
-    '|LOT-EDIT-B|B101|09-08-2026',
+    '-LOT-EDIT-B-B101|09-AGS-2026',
   'QR payload dirakit ulang dengan lot dan tanggal baru'
 );
 
