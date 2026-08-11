@@ -20,13 +20,13 @@
 - Modify: `supabase/tests/database/021_label_box_batch_edit_delete.test.sql`
 - Modify: `supabase/tests/database/016_phase_7_print_rpcs.test.sql` (or whichever file currently exercises `create_label_box_print_jobs`/`create_label_box_reprint_jobs` — confirm with the grep in Step 0)
 
-- [ ] **Step 0: Confirm which test file covers the print-job RPCs**
+- [x] **Step 0: Confirm which test file covers the print-job RPCs**
 
 Run: `grep -rl "create_label_box_print_jobs" supabase/tests/database/`
 
 Expected: a filename (e.g. `supabase/tests/database/016_phase_7_print_rpcs.test.sql`). Use that file's actual name for the rest of this task — the plan assumes `016_phase_7_print_rpcs.test.sql` below; substitute if different.
 
-- [ ] **Step 1: Extend `019_label_box_batch.test.sql` with `packing_date` assertions**
+- [x] **Step 1: Extend `019_label_box_batch.test.sql` with `packing_date` assertions**
 
 Change the plan count on line 6 from `select plan(23);` to `select plan(25);` (2 new assertions below).
 
@@ -114,7 +114,7 @@ select throws_ok(
 
 The `is` and `throws_ok` calls above are 1 pgTAP assertion each — 2 total, matching `select plan(25);`.
 
-- [ ] **Step 2: Extend `021_label_box_batch_edit_delete.test.sql` with `packing_date` update assertions**
+- [x] **Step 2: Extend `021_label_box_batch_edit_delete.test.sql` with `packing_date` update assertions**
 
 Change `select plan(19);` to `select plan(21);`.
 
@@ -214,7 +214,7 @@ select throws_ok(
 
 That's 2 new assertions (19 → 21), matching `select plan(21);`.
 
-- [ ] **Step 3: Extend the print-job RPC test file with `packing_date` propagation assertions**
+- [x] **Step 3: Extend the print-job RPC test file with `packing_date` propagation assertions**
 
 Open the file identified in Step 0. Find its `create_label_box_batch` call(s) and insert the packing-date positional argument the same way as Steps 1–2. Increase its `select plan(N);` count by 2. After the existing assertion that checks `create_label_box_print_jobs` returns the expected fields (look for an `is(...)` against a column list that includes `delivery_date`), add:
 
@@ -232,6 +232,8 @@ If the file also calls `create_label_box_reprint_jobs`, add a matching assertion
 
 - [ ] **Step 4: Run all three pgTAP files and confirm they fail**
 
+> Tidak terlaksana. Migrasinya ternyata sudah terpasang di project terpaut sebelum tugas ini dimulai (hanya berkasnya yang hilang dari repo), jadi ketiga berkas tidak pernah bisa merah lebih dulu. Sebagai gantinya, `run-pgtap.mjs` yang memang selalu melaporkan PASS diperbaiki, lalu dibuktikan bisa merah dengan mengubah satu nilai harapan dengan sengaja.
+
 Run:
 ```bash
 node scripts/run-pgtap.mjs supabase/tests/database/019_label_box_batch.test.sql
@@ -241,7 +243,7 @@ node scripts/run-pgtap.mjs supabase/tests/database/016_phase_7_print_rpcs.test.s
 
 Expected: all three print `FAIL` — the function-signature assertions fail because the RPCs don't accept a packing-date argument yet, and/or the calls themselves error because there are too many positional arguments for the current function signatures. This confirms the tests actually exercise the new behavior before it exists.
 
-- [ ] **Step 5: Write the migration**
+- [x] **Step 5: Write the migration**
 
 Create `supabase/migrations/20260810090000_label_box_packing_date.sql`:
 
@@ -947,17 +949,17 @@ grant execute on function public.create_label_box_reprint_jobs(uuid, uuid[]) to 
 notify pgrst, 'reload schema';
 ```
 
-- [ ] **Step 6: Push the migration**
+- [x] **Step 6: Push the migration**
 
 Run: `npx.cmd supabase db push`
 Expected: the new migration applies cleanly against the linked hosted dev project.
 
-- [ ] **Step 7: Run all three pgTAP files again and confirm they pass**
+- [x] **Step 7: Run all three pgTAP files again and confirm they pass**
 
 Run the same three commands from Step 4.
 Expected: all three print `PASS`.
 
-- [ ] **Step 8: Regenerate TypeScript types**
+- [x] **Step 8: Regenerate TypeScript types**
 
 Run:
 ```bash
@@ -965,7 +967,7 @@ cmd.exe /d /s /c "npx.cmd supabase gen types typescript --linked --schema public
 ```
 Expected: `src/types/database.ts` now includes `packing_date`/`packing_date_snapshot` columns and the updated RPC `Args`/`Returns` shapes for all four functions touched above.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add supabase/migrations/20260810090000_label_box_packing_date.sql supabase/tests/database/019_label_box_batch.test.sql supabase/tests/database/021_label_box_batch_edit_delete.test.sql supabase/tests/database/016_phase_7_print_rpcs.test.sql src/types/database.ts
@@ -982,7 +984,7 @@ git commit -m "feat: add packing_date to label box batches and print jobs"
 - Modify: `src/features/label-boxes/actions.ts`
 - Modify: `src/features/label-boxes/form-state.ts`
 
-- [ ] **Step 1: Add the error message and extend the shared field parser**
+- [x] **Step 1: Add the error message and extend the shared field parser**
 
 In `src/features/label-boxes/actions.ts`, add `PACKING_DATE_INVALID` to `safeRpcMessages` (insert alphabetically, right after `MASTER_ITEM_SUPPLIER_MISMATCH`):
 
@@ -1031,7 +1033,7 @@ function batchFieldsFromFormData(formData: FormData):
 }
 ```
 
-- [ ] **Step 2: Wire it into `createLabelBoxBatchAction`**
+- [x] **Step 2: Wire it into `createLabelBoxBatchAction`**
 
 Replace `const delivery = deliveryFieldsFromFormData(formData)` with `const delivery = batchFieldsFromFormData(formData)` (the local variable name `delivery` can stay — only the function it calls is renamed).
 
@@ -1074,7 +1076,7 @@ In the success `result` object returned at the end of `createLabelBoxBatchAction
   }
 ```
 
-- [ ] **Step 3: Wire it into `updateLabelBoxBatchAction`**
+- [x] **Step 3: Wire it into `updateLabelBoxBatchAction`**
 
 Replace `const delivery = deliveryFieldsFromFormData(formData)` with `const delivery = batchFieldsFromFormData(formData)` in this function too.
 
@@ -1090,7 +1092,7 @@ Add `p_packing_date: delivery.packingDate,` to its `supabase.rpc("update_label_b
   })
 ```
 
-- [ ] **Step 4: Add `packingDate` to `LabelBoxBatchResult`**
+- [x] **Step 4: Add `packingDate` to `LabelBoxBatchResult`**
 
 In `src/features/label-boxes/form-state.ts`, add the field (insert alphabetically, right after `masterItemRowNo`):
 
@@ -1110,12 +1112,12 @@ export type LabelBoxBatchResult = {
 }
 ```
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `npm run typecheck`
 Expected: fails at this point — `label-box-batch-dialog.tsx` and `label-box-batch-row-actions.tsx` don't submit `packingDate` yet, so their `formAction` calls are fine (FormData is untyped), but nothing consumes `LabelBoxBatchResult.packingDate` yet either, which is fine (unused fields don't error). The typecheck should actually **pass** at this point since nothing statically requires the new field to be read yet — if it fails, read the error and fix it before moving on (don't proceed to Task 3 with a broken build).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/features/label-boxes/actions.ts src/features/label-boxes/form-state.ts
@@ -1129,7 +1131,7 @@ git commit -m "feat: parse and forward packingDate in label box batch actions"
 **Files:**
 - Modify: `src/features/label-boxes/components/label-box-batch-dialog.tsx`
 
-- [ ] **Step 1: Add a `todayIsoDate` helper**
+- [x] **Step 1: Add a `todayIsoDate` helper**
 
 Add this function near the top of the file, after the imports:
 
@@ -1139,7 +1141,7 @@ function todayIsoDate(): string {
 }
 ```
 
-- [ ] **Step 2: Add the field, positioned above the Delivery Number/Delivery Date grid**
+- [x] **Step 2: Add the field, positioned above the Delivery Number/Delivery Date grid**
 
 Find this block inside the `<FieldGroup>` in `LabelBoxBatchDialog`:
 
@@ -1179,16 +1181,18 @@ Replace it with:
                     </FieldLabel>
 ```
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS (the new input just adds a `packingDate` FormData entry; `batchFieldsFromFormData` from Task 2 already reads it).
 
 - [ ] **Step 4: Manual check**
 
+> Sebagian. Field Packing Date muncul paling atas dan terisi tanggal hari ini (`2026-08-11`), diperiksa pada dialog yang terbuka. Form belum pernah dikirim: itu menulis batch sungguhan ke project terpaut.
+
 Run: `npm run dev`, open `/scan`, click "Tambah". Confirm a "Packing Date" field appears above "Delivery Number"/"Tanggal Delivery Number", pre-filled with today's date, and that submitting the form with it changed still succeeds (the RPC now requires it, so this also proves Task 1 + Task 2 are wired correctly end to end).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/features/label-boxes/components/label-box-batch-dialog.tsx
@@ -1206,7 +1210,7 @@ git commit -m "feat: add Packing Date field to the Add Label Box form"
 
 This task only extends the underlying row data and the Edit dialog — it does **not** add a visible column to the batch list table.
 
-- [ ] **Step 1: Add `packingDate` to `LabelBoxBatchEditable` and the Edit form**
+- [x] **Step 1: Add `packingDate` to `LabelBoxBatchEditable` and the Edit form**
 
 In `src/features/label-boxes/components/label-box-batch-row-actions.tsx`, update the type:
 
@@ -1258,7 +1262,7 @@ Replace it with:
                 </FieldLabel>
 ```
 
-- [ ] **Step 2: Add `packingDate` to `LabelBoxBatchRow`**
+- [x] **Step 2: Add `packingDate` to `LabelBoxBatchRow`**
 
 In `src/features/label-boxes/components/label-box-batch-table.tsx`, update the type (this is data plumbing only — `EditLabelBoxBatchDialog` receives `batch` directly and needs the field; no new `<TableHead>`/`<TableCell>` is added):
 
@@ -1280,7 +1284,7 @@ export type LabelBoxBatchRow = {
 }
 ```
 
-- [ ] **Step 3: Select and map `packing_date` in the scan page query**
+- [x] **Step 3: Select and map `packing_date` in the scan page query**
 
 In `src/app/(operator)/scan/page.tsx`, add `packing_date` to the `label_box_batches` select column list:
 
@@ -1353,16 +1357,18 @@ function toLabelBoxBatchRow(
 }
 ```
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 5: Manual check**
 
+> Sebagian. Dialog Edit terisi `packingDate=2026-08-19` dari batch yang sudah ada (hasil backfill migrasi). Belum pernah disimpan.
+
 On `/scan`, open "Edit" on an existing batch. Confirm "Packing Date" appears pre-filled above "Delivery Number", and saving a changed date succeeds.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/features/label-boxes/components/label-box-batch-row-actions.tsx src/features/label-boxes/components/label-box-batch-table.tsx "src/app/(operator)/scan/page.tsx"
@@ -1380,7 +1386,7 @@ git commit -m "feat: add Packing Date to the Edit Label Box form"
 - Modify: `src/lib/label/formatter.ts`
 - Modify: `src/lib/label/formatter.test.ts`
 
-- [ ] **Step 1: Add `packingDate` to `LabelBoxPrintJob`**
+- [x] **Step 1: Add `packingDate` to `LabelBoxPrintJob`**
 
 In `src/features/label-boxes/verification-form-state.ts`, update the type (insert alphabetically, between `masterItemRowNo` and `partName`):
 
@@ -1412,7 +1418,7 @@ export type LabelBoxPrintJob = {
 }
 ```
 
-- [ ] **Step 2: Map `packing_date` in both print-job actions**
+- [x] **Step 2: Map `packing_date` in both print-job actions**
 
 In `src/features/label-boxes/verification-actions.ts`, in **both** `createLabelBoxPrintJobsAction` and `createLabelBoxReprintJobsAction`, add `packingDate: row.packing_date,` to the `.map()` object literal (insert alphabetically, between `masterItemRowNo` and `partName`). Each map becomes:
 
@@ -1439,7 +1445,7 @@ In `src/features/label-boxes/verification-actions.ts`, in **both** `createLabelB
     })),
 ```
 
-- [ ] **Step 3: Add `packingDate` to `FinalizedLabelSnapshot` and `FormattedLabelFields`**
+- [x] **Step 3: Add `packingDate` to `FinalizedLabelSnapshot` and `FormattedLabelFields`**
 
 In `src/lib/label/formatter.ts`, update `FinalizedLabelSnapshot` (field order follows print-row order per the type's own doc comment — insert `packingDate` right before `deliveryDate`, since Packing Date prints directly above it):
 
@@ -1484,7 +1490,7 @@ export type FormattedLabelFields = {
 }
 ```
 
-- [ ] **Step 4: Format it in `formatLabelFields`**
+- [x] **Step 4: Format it in `formatLabelFields`**
 
 Add `packingDate: formatShortDate(snapshot.packingDate),` right before the `deliveryDate:` line:
 
@@ -1507,7 +1513,7 @@ export function formatLabelFields(
 }
 ```
 
-- [ ] **Step 5: Update `formatter.test.ts` fixtures**
+- [x] **Step 5: Update `formatter.test.ts` fixtures**
 
 Add `packingDate: "2026-08-05"` to `baseSnapshot` (insert right before `deliveryDate`):
 
@@ -1546,7 +1552,7 @@ Add `packingDate: "05-08-2026",` to the expected object in `"maps a snapshot to 
   })
 ```
 
-- [ ] **Step 6: Add `packingDate` to the print card's `formatLabelFields` call**
+- [x] **Step 6: Add `packingDate` to the print card's `formatLabelFields` call**
 
 In `src/features/label-boxes/components/label-box-batch-print-card.tsx`, inside `printJobs`, add `packingDate: job.packingDate,` (insert alphabetically, between `masterItemRowNo` and `packingQty`):
 
@@ -1566,7 +1572,7 @@ In `src/features/label-boxes/components/label-box-batch-print-card.tsx`, inside 
           })
 ```
 
-- [ ] **Step 7: Run the unit tests**
+- [x] **Step 7: Run the unit tests**
 
 Run: `npx vitest run src/lib/label/formatter.test.ts`
 Expected: PASS.
@@ -1574,7 +1580,7 @@ Expected: PASS.
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/features/label-boxes/verification-form-state.ts src/features/label-boxes/verification-actions.ts src/features/label-boxes/components/label-box-batch-print-card.tsx src/lib/label/formatter.ts src/lib/label/formatter.test.ts
@@ -1591,7 +1597,7 @@ This is the geometry-sensitive task. `ROW_COUNT` goes from 9 to 11 and `ROW_HEIG
 - Modify: `src/lib/label/zpl.ts`
 - Modify: `src/lib/label/zpl.test.ts`
 
-- [ ] **Step 1: Update the version comment and `TEMPLATE_VERSION`**
+- [x] **Step 1: Update the version comment and `TEMPLATE_VERSION`**
 
 Find:
 ```ts
@@ -1618,7 +1624,7 @@ Replace with (prepend a v8 paragraph, keep everything else in the comment unchan
 
 Then find `export const TEMPLATE_VERSION = "v7"` and replace with `export const TEMPLATE_VERSION = "v8"`.
 
-- [ ] **Step 2: Update row/font constants**
+- [x] **Step 2: Update row/font constants**
 
 Find:
 ```ts
@@ -1664,7 +1670,7 @@ const MONTH_FONT = { height: 51, width: 28 }
 const FIFO_FONT = { height: 20, width: 10 }
 ```
 
-- [ ] **Step 3: Add the fixed Part Name text constant**
+- [x] **Step 3: Add the fixed Part Name text constant**
 
 Find:
 ```ts
@@ -1682,7 +1688,7 @@ const QC_PASSES_TEXT = "QC Passes"
 const PART_NAME_TEXT = "Tube"
 ```
 
-- [ ] **Step 4: Insert the two new rows in `labelRowsFor`**
+- [x] **Step 4: Insert the two new rows in `labelRowsFor`**
 
 Find:
 ```ts
@@ -1771,7 +1777,7 @@ Replace with:
     },
 ```
 
-- [ ] **Step 5: Update `zpl.test.ts` fixtures and simple assertions**
+- [x] **Step 5: Update `zpl.test.ts` fixtures and simple assertions**
 
 Add `packingDate: "10-08-2026",` to `sampleFields` (insert right before `deliveryDate`):
 ```ts
@@ -2077,7 +2083,7 @@ Add two new tests at the end of the `describe("buildLabelZpl", ...)` block, righ
   })
 ```
 
-- [ ] **Step 6: Run the ZPL unit tests**
+- [x] **Step 6: Run the ZPL unit tests**
 
 Run: `npx vitest run src/lib/label/zpl.test.ts`
 
@@ -2089,12 +2095,12 @@ Run: `npx vitest run src/lib/label/zpl.test.ts -u`
 
 Expected: PASS, and `src/lib/label/__snapshots__/zpl.test.ts.snap` is rewritten with the new v8 output. Open the diff and sanity-check it by eye — it should contain the eleven rows in the right order with the new dot values.
 
-- [ ] **Step 7: Typecheck and lint**
+- [x] **Step 7: Typecheck and lint**
 
 Run: `npm run typecheck && npm run lint`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/lib/label/zpl.ts src/lib/label/zpl.test.ts src/lib/label/__snapshots__/zpl.test.ts.snap
@@ -2110,7 +2116,7 @@ git commit -m "feat: add Part Name and Packing Date rows to the ZPL label templa
 **Files:**
 - Modify: `src/lib/label/html.test.ts`
 
-- [ ] **Step 1: Update the `sampleFields` fixture**
+- [x] **Step 1: Update the `sampleFields` fixture**
 
 Add `packingDate: "10-08-2026",` right before `deliveryDate`, matching Task 6's `zpl.test.ts` fixture:
 
@@ -2129,7 +2135,7 @@ const sampleFields: FormattedLabelFields = {
 }
 ```
 
-- [ ] **Step 2: Update the field-name and upper-case tests**
+- [x] **Step 2: Update the field-name and upper-case tests**
 
 Replace:
 ```ts
@@ -2222,7 +2228,7 @@ with:
   })
 ```
 
-- [ ] **Step 3: Update the divider and QC-row geometry assertions**
+- [x] **Step 3: Update the divider and QC-row geometry assertions**
 
 Replace:
 ```ts
@@ -2260,19 +2266,19 @@ with:
   })
 ```
 
-- [ ] **Step 4: Run the HTML unit tests**
+- [x] **Step 4: Run the HTML unit tests**
 
 Run: `npx vitest run src/lib/label/html.test.ts`
 Expected: PASS. As in Task 6, if a geometry number here doesn't match, trust the actual failure output (derived from the now-correct `zpl.ts` constants) over this plan's hand-computed value.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/label/html.test.ts
 git commit -m "test: update HTML label tests for the eleven-row v8 layout"
 ```
 
-- [ ] **Step 6: Full verification sweep**
+- [x] **Step 6: Full verification sweep**
 
 Run each of these and confirm they all pass before calling this done — this mirrors `npm run format:check && npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build` from the README:
 
@@ -2308,8 +2314,8 @@ git commit -m "fix: tune v8 label font sizes after hardware verification"
 ## Definition of Done
 
 - [ ] All 7 tasks above complete, each committed separately.
-- [ ] `packing_date`/`packing_date_snapshot` round-trip through create → print → reprint, and through edit (Task 1).
-- [ ] Add Label Box and Edit Label Box Batch forms both require and submit Packing Date (Tasks 3–4).
+- [x] `packing_date`/`packing_date_snapshot` round-trip through create → print → reprint, and through edit (Task 1).
+- [x] Add Label Box and Edit Label Box Batch forms both require and submit Packing Date (Tasks 3–4).
 - [ ] Printed label shows Part Name ("Tube") below Part No and Packing Date above Delivery Date, on both the ZD220 and the Canon G4010 paths (Tasks 6–7).
 - [ ] `npm run format:check && npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build` all pass (Task 7, Step 6).
 - [ ] Hardware UAT on both printers confirms the eleven-row layout is legible (Task 7, Step 7).
