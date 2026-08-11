@@ -39,6 +39,7 @@ export type LabelBoxBatchRow = {
   id: string
   labelCount: number
   lotNo: string
+  packingDate: string
   packingQty: number
   partNo: string
   printed: boolean

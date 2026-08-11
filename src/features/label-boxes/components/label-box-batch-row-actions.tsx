@@ -48,6 +48,7 @@ export type LabelBoxBatchEditable = {
   id: string
   labelCount: number
   lotNo: string
+  packingDate: string
   partNo: string
 }
 
@@ -95,6 +96,18 @@ export function EditLabelBoxBatchDialog({
           ) : null}
           <input name="batchId" type="hidden" value={batch.id} />
           <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor={`edit-packing-date-${batch.id}`}>
+                Packing Date
+              </FieldLabel>
+              <Input
+                defaultValue={batch.packingDate.slice(0, 10)}
+                id={`edit-packing-date-${batch.id}`}
+                name="packingDate"
+                required
+                type="date"
+              />
+            </Field>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor={`edit-dn-${batch.id}`}>
