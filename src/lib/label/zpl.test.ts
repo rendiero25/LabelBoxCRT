@@ -281,7 +281,7 @@ describe("buildLabelZpl", () => {
   // nilai hanya yang dicari operator lebih dulu.
   it("draws the field names in Bold and only the sought values with them", () => {
     expect(zpl).toContain(
-      "^A@N,10,5,E:OUTFITBD.TTF^FB116,1,0,L,0^FH^FDPART NO^FS",
+      "^A@N,12,6,E:OUTFITBD.TTF^FB116,1,0,L,0^FH^FDPART NO^FS",
     )
     expect(zpl).toContain(
       "^A@N,26,11,E:OUTFITBD.TTF^FB278,1,0,L,0^FH^FD3210A-K1Z-NA01-DL^FS",

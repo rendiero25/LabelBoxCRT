@@ -124,6 +124,18 @@ describe("buildLabelHtml", () => {
     expect(html).toContain(">TUBE</div>")
   })
 
+  // Nama field dipatok satu ukuran untuk seluruh kolom kiri. Kalau yang
+  // terpanjang sampai menyusut sendiri, kolomnya kembali bergerigi — dan itu
+  // tandanya LABEL_FONT sudah kelewat besar untuk lebar kolomnya.
+  it("keeps even the longest field name at its nominal size", () => {
+    for (const name of ["DELIVERY DATE", "OPERATOR PACK"]) {
+      expect(html).toContain(
+        `font-size:1.5mm;font-weight:700;line-height:1;` +
+          `white-space:nowrap;overflow:hidden">${name}</div>`,
+      )
+    }
+  })
+
   // Baris terakhir dipakai cap QC dan tidak berkolom; garis pemisah kolom yang
   // menembusnya membelah ruang capnya jadi dua.
   it("stops the column divider above the QC row", () => {

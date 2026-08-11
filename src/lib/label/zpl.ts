@@ -134,8 +134,14 @@ export function qrMagnificationFor(
  * tiap nama dikecilkan sendiri-sendiri oleh perender HTML kalau kepanjangan,
  * sehingga kolom kiri terbaca bergerigi: "Customer" besar, "Operator Pack"
  * kecil, padahal keduanya nama field yang sederajat.
+ *
+ * 12 adalah batas atasnya, bukan pilihan bebas: nama terpanjang 13 huruf di
+ * blok 116 dot menghabiskan 13 x 0.72 x 12 = 112 dot. Satu angka lebih tinggi
+ * membuat justru nama terpanjang itu saja yang menyusut, dan kolom kiri
+ * kembali bergerigi. Melebihi ini kolom nama harus dilebarkan lebih dulu,
+ * yang berarti menggeser garis pemisah ke kanan.
  */
-const LABEL_FONT = { height: 10, width: 5 }
+const LABEL_FONT = { height: 12, width: 6 }
 const VALUE_FONT = { height: 23, width: 12 }
 /** Kop nama perusahaan seukuran isinya, bukan judul yang menjulang di atasnya. */
 const COMPANY_FONT = VALUE_FONT
