@@ -18,10 +18,10 @@ const sampleFields: FormattedLabelFields = {
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
-  packingDate: "10-AGS-2026",
-  deliveryDate: "15-AGS-2026",
+  packingDate: "10-AUG-2026",
+  deliveryDate: "15-AUG-2026",
   deliveryMonth: "8",
-  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AGS-2026",
+  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AUG-2026",
 }
 
 describe("escapeZplText", () => {
@@ -268,7 +268,7 @@ describe("buildLabelZpl", () => {
   it("emits a QR block with the payload", () => {
     expect(zpl).toContain("^BQN,2,4")
     expect(zpl).toContain(
-      "^FDMA,10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AGS-2026^FS",
+      "^FDMA,10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AUG-2026^FS",
     )
   })
 
@@ -320,7 +320,7 @@ describe("buildLabelZpl", () => {
     expect(zpl).toContain("E:OUTFITRG.TTF^FB240,1,0,L,0^FH^FD10015^FS")
     // Packing Date, Delivery Date, dan Operator Pack sudah di luar kolom
     // kanan, jadi selebar bingkai (418), bukan berhenti di kolom QR (278).
-    expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FD15-AGS-2026^FS")
+    expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FD15-AUG-2026^FS")
     expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FDAD | SR | ST^FS")
   })
 
@@ -336,7 +336,7 @@ describe("buildLabelZpl", () => {
     expect(packingDateIndex).toBeGreaterThan(0)
     expect(deliveryDateIndex).toBeGreaterThan(packingDateIndex)
     expect(zpl).toContain(
-      "^A@N,23,12,E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FD10-AGS-2026^FS",
+      "^A@N,23,12,E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FD10-AUG-2026^FS",
     )
   })
 

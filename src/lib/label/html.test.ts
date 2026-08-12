@@ -20,10 +20,10 @@ const sampleFields: FormattedLabelFields = {
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
-  packingDate: "10-AGS-2026",
-  deliveryDate: "15-AGS-2026",
+  packingDate: "10-AUG-2026",
+  deliveryDate: "15-AUG-2026",
   deliveryMonth: "8",
-  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AGS-2026",
+  qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-LOT-A-B101|15-AUG-2026",
 }
 
 const qrDataUrl = "data:image/png;base64,QQ=="

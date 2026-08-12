@@ -70,7 +70,7 @@ function jobFixture(index: number): LabelBoxPrintJob {
     partName: "Tube Assy",
     partNo: "3210A-K1Z-NA01-DL",
     printJobId: `10b1e5e5-0000-0000-0000-00000000000${index}`,
-    qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-CRT082805-B101|26-AGS-2026",
+    qrPayload: "10015|3210A-K1Z-NA01-DL|100|1-CRT082805-B101|26-AUG-2026",
     qty: 100,
     qtyDelivery: 5000,
     status: "pending",

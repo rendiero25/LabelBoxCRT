@@ -96,7 +96,7 @@ type Product = {
   is_active: boolean
 }
 
-type ProductSortColumn = "product_code" | "normalized_dimensions" | "is_active"
+type ProductSortColumn = "part_name" | "normalized_dimensions" | "is_active"
 type SortDirection = "asc" | "desc"
 
 const PAGE_SIZE = 20
@@ -104,8 +104,7 @@ const PAGE_SIZE = 20
 export function ProductDirectory({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
-  const [sortColumn, setSortColumn] =
-    useState<ProductSortColumn>("product_code")
+  const [sortColumn, setSortColumn] = useState<ProductSortColumn>("part_name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [page, setPage] = useState(1)
 
@@ -160,7 +159,7 @@ export function ProductDirectory({ products }: { products: Product[] }) {
   )
 
   const sortLabels: Record<ProductSortColumn, string> = {
-    product_code: "Produk",
+    part_name: "Produk",
     normalized_dimensions: "Ukuran normal",
     is_active: "Status",
   }
@@ -224,25 +223,27 @@ export function ProductDirectory({ products }: { products: Product[] }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuLabel>Urutkan menurut</DropdownMenuLabel>
-              {(Object.keys(sortLabels) as ProductSortColumn[]).map((column) => {
-                const isActive = column === sortColumn
-                const Icon =
-                  sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
-                return (
-                  // Menu tetap terbuka: menekan kolom yang sama membalik arah
-                  // urutan, jadi menutupnya memaksa operator membuka lagi.
-                  <DropdownMenuItem
-                    key={column}
-                    onSelect={(event) => {
-                      event.preventDefault()
-                      toggleSort(column)
-                    }}
-                  >
-                    {sortLabels[column]}
-                    {isActive ? <Icon className="ml-auto size-3.5" /> : null}
-                  </DropdownMenuItem>
-                )
-              })}
+              {(Object.keys(sortLabels) as ProductSortColumn[]).map(
+                (column) => {
+                  const isActive = column === sortColumn
+                  const Icon =
+                    sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+                  return (
+                    // Menu tetap terbuka: menekan kolom yang sama membalik arah
+                    // urutan, jadi menutupnya memaksa operator membuka lagi.
+                    <DropdownMenuItem
+                      key={column}
+                      onSelect={(event) => {
+                        event.preventDefault()
+                        toggleSort(column)
+                      }}
+                    >
+                      {sortLabels[column]}
+                      {isActive ? <Icon className="ml-auto size-3.5" /> : null}
+                    </DropdownMenuItem>
+                  )
+                },
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -266,7 +267,7 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                 <TableHead className="w-12">No</TableHead>
                 <TableHead className="w-[24%]">
                   <SortableHeader
-                    column="product_code"
+                    column="part_name"
                     label="Produk"
                     onSort={toggleSort}
                     sortColumn={sortColumn}
@@ -297,18 +298,17 @@ export function ProductDirectory({ products }: { products: Product[] }) {
             <TableBody>
               {pagedProducts.map((product, index) => (
                 <TableRow key={product.id}>
-                  <TableCell>{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
-                  <TableCell className="whitespace-normal">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium break-words">
-                        {product.product_code}
-                      </span>
-                      <span className="text-muted-foreground text-xs break-words">
-                        {product.part_name}
-                      </span>
-                    </div>
+                  <TableCell>
+                    {(currentPage - 1) * PAGE_SIZE + index + 1}
                   </TableCell>
-                  <TableCell className="font-sans text-xs whitespace-normal break-words">
+                  {/* Kode produk (prd-000001) sengaja tidak ditampilkan: itu
+                      nomor internal hasil autogen, dan yang dikenali admin
+                      adalah namanya. Kode tetap bisa dicari lewat kotak
+                      pencarian di atas. */}
+                  <TableCell className="font-medium break-words whitespace-normal">
+                    {product.part_name}
+                  </TableCell>
+                  <TableCell className="font-sans text-xs break-words whitespace-normal">
                     {formatProductPreview(
                       product.part_name,
                       product.outer_diameter,
@@ -531,7 +531,9 @@ function ProductForm({
         </Alert>
       ) : null}
       {duplicateCode || duplicateDimensions ? (
-        <Alert variant={!product && duplicateDimensions ? "destructive" : "default"}>
+        <Alert
+          variant={!product && duplicateDimensions ? "destructive" : "default"}
+        >
           <CircleAlertIcon />
           <AlertTitle>
             {!product && duplicateDimensions
@@ -757,8 +759,8 @@ function DeleteProductAction({
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus produk {productCode}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Produk yang masih dipakai Master Item,
-              Box Definition, atau riwayat scan tidak dapat dihapus.
+              Tindakan ini permanen. Produk yang masih dipakai Master Item, Box
+              Definition, atau riwayat scan tidak dapat dihapus.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <form action={formAction}>

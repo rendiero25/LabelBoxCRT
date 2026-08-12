@@ -45,16 +45,17 @@ select has_function(
   'create_label_box_batch RPC takes supplier, DN, date, packing date, master item, qty, lot, qty cetak'
 );
 
--- Empat bulan yang singkatan Indonesianya berbeda dari singkatan Inggris.
--- to_char(..., 'MON') memberi MAY/AUG/OCT/DEC dan ikut lc_time server, jadi
--- justru keempat inilah yang membuktikan pemetaannya benar-benar dipakai.
+-- Empat bulan yang ejaannya berbeda dari singkatan Indonesia yang dipakai
+-- sebelumnya: MEI/AGS/OKT/DES. Pemetaannya ditulis tangan, bukan to_char
+-- (..., 'MON') yang ikut lc_time server, jadi keempat inilah yang
+-- membuktikan tabel bulannya benar-benar sudah berganti.
 select is(
   private.label_date_text(date '2026-08-18') || ',' ||
     private.label_date_text(date '2026-05-01') || ',' ||
     private.label_date_text(date '2026-10-09') || ',' ||
     private.label_date_text(date '2026-12-25'),
-  '18-AGS-2026,01-MEI-2026,09-OKT-2026,25-DES-2026',
-  'bulan Indonesia yang berbeda dari singkatan Inggris ditulis benar'
+  '18-AUG-2026,01-MAY-2026,09-OCT-2026,25-DEC-2026',
+  'bulan yang ejaannya berbeda dari bulan Indonesia ditulis benar'
 );
 
 select has_table('public', 'label_box_batches', 'label_box_batches table exists');
