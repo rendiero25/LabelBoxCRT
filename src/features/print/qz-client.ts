@@ -44,10 +44,29 @@ export function isQzConnected(): boolean {
   return qz.websocket.isActive()
 }
 
+/**
+ * Sambungan yang sedang berlangsung, dibagi seluruh pemanggil.
+ *
+ * Halaman verifikasi memasang dua useQzConnection sekaligus — panel status di
+ * header dan kartu cetak — dan keduanya memanggil connectQz() saat mount.
+ * Penjaga isActive() tidak menolong di sini: saat panggilan kedua tiba,
+ * socketnya masih dalam perjalanan dan belum aktif, jadi keduanya membuka
+ * sambungan sendiri-sendiri. Yang kalah melempar, hooknya jatuh ke status
+ * "error", dan tombol Cetak ikut mati walau panel di header hijau.
+ */
+let connectInFlight: Promise<void> | null = null
+
 export async function connectQz(): Promise<void> {
   configureSecurity()
   if (qz.websocket.isActive()) return
-  await qz.websocket.connect({ retries: 2, delay: 1 })
+
+  connectInFlight ??= Promise.resolve(
+    qz.websocket.connect({ retries: 2, delay: 1 }),
+  ).finally(() => {
+    connectInFlight = null
+  })
+
+  await connectInFlight
 }
 
 export async function disconnectQz(): Promise<void> {

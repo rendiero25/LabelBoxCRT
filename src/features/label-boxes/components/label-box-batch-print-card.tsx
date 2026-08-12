@@ -76,6 +76,21 @@ export function LabelBoxBatchPrintCard({
   )
   const alreadyPrinted = jobs.length > 0 && printableJobs.length === 0
 
+  /**
+   * Kenapa tombolnya mati, ditulis apa adanya. Sebelumnya tombol nonaktif itu
+   * bisu: operator melihat "Cetak 3 label" yang tidak bisa ditekan, dan
+   * satu-satunya petunjuk ada di panel status header — yang punya sambungan QZ
+   * sendiri dan bisa hijau walau sambungan kartu ini tidak.
+   */
+  const blockedReason =
+    status !== "connected"
+      ? "QZ Tray belum terhubung dari halaman ini. Koneksi dicoba ulang otomatis."
+      : !activePrinter
+        ? "Pilih printer dulu di daftar di atas."
+        : printableJobs.length === 0 && !alreadyPrinted
+          ? "Belum ada label yang siap dicetak."
+          : null
+
   // Label disiapkan begitu kartu muncul, jadi operator hanya menekan Cetak.
   const prepared = useRef(false)
   useEffect(() => {
@@ -387,6 +402,10 @@ export function LabelBoxBatchPrintCard({
           </span>
         ) : null}
       </div>
+
+      {blockedReason && !printing ? (
+        <p className="text-muted-foreground text-sm">{blockedReason}</p>
+      ) : null}
     </div>
   )
 }
