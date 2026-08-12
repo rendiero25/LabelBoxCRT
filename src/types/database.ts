@@ -824,6 +824,7 @@ export type Database = {
           normalized_dimensions: string | null
           outer_diameter: number
           part_name: string
+          part_type: string | null
           product_code: string
           updated_at: string
         }
@@ -836,6 +837,7 @@ export type Database = {
           normalized_dimensions?: string | null
           outer_diameter: number
           part_name: string
+          part_type?: string | null
           product_code: string
           updated_at?: string
         }
@@ -848,6 +850,7 @@ export type Database = {
           normalized_dimensions?: string | null
           outer_diameter?: number
           part_name?: string
+          part_type?: string | null
           product_code?: string
           updated_at?: string
         }
@@ -1222,6 +1225,7 @@ export type Database = {
           p_length: number
           p_outer_diameter: number
           p_part_name: string
+          p_part_type: string
         }
         Returns: {
           created_at: string
@@ -1232,6 +1236,7 @@ export type Database = {
           normalized_dimensions: string
           outer_diameter: number
           part_name: string
+          part_type: string
           product_code: string
           updated_at: string
         }[]
@@ -1364,6 +1369,7 @@ export type Database = {
           p_length: number
           p_outer_diameter: number
           p_part_name: string
+          p_part_type: string
           p_product_code: string
           p_product_id: string
         }
@@ -1376,6 +1382,7 @@ export type Database = {
           normalized_dimensions: string
           outer_diameter: number
           part_name: string
+          part_type: string
           product_code: string
           updated_at: string
         }[]

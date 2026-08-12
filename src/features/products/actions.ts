@@ -26,10 +26,11 @@ export async function createProductAction(
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("create_product", {
-    p_part_name: parsed.data.partName,
-    p_outer_diameter: parsed.data.outerDiameter,
     p_inner_diameter: parsed.data.innerDiameter,
     p_length: parsed.data.length,
+    p_outer_diameter: parsed.data.outerDiameter,
+    p_part_name: parsed.data.partName,
+    p_part_type: parsed.data.partType,
   })
 
   if (error) return { error: productRpcErrorMessage(error.message) }
@@ -50,12 +51,13 @@ export async function updateProductAction(
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("update_product", {
-    p_product_id: productId,
-    p_product_code: parsed.data.productCode,
-    p_part_name: parsed.data.partName,
-    p_outer_diameter: parsed.data.outerDiameter,
     p_inner_diameter: parsed.data.innerDiameter,
     p_length: parsed.data.length,
+    p_outer_diameter: parsed.data.outerDiameter,
+    p_part_name: parsed.data.partName,
+    p_part_type: parsed.data.partType,
+    p_product_code: parsed.data.productCode,
+    p_product_id: productId,
   })
 
   if (error) return { error: productRpcErrorMessage(error.message) }

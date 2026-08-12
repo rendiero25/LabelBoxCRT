@@ -11,7 +11,7 @@ export default async function ProductsPage() {
   const { data: products, error } = await supabase
     .from("products")
     .select(
-      "id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions, is_active",
+      "id, product_code, part_name, part_type, outer_diameter, inner_diameter, length, normalized_dimensions, is_active",
     )
     .order("product_code")
 

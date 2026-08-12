@@ -28,8 +28,10 @@ import {
 } from "@/components/shared/action-state-toast"
 import { PaginationControls } from "@/components/shared/pagination-controls"
 import {
+  PRODUCT_NAME_PREFIXES,
   formatProductPreview,
   normalizeDimensions,
+  parseProductName,
 } from "@/features/products/validation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -89,6 +91,7 @@ type Product = {
   id: string
   product_code: string
   part_name: string
+  part_type: string | null
   outer_diameter: number
   inner_diameter: number
   length: number
@@ -305,8 +308,18 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                       nomor internal hasil autogen, dan yang dikenali admin
                       adalah namanya. Kode tetap bisa dicari lewat kotak
                       pencarian di atas. */}
-                  <TableCell className="font-medium break-words whitespace-normal">
-                    {product.part_name}
+                  <TableCell className="whitespace-normal">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium break-words">
+                        {product.part_name}
+                      </span>
+                      {/* Produk lama belum punya jenis part: dibiarkan kosong
+                          daripada diisi tebakan, dan terisi sendiri begitu
+                          produknya disunting. */}
+                      <span className="text-muted-foreground text-xs break-words">
+                        {product.part_type ?? "Part belum diisi"}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className="font-sans text-xs break-words whitespace-normal">
                     {formatProductPreview(
@@ -480,44 +493,49 @@ function ProductForm({
   products: Product[]
   submitLabel: string
 }) {
-  const [productCode, setProductCode] = useState(product?.product_code ?? "")
-  const [partName, setPartName] = useState(product?.part_name ?? "")
-  const [outerDiameter, setOuterDiameter] = useState(
-    product?.outer_diameter.toString() ?? "",
-  )
-  const [innerDiameter, setInnerDiameter] = useState(
-    product?.inner_diameter.toString() ?? "",
-  )
-  const [length, setLength] = useState(product?.length.toString() ?? "")
-  const normalizedDimensions = dimensionPreview(
-    outerDiameter,
-    innerDiameter,
-    length,
-  )
-  const preview =
-    normalizedDimensions && partName.trim()
+  const [partType, setPartType] = useState(product?.part_type ?? "")
+  const [productName, setProductName] = useState(
+    product
       ? formatProductPreview(
-          partName.trim(),
-          Number(outerDiameter),
-          Number(innerDiameter),
-          Number(length),
+          product.part_name,
+          product.outer_diameter,
+          product.inner_diameter,
+          product.length,
         )
-      : null
-  const duplicateCode = products.find(
-    (candidate) =>
-      candidate.id !== product?.id &&
-      candidate.product_code === productCode.trim().toLowerCase(),
+      : "",
   )
-  const normalizedPartName = partName.trim().toLocaleLowerCase("id-ID")
-  const duplicateDimensions = normalizedDimensions
-    ? products.find(
-        (candidate) =>
-          candidate.id !== product?.id &&
-          candidate.normalized_dimensions === normalizedDimensions &&
-          candidate.part_name.trim().toLocaleLowerCase("id-ID") ===
-            normalizedPartName,
+
+  // Nama diurai saat diketik, jadi operator melihat bentuk bakunya — atau
+  // sebab penolakannya — sebelum menekan Simpan, bukan sesudahnya.
+  const parsedName = parseProductName(productName)
+  const parsed = "error" in parsedName ? null : parsedName.data
+  const preview = parsed
+    ? formatProductPreview(
+        parsed.partName,
+        parsed.outerDiameter,
+        parsed.innerDiameter,
+        parsed.length,
       )
-    : undefined
+    : null
+  const nameError =
+    productName.trim() && "error" in parsedName ? parsedName.error : null
+  const normalizedDimensions = parsed
+    ? normalizeDimensions(
+        parsed.outerDiameter,
+        parsed.innerDiameter,
+        parsed.length,
+      )
+    : null
+  const duplicateDimensions =
+    normalizedDimensions && parsed
+      ? products.find(
+          (candidate) =>
+            candidate.id !== product?.id &&
+            candidate.normalized_dimensions === normalizedDimensions &&
+            candidate.part_name.trim().toLocaleLowerCase("id-ID") ===
+              parsed.partName.toLocaleLowerCase("id-ID"),
+        )
+      : undefined
 
   return (
     <form action={action} className="flex flex-col gap-5" noValidate>
@@ -530,103 +548,74 @@ function ProductForm({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      {duplicateCode || duplicateDimensions ? (
-        <Alert
-          variant={!product && duplicateDimensions ? "destructive" : "default"}
-        >
+      {duplicateDimensions ? (
+        <Alert variant={product ? "default" : "destructive"}>
           <CircleAlertIcon />
           <AlertTitle>
-            {!product && duplicateDimensions
-              ? "Produk sudah terdaftar"
-              : "Potensi konflik data"}
+            {product ? "Potensi konflik data" : "Produk sudah terdaftar"}
           </AlertTitle>
           <AlertDescription>
-            {duplicateCode
-              ? `Kode sudah dipakai oleh ${duplicateCode.product_code}.`
-              : `Ukuran ${preview} sudah dipakai oleh ${duplicateDimensions?.product_code}.${!product ? " Gunakan produk yang sudah ada." : ""}`}
+            {`${preview} sudah terdaftar.${product ? "" : " Gunakan produk yang sudah ada."}`}
           </AlertDescription>
         </Alert>
       ) : null}
+      {/* Kode produk tidak lagi punya field: ia dibuat otomatis, dan saat
+          menyunting nilainya dibawa apa adanya supaya tidak berubah. */}
+      {product ? (
+        <input name="productCode" type="hidden" value={product.product_code} />
+      ) : null}
       <FieldGroup>
-        <div className={product ? "grid gap-5 sm:grid-cols-2" : undefined}>
-          {product ? (
-            <Field>
-              <FieldLabel
-                htmlFor={product ? `productCode-${product.id}` : "productCode"}
-              >
-                Kode produk
-              </FieldLabel>
-              <Input
-                id={product ? `productCode-${product.id}` : "productCode"}
-                maxLength={64}
-                name="productCode"
-                onChange={(event) => setProductCode(event.target.value)}
-                placeholder="tube-0001"
-                required
-                value={productCode}
-              />
-            </Field>
-          ) : null}
-          <Field>
-            <FieldLabel
-              htmlFor={product ? `partName-${product.id}` : "partName"}
-            >
-              Nama part
-            </FieldLabel>
-            <Input
-              value={partName}
-              id={product ? `partName-${product.id}` : "partName"}
-              maxLength={200}
-              name="partName"
-              onChange={(event) => setPartName(event.target.value)}
-              placeholder="Tube"
-              required
-            />
-          </Field>
-        </div>
-        {!product ? (
-          <FieldDescription>
-            Kode produk dibuat otomatis oleh sistem saat data disimpan.
-          </FieldDescription>
-        ) : null}
-        <div className="grid gap-5 sm:grid-cols-3">
-          <DimensionField
-            id={product ? `outerDiameter-${product.id}` : "outerDiameter"}
-            label="OD"
-            name="outerDiameter"
-            onChange={setOuterDiameter}
-            value={outerDiameter}
-          />
-          <DimensionField
-            id={product ? `innerDiameter-${product.id}` : "innerDiameter"}
-            label="ID"
-            name="innerDiameter"
-            onChange={setInnerDiameter}
-            value={innerDiameter}
-          />
-          <DimensionField
-            id={product ? `length-${product.id}` : "length"}
-            label="Length"
-            name="length"
-            onChange={setLength}
-            value={length}
-          />
-        </div>
         <Field>
-          <FieldLabel>Preview ukuran normal</FieldLabel>
-          <div className="bg-muted rounded-lg px-2.5 py-2 font-sans text-sm">
-            {preview ?? "Masukkan OD, ID, dan Length positif"}
-          </div>
+          <FieldLabel htmlFor={product ? `partType-${product.id}` : "partType"}>
+            Part
+          </FieldLabel>
+          <Input
+            id={product ? `partType-${product.id}` : "partType"}
+            maxLength={100}
+            name="partType"
+            onChange={(event) => setPartType(event.target.value)}
+            placeholder="Tube Assy"
+            required
+            value={partType}
+          />
           <FieldDescription>
-            Key ini tidak unik global; sistem hanya memberi peringatan konflik.
+            Huruf depan tiap kata disimpan kapital: &quot;tube assy&quot;
+            tersimpan sebagai &quot;Tube Assy&quot;.
           </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel
+            htmlFor={product ? `productName-${product.id}` : "productName"}
+          >
+            Nama
+          </FieldLabel>
+          <Input
+            id={product ? `productName-${product.id}` : "productName"}
+            maxLength={200}
+            name="productName"
+            onChange={(event) => setProductName(event.target.value)}
+            placeholder="vo b 6x7x525"
+            required
+            value={productName}
+          />
+          <FieldDescription>
+            Boleh diketik bebas; yang tersimpan bentuk bakunya. Awalan yang
+            tersedia: {PRODUCT_NAME_PREFIXES.join(", ")}.
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel>Hasil</FieldLabel>
+          <div className="bg-muted rounded-lg px-2.5 py-2 font-sans text-sm">
+            {preview ?? nameError ?? "Contoh: vo b 6x7x525"}
+          </div>
         </Field>
       </FieldGroup>
       <DialogFooter>
         <Button
           disabled={
             isPending ||
-            Boolean(duplicateCode) ||
+            !parsed ||
+            !partType.trim() ||
             (!product && Boolean(duplicateDimensions))
           }
           type="submit"
@@ -636,35 +625,6 @@ function ProductForm({
         </Button>
       </DialogFooter>
     </form>
-  )
-}
-
-function DimensionField({
-  id,
-  label,
-  name,
-  onChange,
-  value,
-}: {
-  id: string
-  label: string
-  name: string
-  onChange: (value: string) => void
-  value: string
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Input
-        id={id}
-        inputMode="decimal"
-        name={name}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="0"
-        required
-        value={value}
-      />
-    </Field>
   )
 }
 
@@ -783,15 +743,4 @@ function DeleteProductAction({
       ) : null}
     </div>
   )
-}
-
-function dimensionPreview(
-  outerDiameter: string,
-  innerDiameter: string,
-  length: string,
-): string | null {
-  const values = [outerDiameter, innerDiameter, length].map(Number)
-  return values.every((value) => Number.isFinite(value) && value > 0)
-    ? normalizeDimensions(values[0], values[1], values[2])
-    : null
 }
