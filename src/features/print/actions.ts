@@ -10,8 +10,11 @@ const uuidPattern =
 
 const safeRpcMessages: Record<string, string> = {
   PRINT_JOB_FORBIDDEN: "Anda tidak berhak memproses print job ini.",
+  // Job yang tergantung karena listrik mati atau tab tertutup baru bisa
+  // diklaim ulang setelah dua menit, jadi pesannya harus menyebut lamanya —
+  // tanpa itu operator mengira labelnya hangus dan menekan Cetak berulang.
   PRINT_JOB_NOT_CLAIMABLE:
-    "Print job sedang diproses di tempat lain atau sudah selesai.",
+    "Print job ini sedang dicetak di tempat lain, atau tertinggal dari percobaan sebelumnya. Kalau cetaknya tadi gagal, tunggu 2 menit lalu coba lagi.",
   PRINT_JOB_NOT_FOUND: "Print job tidak ditemukan.",
   PRINT_JOB_NOT_PRINTING: "Status print job tidak valid untuk penyelesaian.",
   PRINT_PAYLOAD_INVALID: "Payload label tidak valid.",

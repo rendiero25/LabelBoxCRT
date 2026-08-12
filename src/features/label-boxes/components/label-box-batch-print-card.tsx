@@ -123,6 +123,35 @@ export function LabelBoxBatchPrintCard({
       // "^XA^CI28" apa adanya.
       const printerKind = printerKindFor(activePrinter)
 
+      /**
+       * Job yang sudah diklaim tapi belum ditutup. Klaim mengubah statusnya
+       * jadi 'printing', dan job 'printing' baru boleh diklaim ulang setelah
+       * dua menit. Berhenti di tengah tanpa melepasnya berarti percobaan
+       * berikutnya ditolak PRINT_JOB_NOT_CLAIMABLE — persis keadaan operator
+       * yang cetak pertamanya gagal lalu menekan Cetak lagi.
+       */
+      const claimed = new Set<string>()
+
+      const releaseClaims = async (
+        errorCode: string,
+        errorMessage: string,
+      ): Promise<void> => {
+        if (claimed.size === 0) return
+        const abandoned = [...claimed]
+        claimed.clear()
+        await Promise.all(
+          abandoned.map((printJobId) =>
+            completePrintJobAction({
+              errorCode,
+              errorMessage,
+              printerName: activePrinter,
+              printJobId,
+              result: "failed",
+            }).catch(() => undefined),
+          ),
+        )
+      }
+
       try {
         // Urutan label mengikuti urutan nomor box supaya operator menempelnya
         // runtut. Payload disiapkan lebih dulu untuk semuanya, lalu dikirim
@@ -168,6 +197,7 @@ export function LabelBoxBatchPrintCard({
             return
           }
 
+          claimed.add(job.printJobId)
           payloads.push(payload)
         }
 
@@ -182,17 +212,7 @@ export function LabelBoxBatchPrintCard({
             await sendHtmlSheets(activePrinter, buildLabelSheetsHtml(payloads))
           }
         } catch {
-          await Promise.all(
-            jobsToPrint.map((job) =>
-              completePrintJobAction({
-                errorCode: "QZ_SEND_FAILED",
-                errorMessage: "Gagal mengirim ke printer.",
-                printJobId: job.printJobId,
-                printerName: activePrinter,
-                result: "failed",
-              }).catch(() => undefined),
-            ),
-          )
+          await releaseClaims("QZ_SEND_FAILED", "Gagal mengirim ke printer.")
           setPrintError("Gagal mengirim label ke printer.")
           return
         }
@@ -208,6 +228,7 @@ export function LabelBoxBatchPrintCard({
             return
           }
 
+          claimed.delete(job.printJobId)
           setPrintRun((run) =>
             run ? { done: run.done + 1, total: run.total } : run,
           )
@@ -215,6 +236,14 @@ export function LabelBoxBatchPrintCard({
 
         onPrinted?.()
       } finally {
+        // Apa pun sebab berhentinya — klaim ditolak, penutupan gagal, atau
+        // pengecualian tak terduga — job yang masih tergantung dilepas di sini
+        // supaya tombol Cetak langsung bisa ditekan lagi, bukan setelah dua
+        // menit.
+        await releaseClaims(
+          "PRINT_ABORTED",
+          "Cetak berhenti sebelum labelnya selesai.",
+        )
         inFlight.current = false
         setPrinting(false)
       }
