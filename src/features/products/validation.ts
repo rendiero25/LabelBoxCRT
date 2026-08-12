@@ -14,8 +14,15 @@ const productCodePattern = /^[a-z0-9][a-z0-9_-]{1,63}$/
 export const PRODUCT_NAME_PREFIXES = [
   "VO-B",
   "VO-BH",
+  "VO-G",
+  "VO-Gy",
   "VO-Tr",
+  "VO-V",
+  "VOHR-B",
+  "VOHR-Br",
   "CVO-B",
+  "EL067B",
+  "EL151-O",
 ] as const
 
 /** Kunci pencocokan: huruf dan angka saja, huruf besar semua. */
@@ -23,9 +30,26 @@ function prefixKey(value: string): string {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase()
 }
 
-const prefixByKey = new Map(
-  PRODUCT_NAME_PREFIXES.map((prefix) => [prefixKey(prefix), prefix]),
+/**
+ * Awalan terpanjang lebih dulu. "VOBH" harus menang atas "VOB" dan "VOHRBR"
+ * atas "VOHRB", kalau tidak nama panjang akan terpotong jadi nama pendek yang
+ * kebetulan mengawalinya.
+ */
+const PREFIXES_LONGEST_FIRST = [...PRODUCT_NAME_PREFIXES].sort(
+  (left, right) => prefixKey(right).length - prefixKey(left).length,
 )
+
+/** Posisi di teks asli tepat setelah `count` karakter alfanumerik pertama. */
+function offsetAfterAlphanumerics(text: string, count: number): number {
+  let seen = 0
+  for (let index = 0; index < text.length; index += 1) {
+    if (/[a-z0-9]/i.test(text[index])) {
+      seen += 1
+      if (seen === count) return index + 1
+    }
+  }
+  return text.length
+}
 
 type ProductDetails = {
   partName: string
@@ -88,6 +112,11 @@ export type ParsedProductName = {
  * mendarat di "VO-B D6X7 Pt.L=525" dan "VO-BH D6X7 Pt.L=15". Bentuk bakunya
  * sendiri juga harus bisa diketik ulang apa adanya, karena dialog Edit
  * mengisi field ini dengan nama yang sudah baku.
+ *
+ * Awalan dicocokkan lebih dulu, baru sisanya dibaca sebagai ukuran. Urutan itu
+ * penting sejak ada awalan berangka seperti EL067B dan EL151-O: mencari angka
+ * di seluruh teks lebih dulu akan membaca "067" sebagai ukuran, dan namanya
+ * ditolak karena dianggap punya empat angka.
  */
 export function parseProductName(
   raw: string,
@@ -95,7 +124,24 @@ export function parseProductName(
   const text = raw.trim()
   if (!text) return { error: "Nama produk wajib diisi." }
 
-  const numbers = text.match(/\d+(?:\.\d+)?/g) ?? []
+  const key = prefixKey(text)
+  const prefix = PREFIXES_LONGEST_FIRST.find((candidate) =>
+    key.startsWith(prefixKey(candidate)),
+  )
+
+  if (!prefix) {
+    return {
+      error: `Awalan nama tidak dikenal. Yang tersedia: ${PRODUCT_NAME_PREFIXES.join(", ")}.`,
+    }
+  }
+
+  // Bentuk baku menyelipkan "D" sebelum angka pertama ("VO-B D6X7"); huruf itu
+  // tinggal di sisa teks dan diabaikan sendirinya karena hanya angka yang
+  // diambil dari sana.
+  const sizeText = text.slice(
+    offsetAfterAlphanumerics(text, prefixKey(prefix).length),
+  )
+  const numbers = sizeText.match(/\d+(?:\.\d+)?/g) ?? []
   if (numbers.length !== 3) {
     return {
       error:
@@ -110,23 +156,6 @@ export function parseProductName(
     !isUsableDimension(length)
   ) {
     return { error: "Semua ukuran harus berupa angka lebih besar dari 0." }
-  }
-
-  const firstDigit = text.search(/\d/)
-  const rawPrefix = prefixKey(text.slice(0, firstDigit))
-  // Bentuk baku menyelipkan "D" tepat sebelum angka pertama ("VO-B D6X7"),
-  // jadi huruf itu ikut terbawa saat nama baku diketik ulang. Tidak ada awalan
-  // yang berakhiran D, jadi membuangnya aman.
-  const prefix =
-    prefixByKey.get(rawPrefix) ??
-    (rawPrefix.endsWith("D")
-      ? prefixByKey.get(rawPrefix.slice(0, -1))
-      : undefined)
-
-  if (!prefix) {
-    return {
-      error: `Awalan nama tidak dikenal. Yang tersedia: ${PRODUCT_NAME_PREFIXES.join(", ")}.`,
-    }
   }
 
   return {

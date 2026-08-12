@@ -30,8 +30,45 @@ describe("parseProductName", () => {
     ["VOB 6 x 7 x 100", "VO-B D6X7 Pt.L=100"],
     ["cvo-b 10x11x220", "CVO-B D10X11 Pt.L=220"],
     ["vo tr 6x7x315", "VO-Tr D6X7 Pt.L=315"],
+    ["vo gy 8x9x200", "VO-Gy D8X9 Pt.L=200"],
+    ["vo v 6x7x80", "VO-V D6X7 Pt.L=80"],
+    ["vo g 12x13x55", "VO-G D12X13 Pt.L=55"],
+    ["vohr b 10x11x170", "VOHR-B D10X11 Pt.L=170"],
+    ["vohr br 6x7x135", "VOHR-Br D6X7 Pt.L=135"],
   ])("turns %s into %s", (typed, expected) => {
     expect(nameOf(typed)).toBe(expected)
+  })
+
+  /**
+   * Dua awalan memuat angka di dalam namanya sendiri. Kalau angka dicari di
+   * seluruh teks lebih dulu, "067" terbaca sebagai ukuran dan namanya ditolak
+   * karena dianggap berangka empat.
+   */
+  it.each([
+    ["el067b 6x7x525", "EL067B D6X7 Pt.L=525"],
+    ["EL067B 10x11x220", "EL067B D10X11 Pt.L=220"],
+    ["el151 o 6x7x315", "EL151-O D6X7 Pt.L=315"],
+    ["el151-o 8x9x200", "EL151-O D8X9 Pt.L=200"],
+  ])("reads %s without mistaking its digits for a size", (typed, expected) => {
+    expect(nameOf(typed)).toBe(expected)
+  })
+
+  /**
+   * Awalan yang mengawali awalan lain: yang terpanjang harus menang, kalau
+   * tidak "vohr br" mendarat di VOHR-B dan produknya tertukar diam-diam.
+   */
+  it.each([
+    ["vobh 6x7x15", "VO-BH"],
+    ["vob 6x7x15", "VO-B"],
+    ["vogy 6x7x15", "VO-Gy"],
+    ["vog 6x7x15", "VO-G"],
+    ["vohrbr 6x7x15", "VOHR-Br"],
+    ["vohrb 6x7x15", "VOHR-B"],
+  ])("matches %s to the longest prefix %s", (typed, expected) => {
+    const parsed = parseProductName(typed)
+    expect("error" in parsed ? parsed.error : parsed.data.partName).toBe(
+      expected,
+    )
   })
 
   // Dialog Edit mengisi field ini dengan nama yang sudah baku, jadi bentuk
@@ -40,6 +77,9 @@ describe("parseProductName", () => {
     "VO-B D6X7 Pt.L=525",
     "CVO-B D10X11 Pt.L=220",
     "VO-Tr D6X7 Pt.L=315",
+    "EL067B D6X7 Pt.L=525",
+    "EL151-O D8X9 Pt.L=200",
+    "VOHR-Br D6X7 Pt.L=135",
   ])("leaves the canonical form %s untouched", (canonical) => {
     expect(nameOf(canonical)).toBe(canonical)
   })
