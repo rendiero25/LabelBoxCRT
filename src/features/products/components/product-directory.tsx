@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { Fragment, useActionState, useMemo, useState } from "react"
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
@@ -22,6 +22,15 @@ import {
   updateProductAction,
 } from "@/features/products/actions"
 import { initialProductActionState } from "@/features/products/form-state"
+import {
+  DEFAULT_PRODUCT_SORT,
+  PRODUCT_SORT_OPTIONS,
+  headerSortDirection,
+  nextHeaderSort,
+  sortProducts,
+  type ProductSortHeader,
+  type ProductSortKey,
+} from "@/features/products/sorting"
 import {
   useActionStateToast,
   useCloseOnActionSuccess,
@@ -71,10 +80,10 @@ import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
@@ -97,28 +106,24 @@ type Product = {
   length: number
   normalized_dimensions: string | null
   is_active: boolean
+  created_at: string
 }
-
-type ProductSortColumn = "part_name" | "normalized_dimensions" | "is_active"
-type SortDirection = "asc" | "desc"
 
 const PAGE_SIZE = 20
 
 export function ProductDirectory({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
-  const [sortColumn, setSortColumn] = useState<ProductSortColumn>("part_name")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [sortKey, setSortKey] = useState<ProductSortKey>(DEFAULT_PRODUCT_SORT)
   const [page, setPage] = useState(1)
 
-  function toggleSort(column: ProductSortColumn) {
-    if (column === sortColumn) {
-      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
-      return
-    }
-    setSortColumn(column)
-    setSortDirection("asc")
+  function applySort(key: ProductSortKey) {
+    setSortKey(key)
     setPage(1)
+  }
+
+  function toggleHeaderSort(header: ProductSortHeader) {
+    applySort(nextHeaderSort(header, sortKey))
   }
 
   const filteredProducts = useMemo(() => {
@@ -143,16 +148,8 @@ export function ProductDirectory({ products }: { products: Product[] }) {
       return matchesQuery && matchesStatus
     })
 
-    const direction = sortDirection === "asc" ? 1 : -1
-    return [...filtered].sort((a, b) => {
-      if (sortColumn === "is_active") {
-        return (Number(a.is_active) - Number(b.is_active)) * direction
-      }
-      const valueA = (a[sortColumn] ?? "").toString().toLocaleLowerCase("id-ID")
-      const valueB = (b[sortColumn] ?? "").toString().toLocaleLowerCase("id-ID")
-      return valueA.localeCompare(valueB, "id-ID") * direction
-    })
-  }, [products, query, status, sortColumn, sortDirection])
+    return sortProducts(filtered, sortKey)
+  }, [products, query, status, sortKey])
 
   const pageCount = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
@@ -161,11 +158,9 @@ export function ProductDirectory({ products }: { products: Product[] }) {
     currentPage * PAGE_SIZE,
   )
 
-  const sortLabels: Record<ProductSortColumn, string> = {
-    part_name: "Produk",
-    normalized_dimensions: "Ukuran normal",
-    is_active: "Status",
-  }
+  const activeSort = PRODUCT_SORT_OPTIONS.find(
+    (option) => option.key === sortKey,
+  )
 
   return (
     <div className="flex flex-col gap-5">
@@ -222,31 +217,41 @@ export function ProductDirectory({ products }: { products: Product[] }) {
               <Button variant="outline">
                 <ArrowUpDownIcon data-icon="inline-start" />
                 Urutkan
+                {/* Urutan yang sedang berlaku ditulis di tombolnya. Sebelumnya
+                    ia hanya terbaca dari panah kecil di dalam menu, jadi admin
+                    harus membuka menunya dulu untuk tahu daftar ini sedang
+                    diurutkan menurut apa. */}
+                {activeSort && activeSort.key !== DEFAULT_PRODUCT_SORT ? (
+                  <Badge className="ml-1" variant="secondary">
+                    {activeSort.label}
+                  </Badge>
+                ) : null}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuLabel>Urutkan menurut</DropdownMenuLabel>
-              {(Object.keys(sortLabels) as ProductSortColumn[]).map(
-                (column) => {
-                  const isActive = column === sortColumn
+              <DropdownMenuRadioGroup
+                onValueChange={(value) => applySort(value as ProductSortKey)}
+                value={sortKey}
+              >
+                {PRODUCT_SORT_OPTIONS.map((option, index) => {
+                  const startsGroup =
+                    index > 0 &&
+                    PRODUCT_SORT_OPTIONS[index - 1].group !== option.group
                   const Icon =
-                    sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+                    option.direction === "asc" ? ArrowUpIcon : ArrowDownIcon
+
                   return (
-                    // Menu tetap terbuka: menekan kolom yang sama membalik arah
-                    // urutan, jadi menutupnya memaksa operator membuka lagi.
-                    <DropdownMenuItem
-                      key={column}
-                      onSelect={(event) => {
-                        event.preventDefault()
-                        toggleSort(column)
-                      }}
-                    >
-                      {sortLabels[column]}
-                      {isActive ? <Icon className="ml-auto size-3.5" /> : null}
-                    </DropdownMenuItem>
+                    <Fragment key={option.key}>
+                      {startsGroup ? <DropdownMenuSeparator /> : null}
+                      <DropdownMenuRadioItem value={option.key}>
+                        {option.label}
+                        <Icon className="text-muted-foreground ml-auto size-3.5" />
+                      </DropdownMenuRadioItem>
+                    </Fragment>
                   )
-                },
-              )}
+                })}
+              </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -270,29 +275,26 @@ export function ProductDirectory({ products }: { products: Product[] }) {
                 <TableHead className="w-12">No</TableHead>
                 <TableHead className="w-[24%]">
                   <SortableHeader
-                    column="part_name"
+                    header="nama"
                     label="Produk"
-                    onSort={toggleSort}
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
+                    onSort={toggleHeaderSort}
+                    sortKey={sortKey}
                   />
                 </TableHead>
                 <TableHead className="w-[26%]">
                   <SortableHeader
-                    column="normalized_dimensions"
+                    header="ukuran"
                     label="Ukuran normal"
-                    onSort={toggleSort}
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
+                    onSort={toggleHeaderSort}
+                    sortKey={sortKey}
                   />
                 </TableHead>
                 <TableHead className="w-[14%]">
                   <SortableHeader
-                    column="is_active"
+                    header="status"
                     label="Status"
-                    onSort={toggleSort}
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
+                    onSort={toggleHeaderSort}
+                    sortKey={sortKey}
                   />
                 </TableHead>
                 <TableHead>Aksi</TableHead>
@@ -369,31 +371,29 @@ export function ProductDirectory({ products }: { products: Product[] }) {
 }
 
 function SortableHeader({
-  column,
+  header,
   label,
   onSort,
-  sortColumn,
-  sortDirection,
+  sortKey,
 }: {
-  column: ProductSortColumn
+  header: ProductSortHeader
   label: string
-  onSort: (column: ProductSortColumn) => void
-  sortColumn: ProductSortColumn
-  sortDirection: SortDirection
+  onSort: (header: ProductSortHeader) => void
+  sortKey: ProductSortKey
 }) {
-  const isActive = column === sortColumn
-  const Icon = sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
+  const direction = headerSortDirection(header, sortKey)
+  const Icon = direction === "desc" ? ArrowDownIcon : ArrowUpIcon
 
   return (
     <Button
       className="h-auto p-0 font-medium"
-      onClick={() => onSort(column)}
+      onClick={() => onSort(header)}
       size="sm"
       type="button"
       variant="ghost"
     >
       {label}
-      {isActive ? <Icon className="size-3.5" /> : null}
+      {direction ? <Icon className="size-3.5" /> : null}
     </Button>
   )
 }
