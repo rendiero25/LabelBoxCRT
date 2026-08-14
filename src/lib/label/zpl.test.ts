@@ -72,8 +72,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v8 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v8")
+  it("exports template version v9 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v9")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -196,10 +196,11 @@ describe("buildLabelZpl", () => {
     expect(qcPasses?.width).toBe(556)
   })
 
-  // Lot No seukuran Delivery Date dan nilai lain, dan barisnya selebar bingkai.
-  it("prints Lot No at the same size as the other values", () => {
+  // Lot No memuat tiga penanda yang dicocokkan dengan surat jalan, jadi ia
+  // dicetak setinggi Part No dan Bold, bukan seukuran nilai biasa.
+  it("prints Lot No taller and bolder than the ordinary values", () => {
     expect(zpl).toContain(
-      "^A@N,23,12,E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FD01-M-CRT-004A-581-300726-B001-B101^FS",
+      "^A@N,26,13,E:OUTFITBD.TTF^FB380,1,0,L,0^FH^FD01-M-CRT-004A-581-300726-B001-B101^FS",
     )
   })
 
@@ -343,5 +344,66 @@ describe("buildLabelZpl", () => {
   it("escapes ZPL control characters inside the QR payload", () => {
     const zplEscaped = buildLabelZpl({ ...sampleFields, qrPayload: "A^B~C_D" })
     expect(zplEscaped).toContain("^FDMA,A_5eB_7eC_5fD^FS")
+  })
+})
+
+/**
+ * Hanya label pertama batch yang membawa QR. Pada label lain kolom kanannya
+ * tidak dikosongkan — angka bulan yang naik mengisi bekas tempat QR, sebab
+ * kolom kanan yang separuh kosong terbaca seperti label yang gagal tercetak.
+ */
+describe("buildLabelZpl without a QR", () => {
+  const zpl = buildLabelZpl(sampleFields, { showQr: false })
+
+  it("emits no QR block at all", () => {
+    expect(zpl).not.toContain("^BQN")
+    expect(zpl).not.toContain(sampleFields.qrPayload)
+  })
+
+  // Penanda FIFO menempati persis jejak QR, tidak lebih: angka bulan di
+  // bagian atasnya (8..134) dan teks FIFO di baris terakhirnya (134..167).
+  it("fits the month into the top of the space the QR used to hold", () => {
+    // 8 + floor((126 - 88) / 2) = 27.
+    expect(zpl).toContain(
+      "^FO456,27^A@N,88,46,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FD8^FS",
+    )
+    expect(zpl).not.toContain("^A@N,51,28,")
+  })
+
+  it("puts the FIFO line in the last row of that same block", () => {
+    expect(zpl).toContain(
+      "^FO456,140^A@N,20,10,E:OUTFITBD.TTF^FB132,1,0,C,0^FH^FDFIFO PT CRT^FS",
+    )
+  })
+
+  // Kolom kanan berhenti di dasar jejak QR. Di bawahnya tidak ada apa pun yang
+  // perlu dihindari, jadi barisnya kembali selebar bingkai — termasuk kolom
+  // nilainya, yang pada label ber-QR masih berhenti di kolom kanan sampai 266.
+  it("ends the right column at the foot of that block", () => {
+    expect(zpl).toContain("^FO452,8^GB0,159,2^FS")
+
+    const rules = [...zpl.matchAll(/\^FO8,(\d+)\^GB(\d+),0,2\^FS/g)].map(
+      ([, y, width]) => ({ width: Number(width), y: Number(y) }),
+    )
+
+    expect(rules.map((rule) => rule.y)).toEqual(
+      Array.from({ length: 11 }, (_, index) => 68 + index * 33),
+    )
+
+    const insideRightColumn = new Set([68, 101, 134])
+    for (const rule of rules) {
+      expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 444 : 584)
+    }
+  })
+
+  // Qty/Box dan Qty/Delivery duduk di bawah jejak QR pada label ini, jadi
+  // kolom nilainya selebar bingkai (380), bukan berhenti di kolom kanan (240).
+  it("widens the value column of the rows below that block", () => {
+    expect(zpl).toContain("^FB380,1,0,L,0^FH^FD100 PCS^FS")
+    expect(zpl).toContain("^FB380,1,0,L,0^FH^FD200 PCS^FS")
+  })
+
+  it("matches the golden sample layout", () => {
+    expect(zpl).toMatchSnapshot()
   })
 })

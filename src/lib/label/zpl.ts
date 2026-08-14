@@ -14,6 +14,12 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * dan supaya tetap muat di tinggi label yang tetap, seluruh baris menyempit
  * dari 40 ke 33 dot dan setiap font ikut mengecil sebanding.
  *
+ * v9 membuat QR jadi milik satu label saja. Hanya label pertama batch (box 1
+ * set 1) yang membawanya; sisanya memakai kolom kanan yang sama untuk penanda
+ * FIFO belaka, dengan angka bulan yang membesar mengisi bekas tempat QR. Nilai
+ * Lot No sekaligus naik jadi 26 dot dan Bold: itu penanda yang dibaca operator
+ * saat mencocokkan box dengan surat jalan.
+ *
  * v7 menyusun ulang isi barisnya. "Item List" dan "No Box" tidak lagi berdiri
  * sendiri: keduanya masuk ke baris Lot No sebagai satu rangkaian penanda.
  * Tempat yang terbebas dipakai baris Customer (nama supplier), Operator Pack,
@@ -33,7 +39,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v8"
+export const TEMPLATE_VERSION = "v9"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600
@@ -101,6 +107,16 @@ const FIFO_BOTTOM = MONTH_BOTTOM + ROW_HEIGHT
 /** Kolom kanan berhenti di sini; di bawahnya baris kembali selebar bingkai. */
 const RIGHT_COLUMN_BOTTOM = FIFO_BOTTOM
 
+/**
+ * Kolom kanan label tanpa QR: penanda FIFO menempati persis jejak QR — dari
+ * tepi atas bingkai sampai dasar blok QR — bukan seluruh tinggi kolom kanan.
+ * Angka bulan mengambil bagian atasnya, satu baris terakhir untuk teks FIFO,
+ * dan di bawah 167 dot barisnya kembali selebar bingkai seperti baris tabel
+ * lain: tidak ada lagi kolom kanan yang perlu dihindari di sana.
+ */
+const NO_QR_FIFO_TOP = QR_COLUMN_BOTTOM - ROW_HEIGHT
+const NO_QR_RIGHT_COLUMN_BOTTOM = QR_COLUMN_BOTTOM
+
 const FIFO_TEXT = "FIFO PT CRT"
 /** Blok teks kolom kanan, disisakan 4 dot dari garis kolom dan tepi bingkai. */
 const RIGHT_TEXT_PADDING = 4
@@ -162,8 +178,23 @@ const PART_NO_FONT = { height: 26, width: 11 }
  * penuh dan nama panjang tetap utuh, tidak terpotong.
  */
 const CUSTOMER_FONT = VALUE_FONT
+/**
+ * Lot No dicetak setinggi Part No dan Bold. Baris ini memuat tiga penanda
+ * sekaligus — nomor urut Master Item, lot, dan nomor box — dan itu yang
+ * dicocokkan operator dengan surat jalan; seukuran nilai biasa ia tenggelam di
+ * antara sepuluh baris lain.
+ */
+const LOT_NO_FONT = { height: 26, width: 13 }
 /** Angka bulan mengisi tinggi dua baris; ini penanda yang dibaca dari jauh. */
 const MONTH_FONT = { height: 51, width: 28 }
+/**
+ * Angka bulan di label tanpa QR, mengisi bagian atas jejak QR. Tingginya bukan
+ * sebesar ruangnya: yang membatasi adalah lebar kolom kanan, dan bulan dua
+ * digit pada 88 dot sudah memakai 127 dari 132 dot yang ada. Huruf yang lebih
+ * tinggi hanya akan dipersempit lagi oleh perender HTML, sehingga label Zebra
+ * dan label kertas tidak lagi sebangun.
+ */
+const MONTH_FONT_NO_QR = { height: 88, width: 46 }
 const FIFO_FONT = { height: 20, width: 10 }
 
 type ZplFont = { height: number; width: number }
@@ -308,8 +339,9 @@ export function labelRowsFor(fields: FormattedLabelFields): LabelRow[] {
       value: fields.deliveryDate,
     },
     {
+      boldValue: true,
       fitValueToColumn: true,
-      font: VALUE_FONT,
+      font: LOT_NO_FONT,
       label: upper("Lot No"),
       value: upper(fields.lotNo),
     },
@@ -351,8 +383,15 @@ export const LABEL_LAYOUT = {
   labelHeight: LABEL_LENGTH_DOTS,
   labelWidth: LABEL_WIDTH_DOTS,
   monthBottom: MONTH_BOTTOM,
+  /** Tanpa QR, blok bulan berakhir satu baris di atas dasar jejak QR. */
+  monthBottomNoQr: NO_QR_FIFO_TOP,
   monthFont: MONTH_FONT,
+  monthFontNoQr: MONTH_FONT_NO_QR,
   monthTop: MONTH_TOP,
+  /** Tanpa QR, blok bulan mulai dari tepi atas bingkai, bukan dari bawah QR. */
+  monthTopNoQr: FRAME_Y,
+  noQrFifoTop: NO_QR_FIFO_TOP,
+  noQrRightColumnBottom: NO_QR_RIGHT_COLUMN_BOTTOM,
   qrAvailableWidth: QR_AVAILABLE_WIDTH,
   qrColumnBottom: QR_COLUMN_BOTTOM,
   qrColumnX: QR_COLUMN_X,
@@ -393,8 +432,23 @@ function textCommand(
   )
 }
 
-export function buildLabelZpl(fields: FormattedLabelFields): string {
+/**
+ * Satu label sebagai ZPL. `showQr` mematikan QR-nya: hanya label pertama batch
+ * yang membawa QR, dan pada label lain kolom kanan yang sama dipakai penanda
+ * FIFO saja — angka bulannya membesar mengisi bekas tempat QR.
+ */
+export function buildLabelZpl(
+  fields: FormattedLabelFields,
+  { showQr = true }: { showQr?: boolean } = {},
+): string {
   const rows = labelRowsFor(fields)
+  const monthTop = showQr ? MONTH_TOP : FRAME_Y
+  const monthBottom = showQr ? MONTH_BOTTOM : NO_QR_FIFO_TOP
+  const monthFont = showQr ? MONTH_FONT : MONTH_FONT_NO_QR
+  const fifoTop = showQr ? MONTH_BOTTOM : NO_QR_FIFO_TOP
+  const rightColumnBottom = showQr
+    ? RIGHT_COLUMN_BOTTOM
+    : NO_QR_RIGHT_COLUMN_BOTTOM
 
   const commands = [
     "^XA",
@@ -417,8 +471,15 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
   // sel yang lebih tinggi; batas selnya tetap digambar di y=167, 233, dan 266.
   // Setiap batas baris lain wajib punya garisnya — dijaga oleh tes yang
   // mencocokkan posisi seluruh garis, bukan cuma jumlahnya.
+  //
+  // Tanpa QR, penanda FIFO menempati jejak QR itu sendiri: hanya garis di
+  // dalam jejak itu yang berhenti, dan y=167 kembali jadi garis penutupnya.
   const ruleWidth = (y: number) =>
-    y < QR_COLUMN_BOTTOM || (y > MONTH_TOP && y < MONTH_BOTTOM)
+    (
+      showQr
+        ? y < QR_COLUMN_BOTTOM || (y > MONTH_TOP && y < MONTH_BOTTOM)
+        : y < NO_QR_RIGHT_COLUMN_BOTTOM
+    )
       ? QR_COLUMN_X - FRAME_X
       : FRAME_WIDTH
 
@@ -430,7 +491,7 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
     // ruang cap QC jadi dua.
     `^FO${VALUE_DIVIDER_X},${ROWS_TOP}^GB0,${FULL_WIDTH_ROW_TOP - ROWS_TOP},${BORDER_DOTS}^FS`,
     // Kolom kanan berdiri dari tepi atas bingkai sampai akhir baris FIFO.
-    `^FO${QR_COLUMN_X},${FRAME_Y}^GB0,${RIGHT_COLUMN_BOTTOM - FRAME_Y},${BORDER_DOTS}^FS`,
+    `^FO${QR_COLUMN_X},${FRAME_Y}^GB0,${rightColumnBottom - FRAME_Y},${BORDER_DOTS}^FS`,
   )
 
   const labelBlockWidth = VALUE_DIVIDER_X - LABEL_COLUMN_X - 8
@@ -451,7 +512,7 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
   rows.forEach((row, index) => {
     const rowTop = ROWS_TOP + index * ROW_HEIGHT
     const valueRight =
-      rowTop < RIGHT_COLUMN_BOTTOM ? QR_COLUMN_X : FRAME_X + FRAME_WIDTH
+      rowTop < rightColumnBottom ? QR_COLUMN_X : FRAME_X + FRAME_WIDTH
     const valueBlockWidth = valueRight - VALUE_COLUMN_X - 14
     const font = row.fitValueToColumn
       ? {
@@ -503,29 +564,32 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
 
   // QR sebesar yang muat: modul dihitung dari panjang payload, magnifikasi
   // diambil sebesar mungkin, lalu hasilnya ditengahkan di kolomnya sendiri.
-  const qrModules = qrModulesFor(fields.qrPayload.length)
-  const qrMagnification = qrMagnificationFor(
-    qrModules,
-    Math.min(QR_AVAILABLE_WIDTH, QR_AVAILABLE_HEIGHT),
-  )
-  const qrSize = qrModules * qrMagnification
-  const qrX =
-    QR_COLUMN_X + Math.floor((FRAME_X + FRAME_WIDTH - QR_COLUMN_X - qrSize) / 2)
-  const qrY = FRAME_Y + Math.floor((QR_COLUMN_BOTTOM - FRAME_Y - qrSize) / 2)
+  if (showQr) {
+    const qrModules = qrModulesFor(fields.qrPayload.length)
+    const qrMagnification = qrMagnificationFor(
+      qrModules,
+      Math.min(QR_AVAILABLE_WIDTH, QR_AVAILABLE_HEIGHT),
+    )
+    const qrSize = qrModules * qrMagnification
+    const qrX =
+      QR_COLUMN_X +
+      Math.floor((FRAME_X + FRAME_WIDTH - QR_COLUMN_X - qrSize) / 2)
+    const qrY = FRAME_Y + Math.floor((QR_COLUMN_BOTTOM - FRAME_Y - qrSize) / 2)
 
-  // ^BQ data is prefixed with the error-correction level (M) and input mode
-  // (A, auto). The prefix must not be hex-escaped; only the payload is.
-  commands.push(
-    `^FO${qrX},${qrY}^BQN,2,${qrMagnification}^FH^FDMA,${escapeZplText(fields.qrPayload)}^FS`,
-  )
+    // ^BQ data is prefixed with the error-correction level (M) and input mode
+    // (A, auto). The prefix must not be hex-escaped; only the payload is.
+    commands.push(
+      `^FO${qrX},${qrY}^BQN,2,${qrMagnification}^FH^FDMA,${escapeZplText(fields.qrPayload)}^FS`,
+    )
+  }
 
-  // Dua blok penanda FIFO di bawah QR, keduanya ditengahkan di kolom kanan.
+  // Dua blok penanda FIFO di kolom kanan, keduanya ditengahkan. Tanpa QR blok
+  // bulannya yang naik mengisi tempat itu; baris FIFO tetap di dasarnya.
   commands.push(
     textCommand(
       RIGHT_TEXT_X,
-      MONTH_TOP +
-        Math.floor((MONTH_BOTTOM - MONTH_TOP - MONTH_FONT.height) / 2),
-      MONTH_FONT,
+      monthTop + Math.floor((monthBottom - monthTop - monthFont.height) / 2),
+      monthFont,
       RIGHT_TEXT_WIDTH,
       escapeZplText(fields.deliveryMonth),
       true,
@@ -533,7 +597,7 @@ export function buildLabelZpl(fields: FormattedLabelFields): string {
     ),
     textCommand(
       RIGHT_TEXT_X,
-      MONTH_BOTTOM + Math.floor((ROW_HEIGHT - FIFO_FONT.height) / 2),
+      fifoTop + Math.floor((ROW_HEIGHT - FIFO_FONT.height) / 2),
       FIFO_FONT,
       RIGHT_TEXT_WIDTH,
       escapeZplText(FIFO_TEXT),

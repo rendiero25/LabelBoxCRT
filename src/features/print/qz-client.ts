@@ -15,7 +15,12 @@ function configureSecurity(): void {
     (resolve, reject) => {
       fetch("/api/qz/cert")
         .then((response) => {
-          if (!response.ok) throw new Error("QZ certificate unavailable")
+          // Statusnya ikut disebut: 503 berarti QZ_CERTIFICATE belum diisi di
+          // environment ini, dan itu keterangan yang berbeda jauh dari 401
+          // karena sesinya habis. Tanpa angkanya, keduanya terbaca sama.
+          if (!response.ok) {
+            throw new Error(`QZ certificate unavailable (${response.status})`)
+          }
           return response.text()
         })
         .then(resolve, reject)
@@ -33,7 +38,9 @@ function configureSecurity(): void {
       method: "POST",
     })
       .then((response) => {
-        if (!response.ok) throw new Error("QZ signing failed")
+        if (!response.ok) {
+          throw new Error(`QZ signing failed (${response.status})`)
+        }
         return response.json() as Promise<{ signature: string }>
       })
       .then(({ signature }) => resolve(signature), reject)

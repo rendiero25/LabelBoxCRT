@@ -16,6 +16,16 @@ export type QzConnectionStatus =
 const RECONNECT_DELAYS_MS = [2000, 5000, 10000, 30000]
 
 type QzSnapshot = {
+  /**
+   * Sebab daftar printer kosong, kalau pembacaannya memang gagal.
+   *
+   * Dulu kegagalan ini ditelan jadi daftar kosong belaka, dan layarnya
+   * menyuruh "pilih printer dulu" — padahal tidak ada yang bisa dipilih.
+   * Kegagalan yang paling sering justru tidak kelihatan dari QZ sama sekali:
+   * sambungannya hijau, tetapi /api/qz/sign menolak, dan tiap panggilan
+   * bertanda tangan sesudahnya gagal diam-diam.
+   */
+  printerError: string | null
   printers: string[]
   scanner: UsbDevice | null
   status: QzConnectionStatus
@@ -33,12 +43,14 @@ type QzSnapshot = {
  * useSyncExternalStore; status dan daftar printernya sekarang menyusul.
  */
 let snapshot: QzSnapshot = {
+  printerError: null,
   printers: [],
   scanner: null,
   status: "disconnected",
 }
 
 const serverSnapshot: QzSnapshot = {
+  printerError: null,
   printers: [],
   scanner: null,
   status: "disconnected",
@@ -56,9 +68,15 @@ function publish(patch: Partial<QzSnapshot>): void {
 
 async function refreshPrinters(): Promise<void> {
   try {
-    publish({ printers: await listPrinters() })
-  } catch {
-    publish({ printers: [] })
+    publish({ printerError: null, printers: await listPrinters() })
+  } catch (error) {
+    publish({
+      printerError:
+        error instanceof Error
+          ? error.message
+          : "Daftar printer tidak bisa dibaca dari QZ Tray.",
+      printers: [],
+    })
   }
 }
 
@@ -102,7 +120,12 @@ function start(): void {
   started = true
 
   onQzClosed(() => {
-    publish({ printers: [], scanner: null, status: "disconnected" })
+    publish({
+      printerError: null,
+      printers: [],
+      scanner: null,
+      status: "disconnected",
+    })
     reconnectTimer = setTimeout(() => void connect(), 2000)
   })
 
@@ -132,7 +155,12 @@ export function resetQzConnectionForTests(): void {
   reconnectAttempt = 0
   started = false
   listeners.clear()
-  snapshot = { printers: [], scanner: null, status: "disconnected" }
+  snapshot = {
+    printerError: null,
+    printers: [],
+    scanner: null,
+    status: "disconnected",
+  }
 }
 
 export function useQzConnection() {
@@ -144,6 +172,7 @@ export function useQzConnection() {
 
   return {
     connect,
+    printerError: current.printerError,
     printers: current.printers,
     refreshPrinters,
     refreshScanner,

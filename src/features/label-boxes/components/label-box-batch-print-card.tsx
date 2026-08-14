@@ -39,9 +39,25 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { isFirstLabelOfBatch } from "@/lib/label/box-number"
 import { formatLabelFields } from "@/lib/label/formatter"
 import { buildLabelHtml, buildLabelSheetsHtml } from "@/lib/label/html"
-import { buildLabelZpl } from "@/lib/label/zpl"
+import { buildLabelZpl, LABEL_DOTS_PER_MM, LABEL_LAYOUT } from "@/lib/label/zpl"
+
+/**
+ * Preview label dikecilkan ke lebar tetap ini. Skalanya dihitung dari
+ * LABEL_LAYOUT, bukan ditulis ulang, supaya label yang berubah bentuk di
+ * templat ikut berubah bentuk di preview.
+ */
+const PREVIEW_WIDTH_PX = 260
+const MM_PER_INCH = 25.4
+const CSS_PX_PER_INCH = 96
+
+const LABEL_WIDTH_MM = LABEL_LAYOUT.labelWidth / LABEL_DOTS_PER_MM
+const LABEL_HEIGHT_MM = LABEL_LAYOUT.labelHeight / LABEL_DOTS_PER_MM
+const LABEL_WIDTH_PX = (LABEL_WIDTH_MM * CSS_PX_PER_INCH) / MM_PER_INCH
+const LABEL_HEIGHT_PX = (LABEL_HEIGHT_MM * CSS_PX_PER_INCH) / MM_PER_INCH
+const PREVIEW_SCALE = PREVIEW_WIDTH_PX / LABEL_WIDTH_PX
 
 export function LabelBoxBatchPrintCard({
   batchId,
@@ -50,7 +66,7 @@ export function LabelBoxBatchPrintCard({
   batchId: string
   onPrinted?: () => void
 }) {
-  const { printers, status } = useQzConnection()
+  const { printerError, printers, refreshPrinters, status } = useQzConnection()
   const selectedPrinter = usePreferredPrinter()
   const [jobsState, jobsAction, jobsPending] = useActionState(
     createLabelBoxPrintJobsAction,
@@ -64,6 +80,10 @@ export function LabelBoxBatchPrintCard({
   const [printing, setPrinting] = useState(false)
   const [reprintError, setReprintError] = useState<string | null>(null)
   const [selectedBoxIds, setSelectedBoxIds] = useState<string[]>([])
+  const [preview, setPreview] = useState<{
+    boxNumber: string
+    html: string
+  } | null>(null)
   const inFlight = useRef(false)
 
   const activePrinter = autoSelectPrinter(selectedPrinter, printers)
@@ -85,11 +105,17 @@ export function LabelBoxBatchPrintCard({
   const blockedReason =
     status !== "connected"
       ? "QZ Tray belum terhubung dari halaman ini. Koneksi dicoba ulang otomatis."
-      : !activePrinter
-        ? "Pilih printer dulu di daftar di atas."
-        : printableJobs.length === 0 && !alreadyPrinted
-          ? "Belum ada label yang siap dicetak."
-          : null
+      : // Daftar kosong bukan "belum memilih": tidak ada yang bisa dipilih, dan
+        // menyuruh memilih di sana membuat operator menekan daftar kosong
+        // berulang kali sambil mengira dirinya salah pakai.
+        printers.length === 0
+        ? (printerError ??
+          "QZ Tray terhubung tetapi tidak melaporkan satu printer pun.")
+        : !activePrinter
+          ? "Pilih printer dulu di daftar di atas."
+          : printableJobs.length === 0 && !alreadyPrinted
+            ? "Belum ada label yang siap dicetak."
+            : null
 
   // Label disiapkan begitu kartu muncul, jadi operator hanya menekan Cetak.
   const prepared = useRef(false)
@@ -103,6 +129,53 @@ export function LabelBoxBatchPrintCard({
     // memperbarui isPending dan tombol Cetak tidak pernah kelihatan menunggu.
     startTransition(() => jobsAction(formData))
   }, [batchId, jobs.length, jobsAction, jobsPending])
+
+  /**
+   * Label box pertama dirakit sebagai preview lewat jalur yang sama dengan
+   * cetak kertas, QR sungguhan dan semua. Operator karena itu memeriksa lot,
+   * tanggal, dan nomor box sebelum stikernya keluar, bukan setelah tertempel.
+   *
+   * Gagalnya perakitan hanya menghilangkan previewnya. Preview bukan syarat
+   * cetak, dan peringatan merah di kartu ini akan terbaca seolah cetaknya yang
+   * gagal.
+   */
+  useEffect(() => {
+    const job = jobs[0]
+    if (!job) return
+
+    let cancelled = false
+    const fields = formatLabelFields({
+      boxNumber: job.boxNumber,
+      deliveryDate: job.deliveryDate,
+      lotNo: job.lotNo,
+      masterItemRowNo: job.masterItemRowNo,
+      packingDate: job.packingDate,
+      packingQty: job.qty,
+      partNo: job.partNo,
+      qrPayload: job.qrPayload,
+      qtyDelivery: job.qtyDelivery,
+      supplierCode: job.supplierCode,
+      supplierName: job.supplierName,
+    })
+
+    const qr = isFirstLabelOfBatch(job.boxNumber)
+      ? QRCode.toDataURL(fields.qrPayload, { margin: 0, width: 240 })
+      : Promise.resolve(null)
+
+    qr.then((qrDataUrl) => {
+      if (cancelled) return
+      setPreview({
+        boxNumber: job.boxNumber,
+        html: buildLabelHtml(fields, qrDataUrl),
+      })
+    }).catch(() => {
+      if (!cancelled) setPreview(null)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [jobs])
 
   /**
    * Mencetak satu rombongan job: klaim, kirim sekali ke QZ, lalu tandai
@@ -173,17 +246,23 @@ export function LabelBoxBatchPrintCard({
             supplierName: job.supplierName,
           })
 
+          // QR hanya milik label pertama batch; label lain memakai kolom
+          // kanannya untuk penanda FIFO saja.
+          const showQr = isFirstLabelOfBatch(job.boxNumber)
+
           // QR dirakit printer sendiri pada jalur ZPL, tapi pada jalur HTML
           // harus ikut jadi gambar di dalam labelnya.
           const payload =
             printerKind === "label"
-              ? buildLabelZpl(fields)
+              ? buildLabelZpl(fields, { showQr })
               : buildLabelHtml(
                   fields,
-                  await QRCode.toDataURL(fields.qrPayload, {
-                    margin: 0,
-                    width: 240,
-                  }),
+                  showQr
+                    ? await QRCode.toDataURL(fields.qrPayload, {
+                        margin: 0,
+                        width: 240,
+                      })
+                    : null,
                 )
 
           // Yang disimpan adalah payload yang benar-benar dikirim ke printer,
@@ -289,152 +368,209 @@ export function LabelBoxBatchPrintCard({
         <h2 className="font-semibold">Cetak label batch</h2>
       </div>
 
-      {status !== "connected" ? (
-        <Alert variant="destructive">
-          <CircleAlertIcon />
-          <AlertTitle>QZ Tray tidak terhubung</AlertTitle>
-          <AlertDescription>
-            Pastikan aplikasi QZ Tray berjalan. Koneksi dicoba ulang otomatis.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid min-w-0 gap-4">
+          {status !== "connected" ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>QZ Tray tidak terhubung</AlertTitle>
+              <AlertDescription>
+                Pastikan aplikasi QZ Tray berjalan. Koneksi dicoba ulang
+                otomatis.
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
-      {status === "connected" && !activePrinter ? (
-        <PrinterPicker
-          onSelect={setPreferredPrinter}
-          printers={printers}
-          selected={selectedPrinter}
-        />
-      ) : null}
+          {status === "connected" && !activePrinter ? (
+            <div className="grid gap-2">
+              <PrinterPicker
+                onSelect={setPreferredPrinter}
+                printers={printers}
+                selected={selectedPrinter}
+              />
+              {/* Daftar printer dibaca lewat panggilan bertanda tangan, dan
+                  tanda tangannya bisa ditolak walau sambungan QZ hijau.
+                  Sebabnya ditulis apa adanya, lengkap dengan status HTTP-nya,
+                  dan operator bisa mencoba lagi tanpa memutus sambungan. */}
+              {printers.length === 0 ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-muted-foreground text-sm">
+                    {printerError ?? "Belum ada printer yang terbaca."}
+                  </p>
+                  <Button
+                    onClick={() => void refreshPrinters()}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    Muat ulang daftar printer
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
-      {(jobsState.error ?? reprintError) ? (
-        <Alert variant="destructive">
-          <CircleAlertIcon />
-          <AlertDescription>{jobsState.error ?? reprintError}</AlertDescription>
-        </Alert>
-      ) : null}
+          {(jobsState.error ?? reprintError) ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertDescription>
+                {jobsState.error ?? reprintError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
-      {printError ? (
-        <Alert variant="destructive">
-          <CircleAlertIcon />
-          <AlertTitle>Cetak gagal</AlertTitle>
-          <AlertDescription>{printError}</AlertDescription>
-        </Alert>
-      ) : null}
+          {printError ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>Cetak gagal</AlertTitle>
+              <AlertDescription>{printError}</AlertDescription>
+            </Alert>
+          ) : null}
 
-      {printRun && printRun.done === printRun.total ? (
-        <Alert>
-          <CircleCheckIcon />
-          <AlertTitle>Label tercetak</AlertTitle>
-          <AlertDescription>
-            {printRun.done} label terkirim ke {activePrinter}.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+          {printRun && printRun.done === printRun.total ? (
+            <Alert>
+              <CircleCheckIcon />
+              <AlertTitle>Label tercetak</AlertTitle>
+              <AlertDescription>
+                {printRun.done} label terkirim ke {activePrinter}.
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
-      {/* Label yang sudah keluar dari printer tidak bisa dicetak lagi lewat job
+          {/* Label yang sudah keluar dari printer tidak bisa dicetak lagi lewat job
           yang sama. Pilih box yang labelnya rusak atau hilang, atau cetak ulang
           seluruh batch; keduanya membuat label pengganti yang identik. */}
-      {alreadyPrinted ? (
-        <div className="grid gap-3">
-          <p className="text-muted-foreground text-sm">
-            Label batch ini sudah tercetak. Pilih box yang perlu dicetak ulang,
-            atau cetak ulang semuanya.
-          </p>
-          <div className="grid gap-1.5 sm:grid-cols-2">
-            {jobs.map((job) => (
-              <label
-                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
-                key={job.labelBoxId}
-              >
-                <input
-                  checked={selectedBoxIds.includes(job.labelBoxId)}
-                  className="accent-primary size-4"
-                  onChange={(event) =>
-                    setSelectedBoxIds((current) =>
-                      event.target.checked
-                        ? [...current, job.labelBoxId]
-                        : current.filter((id) => id !== job.labelBoxId),
-                    )
-                  }
-                  type="checkbox"
-                />
-                <span className="font-mono">{job.boxNumber}</span>
-                <span className="text-muted-foreground truncate">
-                  {job.boxName}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      ) : null}
+          {alreadyPrinted ? (
+            <div className="grid gap-3">
+              <p className="text-muted-foreground text-sm">
+                Label batch ini sudah tercetak. Pilih box yang perlu dicetak
+                ulang, atau cetak ulang semuanya.
+              </p>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {jobs.map((job) => (
+                  <label
+                    className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                    key={job.labelBoxId}
+                  >
+                    <input
+                      checked={selectedBoxIds.includes(job.labelBoxId)}
+                      className="accent-primary size-4"
+                      onChange={(event) =>
+                        setSelectedBoxIds((current) =>
+                          event.target.checked
+                            ? [...current, job.labelBoxId]
+                            : current.filter((id) => id !== job.labelBoxId),
+                        )
+                      }
+                      type="checkbox"
+                    />
+                    <span className="font-mono">{job.boxNumber}</span>
+                    <span className="text-muted-foreground truncate">
+                      {job.boxName}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-        {alreadyPrinted ? (
-          <>
-            <Button
-              disabled={
-                printing ||
-                selectedBoxIds.length === 0 ||
-                status !== "connected" ||
-                !activePrinter
-              }
-              onClick={() => void runReprint(selectedBoxIds)}
-              type="button"
-            >
-              {printing ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <PrinterIcon data-icon="inline-start" />
-              )}
-              Cetak ulang {selectedBoxIds.length || ""} terpilih
-            </Button>
-            <Button
-              disabled={printing || status !== "connected" || !activePrinter}
-              onClick={() => void runReprint()}
-              type="button"
-              variant="outline"
-            >
-              Cetak ulang semua
-            </Button>
-          </>
-        ) : (
-          <Button
-            disabled={
-              printing ||
-              jobsPending ||
-              printableJobs.length === 0 ||
-              status !== "connected" ||
-              !activePrinter
-            }
-            onClick={() => void runPrint()}
-            type="button"
-          >
-            {printing || jobsPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <PrinterIcon data-icon="inline-start" />
-            )}
-            {jobsPending
-              ? "Menyiapkan label…"
-              : printing
-                ? `Mencetak ${printableJobs.length} label…`
-                : `Cetak ${printableJobs.length || ""} label`.replace(
-                    "  ",
-                    " ",
+          <div className="flex flex-wrap items-center gap-3">
+            {alreadyPrinted ? (
+              <>
+                <Button
+                  disabled={
+                    printing ||
+                    selectedBoxIds.length === 0 ||
+                    status !== "connected" ||
+                    !activePrinter
+                  }
+                  onClick={() => void runReprint(selectedBoxIds)}
+                  type="button"
+                >
+                  {printing ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <PrinterIcon data-icon="inline-start" />
                   )}
-          </Button>
-        )}
-        {activePrinter ? (
-          <span className="text-muted-foreground text-sm">
-            Printer: {activePrinter}
-          </span>
+                  Cetak ulang {selectedBoxIds.length || ""} terpilih
+                </Button>
+                <Button
+                  disabled={
+                    printing || status !== "connected" || !activePrinter
+                  }
+                  onClick={() => void runReprint()}
+                  type="button"
+                  variant="outline"
+                >
+                  Cetak ulang semua
+                </Button>
+              </>
+            ) : (
+              <Button
+                disabled={
+                  printing ||
+                  jobsPending ||
+                  printableJobs.length === 0 ||
+                  status !== "connected" ||
+                  !activePrinter
+                }
+                onClick={() => void runPrint()}
+                type="button"
+              >
+                {printing || jobsPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <PrinterIcon data-icon="inline-start" />
+                )}
+                {jobsPending
+                  ? "Menyiapkan label…"
+                  : printing
+                    ? `Mencetak ${printableJobs.length} label…`
+                    : `Cetak ${printableJobs.length || ""} label`.replace(
+                        "  ",
+                        " ",
+                      )}
+              </Button>
+            )}
+            {activePrinter ? (
+              <span className="text-muted-foreground text-sm">
+                Printer: {activePrinter}
+              </span>
+            ) : null}
+          </div>
+
+          {blockedReason && !printing ? (
+            <p className="text-muted-foreground text-sm">{blockedReason}</p>
+          ) : null}
+        </div>
+
+        {/* Label yang akan keluar dari printer, dirakit dari data batch ini
+            sendiri. Kotaknya selalu putih: label dicetak di atas kertas putih,
+            dan preview yang ikut tema gelap tidak lagi menunjukkan hasilnya. */}
+        {preview && jobs.length > 0 ? (
+          <div className="grid gap-2">
+            <p className="text-muted-foreground text-sm">
+              Preview label ·{" "}
+              <span className="font-mono">{preview.boxNumber}</span>
+            </p>
+            <div
+              className="overflow-hidden rounded-md border bg-white"
+              style={{
+                height: LABEL_HEIGHT_PX * PREVIEW_SCALE,
+                width: PREVIEW_WIDTH_PX,
+              }}
+            >
+              <div
+                dangerouslySetInnerHTML={{ __html: preview.html }}
+                style={{
+                  transform: `scale(${PREVIEW_SCALE})`,
+                  transformOrigin: "top left",
+                }}
+              />
+            </div>
+          </div>
         ) : null}
       </div>
-
-      {blockedReason && !printing ? (
-        <p className="text-muted-foreground text-sm">{blockedReason}</p>
-      ) : null}
     </div>
   )
 }

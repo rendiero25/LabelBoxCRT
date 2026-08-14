@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   completePrintJobAction: vi.fn(),
   createLabelBoxPrintJobsAction: vi.fn(),
   createLabelBoxReprintJobsAction: vi.fn(),
+  qz: {
+    printerError: null as string | null,
+    printers: ["ZDesigner ZD220-203dpi ZPL"] as string[],
+  },
+  refreshPrinters: vi.fn(),
   sendHtmlSheets: vi.fn(),
   sendZplBatch: vi.fn(),
 }))
@@ -36,8 +41,9 @@ vi.mock("@/features/print/label-font-loader", () => ({
 vi.mock("@/features/print/use-qz-connection", () => ({
   useQzConnection: () => ({
     connect: vi.fn(),
-    printers: ["ZDesigner ZD220-203dpi ZPL"],
-    refreshPrinters: vi.fn(),
+    printerError: mocks.qz.printerError,
+    printers: mocks.qz.printers,
+    refreshPrinters: mocks.refreshPrinters,
     refreshScanner: vi.fn(),
     scanner: null,
     status: "connected",
@@ -87,6 +93,8 @@ beforeEach(() => {
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true
   vi.clearAllMocks()
+  mocks.qz.printerError = null
+  mocks.qz.printers = ["ZDesigner ZD220-203dpi ZPL"]
   mocks.createLabelBoxPrintJobsAction.mockResolvedValue({
     jobs: [jobFixture(1), jobFixture(2), jobFixture(3)],
   })
@@ -156,6 +164,52 @@ describe("LabelBoxBatchPrintCard", () => {
         result: "failed",
       })
     }
+  })
+
+  /**
+   * Preview memakai jalur rakit yang sama dengan cetak kertas. Kalau ia diam
+   * saat job sudah siap, operator kembali menekan Cetak tanpa pernah melihat
+   * lot, tanggal, dan nomor box yang akan tercetak.
+   */
+  it("shows a preview of the first label once the jobs are ready", async () => {
+    await act(async () => {
+      root.render(
+        <LabelBoxBatchPrintCard batchId="c61b11fd-0000-4000-8000-000000000001" />,
+      )
+    })
+
+    expect(container.textContent).toContain("Preview label")
+    expect(container.textContent).toContain(jobFixture(1).boxNumber)
+    expect(container.querySelector("img[src^='data:image/png']")).not.toBeNull()
+    expect(container.textContent).toContain(jobFixture(1).lotNo)
+  })
+
+  /**
+   * Sambungan QZ bisa hijau sementara tiap panggilan bertanda tangan ditolak —
+   * itu yang terjadi di Vercel ketika /api/qz/sign menolak origin deployment.
+   * Daftar printernya kosong, dan layar yang cuma bilang "pilih printer dulu"
+   * mengirim operator menekan daftar kosong berulang kali.
+   */
+  it("names the reason the printer list is empty and offers a retry", async () => {
+    mocks.qz.printers = []
+    mocks.qz.printerError = "QZ signing failed (403)"
+
+    await act(async () => {
+      root.render(
+        <LabelBoxBatchPrintCard batchId="c61b11fd-0000-4000-8000-000000000001" />,
+      )
+    })
+
+    expect(container.textContent).toContain("QZ signing failed (403)")
+    expect(container.textContent).not.toContain("Pilih printer dulu")
+
+    const retry = [...container.querySelectorAll("button")].find((element) =>
+      element.textContent?.includes("Muat ulang daftar printer"),
+    )
+    await act(async () => {
+      retry?.click()
+    })
+    expect(mocks.refreshPrinters).toHaveBeenCalledTimes(1)
   })
 
   it("leaves nothing claimed when every label prints", async () => {

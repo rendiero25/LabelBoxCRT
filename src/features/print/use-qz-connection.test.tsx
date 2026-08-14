@@ -19,8 +19,12 @@ const { resetQzConnectionForTests, useQzConnection } =
   await import("@/features/print/use-qz-connection")
 
 function Probe({ label }: { label: string }) {
-  const { printers, status } = useQzConnection()
-  return <span id={label}>{`${status}|${printers.join(",")}`}</span>
+  const { printerError, printers, status } = useQzConnection()
+  return (
+    <span
+      id={label}
+    >{`${status}|${printers.join(",")}|${printerError ?? ""}`}</span>
+  )
 }
 
 let container: HTMLDivElement
@@ -62,7 +66,7 @@ describe("useQzConnection", () => {
     const header = container.querySelector("#header")?.textContent
     const card = container.querySelector("#card")?.textContent
 
-    expect(header).toBe("connected|Canon G4010 series,Microsoft PDF")
+    expect(header).toBe("connected|Canon G4010 series,Microsoft PDF|")
     expect(card).toBe(header)
     expect(mocks.connectQz).toHaveBeenCalledTimes(1)
     expect(mocks.listPrinters).toHaveBeenCalledTimes(1)
@@ -80,7 +84,27 @@ describe("useQzConnection", () => {
       )
     })
 
-    expect(container.querySelector("#header")?.textContent).toBe("error|")
-    expect(container.querySelector("#card")?.textContent).toBe("error|")
+    expect(container.querySelector("#header")?.textContent).toBe("error||")
+    expect(container.querySelector("#card")?.textContent).toBe("error||")
+  })
+
+  /**
+   * Sambungan QZ hijau tidak menjamin panggilannya diterima: daftar printer
+   * dibaca lewat panggilan bertanda tangan, dan penolakan tanda tangan dulu
+   * ditelan jadi daftar kosong tanpa sebab. Yang terlihat operator hanyalah
+   * daftar printer yang tidak bisa dipilih.
+   */
+  it("keeps the reason when the printer lookup is refused", async () => {
+    mocks.listPrinters.mockRejectedValueOnce(
+      new Error("QZ signing failed (403)"),
+    )
+
+    await act(async () => {
+      root.render(<Probe label="card" />)
+    })
+
+    expect(container.querySelector("#card")?.textContent).toBe(
+      "connected||QZ signing failed (403)",
+    )
   })
 })

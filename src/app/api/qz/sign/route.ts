@@ -34,9 +34,37 @@ function allowedOrigins(): string[] {
   return origins
 }
 
+/**
+ * Permintaan dari halaman aplikasi itu sendiri, dikenali dari host yang sama.
+ *
+ * Allowlist saja tidak cukup di Vercel: tiap deployment preview punya host
+ * sendiri yang berganti tiap push, sehingga NEXT_PUBLIC_APP_URL tidak pernah
+ * cocok dan setiap permintaan tanda tangan ditolak 403. Gejalanya menyesatkan —
+ * QZ Tray tetap terhubung karena sertifikatnya diambil lewat GET tanpa
+ * pemeriksaan ini, tetapi setiap panggilan bertanda tangan sesudahnya gagal,
+ * jadi daftar printer datang kosong dan operator tidak bisa memilih apa pun.
+ *
+ * Yang dijaga pemeriksaan ini adalah situs lain yang memakai sesi pengguna
+ * untuk menandatangani perintah cetaknya sendiri, dan pencocokan host
+ * mengerjakan itu tanpa perlu tahu nama host deployment lebih dulu.
+ */
+function isSameOrigin(request: NextRequest, origin: string): boolean {
+  const host = request.headers.get("host")
+  if (!host) return false
+
+  try {
+    return new URL(origin).host === host
+  } catch {
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin")
-  if (!origin || !allowedOrigins().includes(origin)) {
+  if (
+    !origin ||
+    !(allowedOrigins().includes(origin) || isSameOrigin(request, origin))
+  ) {
     console.warn("qz-sign: rejected origin", origin)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }

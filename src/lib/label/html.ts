@@ -18,7 +18,7 @@ import {
  * ZPL, dibagi 8 dot/mm. Menyalin ulang ukurannya ke sini akan membuat label
  * Zebra dan label Canon perlahan berbeda bentuk tanpa ada yang menyadari.
  */
-export const HTML_TEMPLATE_VERSION = "v8-html"
+export const HTML_TEMPLATE_VERSION = "v9-html"
 
 const L = LABEL_LAYOUT
 
@@ -165,20 +165,27 @@ function textBox(
 }
 
 /** Sama seperti ruleWidth di templat ZPL: lihat komentarnya di zpl.ts. */
-function ruleWidth(y: number): number {
-  return y < L.qrColumnBottom || (y > L.monthTop && y < L.monthBottom)
+function ruleWidth(y: number, showQr: boolean): number {
+  return (
+    showQr
+      ? y < L.qrColumnBottom || (y > L.monthTop && y < L.monthBottom)
+      : y < L.noQrRightColumnBottom
+  )
     ? L.qrColumnX - L.frameX
     : L.frameWidth
 }
 
-function rowMarkup(row: LabelRow, index: number): string {
+function rowMarkup(row: LabelRow, index: number, showQr: boolean): string {
   const rowTop = L.rowsTop + index * L.rowHeight
+  const rightColumnBottom = showQr
+    ? L.rightColumnBottom
+    : L.noQrRightColumnBottom
   const valueRight =
-    rowTop < L.rightColumnBottom ? L.qrColumnX : L.frameX + L.frameWidth
+    rowTop < rightColumnBottom ? L.qrColumnX : L.frameX + L.frameWidth
 
   const parts: string[] = []
   // Baris pertama sudah dibatasi garis kop.
-  if (index > 0) parts.push(rule(L.frameX, rowTop, ruleWidth(rowTop)))
+  if (index > 0) parts.push(rule(L.frameX, rowTop, ruleWidth(rowTop, showQr)))
 
   parts.push(
     textBox(
@@ -225,11 +232,21 @@ function rowMarkup(row: LabelRow, index: number): string {
  *
  * QR datang jadi data URL dari pemanggil, bukan dirakit di sini: pembuatannya
  * asinkron sedangkan perakit ini harus tetap murni dan bisa diuji tanpa canvas.
+ * `qrDataUrl` null berarti label tanpa QR — hanya label pertama batch yang
+ * membawanya, dan pada label lain angka bulan yang mengisi bekas tempatnya.
  */
 export function buildLabelHtml(
   fields: FormattedLabelFields,
-  qrDataUrl: string,
+  qrDataUrl: string | null,
 ): string {
+  const showQr = qrDataUrl !== null
+  const monthTop = showQr ? L.monthTop : L.monthTopNoQr
+  const monthBottom = showQr ? L.monthBottom : L.monthBottomNoQr
+  const monthFont = showQr ? L.monthFont : L.monthFontNoQr
+  const fifoTop = showQr ? L.monthBottom : L.noQrFifoTop
+  const rightColumnBottom = showQr
+    ? L.rightColumnBottom
+    : L.noQrRightColumnBottom
   const parts: string[] = [
     `<div style="position:relative;box-sizing:border-box;` +
       `width:${mm(L.labelWidth)};height:${mm(L.labelHeight)};` +
@@ -240,9 +257,9 @@ export function buildLabelHtml(
       `left:${mm(L.frameX)};top:${mm(L.frameY)};` +
       `width:${mm(L.frameWidth)};height:${mm(L.frameHeight)};` +
       `border:${BORDER_MM} solid #000"></div>`,
-    rule(L.frameX, L.rowsTop, ruleWidth(L.rowsTop)),
+    rule(L.frameX, L.rowsTop, ruleWidth(L.rowsTop, showQr)),
     verticalRule(L.valueDividerX, L.rowsTop, L.fullWidthRowTop - L.rowsTop),
-    verticalRule(L.qrColumnX, L.frameY, L.rightColumnBottom - L.frameY),
+    verticalRule(L.qrColumnX, L.frameY, rightColumnBottom - L.frameY),
     textBox(
       {
         height: L.headerHeight,
@@ -257,29 +274,31 @@ export function buildLabelHtml(
   ]
 
   labelRowsFor(fields).forEach((row, index) => {
-    parts.push(rowMarkup(row, index))
+    parts.push(rowMarkup(row, index, showQr))
   })
 
   // QR mengisi kolomnya sebagai bujur sangkar, ditengahkan seperti di ZPL.
-  const qrSize = L.qrAvailableWidth * QR_SCALE
-  const qrLeft =
-    L.qrColumnX + (L.frameX + L.frameWidth - L.qrColumnX - qrSize) / 2
-  const qrTop = L.frameY + (L.qrColumnBottom - L.frameY - qrSize) / 2
-  parts.push(
-    `<img alt="" src="${qrDataUrl}" style="position:absolute;` +
-      `left:${mm(qrLeft)};top:${mm(qrTop)};` +
-      `width:${mm(qrSize)};height:${mm(qrSize)};image-rendering:pixelated">`,
-  )
+  if (qrDataUrl !== null) {
+    const qrSize = L.qrAvailableWidth * QR_SCALE
+    const qrLeft =
+      L.qrColumnX + (L.frameX + L.frameWidth - L.qrColumnX - qrSize) / 2
+    const qrTop = L.frameY + (L.qrColumnBottom - L.frameY - qrSize) / 2
+    parts.push(
+      `<img alt="" src="${qrDataUrl}" style="position:absolute;` +
+        `left:${mm(qrLeft)};top:${mm(qrTop)};` +
+        `width:${mm(qrSize)};height:${mm(qrSize)};image-rendering:pixelated">`,
+    )
+  }
 
   parts.push(
     textBox(
       {
-        height: L.monthBottom - L.monthTop,
+        height: monthBottom - monthTop,
         left: L.rightTextX,
-        top: L.monthTop,
+        top: monthTop,
         width: L.rightTextWidth,
       },
-      L.monthFont.height,
+      monthFont.height,
       fields.deliveryMonth,
       "center",
     ),
@@ -287,7 +306,7 @@ export function buildLabelHtml(
       {
         height: L.rowHeight,
         left: L.rightTextX,
-        top: L.monthBottom,
+        top: fifoTop,
         width: L.rightTextWidth,
       },
       L.fifoFont.height,

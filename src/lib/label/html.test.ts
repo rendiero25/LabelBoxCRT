@@ -210,6 +210,49 @@ describe("buildLabelHtml", () => {
   })
 })
 
+/**
+ * Label kedua dan seterusnya dirakit tanpa QR. Jalur kertas harus mengosongkan
+ * dan mengisi ulang kolom kanannya persis seperti jalur Zebra; kalau tidak,
+ * label yang sama keluar berbeda dari dua printer.
+ */
+describe("buildLabelHtml without a QR", () => {
+  const html = buildLabelHtml(sampleFields, null)
+
+  it("embeds no image at all", () => {
+    expect(html).not.toContain("<img")
+    expect(html).not.toContain(qrDataUrl)
+  })
+
+  // Blok bulan mengisi bagian atas jejak QR: 1mm sampai 16.75mm (8..134 dot),
+  // hurufnya 88 dot = 11mm.
+  it("fits the month into the top of the space the QR used to hold", () => {
+    expect(html).toContain("top:1mm;width:16.5mm;height:15.75mm")
+    expect(html).toContain("font-size:11mm")
+  })
+
+  it("puts the FIFO line in the last row of that same block", () => {
+    expect(html).toContain(">FIFO PT CRT</div>")
+    expect(html).toContain("top:16.75mm;width:16.5mm;height:4.125mm")
+  })
+
+  // Kolom kanan berhenti di dasar jejak QR (20.875mm); di bawahnya barisnya
+  // kembali selebar bingkai.
+  it("ends the right column at the foot of that block", () => {
+    expect(html).toContain("left:56.5mm;top:1mm;width:0.25mm;height:19.875mm")
+
+    const tops = [
+      ...html.matchAll(/top:([\d.]+)mm;width:([\d.]+)mm;height:0\.25mm/g),
+    ]
+      .map(([, top, width]) => ({ top: Number(top), width: Number(width) }))
+      .sort((left, right) => left.top - right.top)
+
+    const stopsAtRightColumn = new Set([8.5, 12.625, 16.75])
+    for (const rule of tops) {
+      expect(rule.width).toBe(stopsAtRightColumn.has(rule.top) ? 55.5 : 73)
+    }
+  })
+})
+
 describe("paginateLabels", () => {
   it("fills whole sheets and leaves the last one short", () => {
     const labels = Array.from({ length: 23 }, (_, index) => index)
