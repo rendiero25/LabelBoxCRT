@@ -224,7 +224,6 @@ export function LabelBoxVerificationConsole({
   const scanInputRef = useRef<HTMLInputElement | null>(null)
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const playedScanAt = useRef<number | null>(null)
-  const closed = useRef(false)
 
   useEffect(() => {
     const sync = () => setPageFocused(document.hasFocus())
@@ -315,11 +314,9 @@ export function LabelBoxVerificationConsole({
     toast.success(scan.message ?? "Scan diterima.", { duration: 3_000 })
   }, [muted, scanner.lastScan])
 
-  useEffect(() => {
-    if (!closeState.success || closed.current) return
-    closed.current = true
-    router.push("/scan")
-  }, [closeState.success, router])
+  // Perpindahan ke daftar label box dikerjakan closeLabelBoxBatchAction lewat
+  // redirect() di server; lihat komentarnya di sana. Mengulanginya di sini
+  // hanya akan berlomba dengan penyegaran route yang sudah tidak ada lagi.
 
   const allBoxes = batch.sets.flatMap((set) => set.boxes)
   const activeBox = allBoxes.find((labelBox) => !labelBox.verified)
@@ -562,7 +559,9 @@ export function LabelBoxVerificationConsole({
                     <div key={labelBox.id}>
                       <div className="mb-1 flex items-baseline justify-between gap-2">
                         <p className="text-sm font-medium">
-                          <span className="font-mono">{labelBox.boxNumber}</span>{" "}
+                          <span className="font-mono">
+                            {labelBox.boxNumber}
+                          </span>{" "}
                           <span className="text-muted-foreground">
                             {labelBox.boxName}
                           </span>

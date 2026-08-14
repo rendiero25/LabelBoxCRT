@@ -4,6 +4,7 @@ import {
   LabelBoxBatchTable,
   type LabelBoxBatchRow,
 } from "@/features/label-boxes/components/label-box-batch-table"
+import { LabelBoxCloseToast } from "@/features/label-boxes/components/label-box-close-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { requireActiveUser } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
@@ -11,10 +12,11 @@ import { createClient } from "@/lib/supabase/server"
 export default async function ScanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ masterItemId?: string }>
+  searchParams: Promise<{ masterItemId?: string; verifikasi?: string }>
 }) {
   await requireActiveUser()
-  const { masterItemId } = await searchParams
+  const { masterItemId, verifikasi } = await searchParams
+  const closedSummary = parseClosedSummary(verifikasi)
   const supabase = await createClient()
 
   const [
@@ -80,6 +82,12 @@ export default async function ScanPage({
 
   return (
     <div className="flex w-full flex-col gap-6">
+      {closedSummary ? (
+        <LabelBoxCloseToast
+          labelCount={closedSummary.labelCount}
+          verifiedCount={closedSummary.verifiedCount}
+        />
+      ) : null}
       {dataError ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
@@ -101,6 +109,21 @@ export default async function ScanPage({
       />
     </div>
   )
+}
+
+/**
+ * Ringkasan penutupan verifikasi, dibawa aksinya sebagai "terverifikasi-total".
+ * Nilai yang tidak berbentuk itu diabaikan diam-diam: query datang dari alamat
+ * yang bisa diketik siapa saja, dan tos berisi angka karangan lebih buruk
+ * daripada tidak ada tos sama sekali.
+ */
+function parseClosedSummary(
+  value: string | undefined,
+): { labelCount: number; verifiedCount: number } | null {
+  const match = /^(\d+)-(\d+)$/.exec(value ?? "")
+  if (!match) return null
+
+  return { labelCount: Number(match[2]), verifiedCount: Number(match[1]) }
 }
 
 type LabelBoxBatchQuery = {

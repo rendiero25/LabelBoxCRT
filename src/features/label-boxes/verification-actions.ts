@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { parseBarcodeV1 } from "@/lib/barcode/parser"
 import {
@@ -140,9 +141,22 @@ export async function closeLabelBoxBatchAction(
   }
 
   revalidatePath("/scan")
-  return {
-    success: `Verifikasi ditutup. ${data[0].verified_count} dari ${data[0].label_count} box terverifikasi.`,
-  }
+
+  /**
+   * Pindah halaman dikerjakan di sini, bukan lewat efek di klien.
+   *
+   * Server action menyegarkan route yang sedang terbuka, dan begitu batch
+   * ditutup halaman verifikasinya sendiri berubah jadi notFound() — batch
+   * dengan closed_at terisi tidak lagi punya halaman itu. Perpindahan yang
+   * dijalankan sesudahnya berlomba dengan penyegaran tersebut, dan yang
+   * dilihat operator adalah "Halaman tidak ditemukan" alih-alih daftar label
+   * box. redirect() di sini menutup lomba itu: route lamanya tidak pernah
+   * dirender ulang.
+   *
+   * Ringkasan hasilnya ikut sebagai query supaya halaman scan yang
+   * memunculkan tosnya, sebab state sukses tidak pernah sampai ke klien.
+   */
+  redirect(`/scan?verifikasi=${data[0].verified_count}-${data[0].label_count}`)
 }
 
 export async function createLabelBoxPrintJobsAction(
