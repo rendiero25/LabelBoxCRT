@@ -79,7 +79,13 @@ export async function updateMasterItemAction(
       },
     )
     if (layerError) {
-      return { error: masterItemBoxRpcErrorMessage(layerError.message) }
+      // Master Item-nya sudah tersimpan sebelum baris ini. Tanpa revalidate,
+      // halamannya tetap memperlihatkan data lama dan pesan errornya terbaca
+      // seolah seluruh simpanan batal — padahal hanya layernya yang gagal.
+      revalidatePath("/admin/master-items")
+      return {
+        error: `Master Item diperbarui, tetapi kebutuhan produk per layer gagal disimpan. ${masterItemBoxRpcErrorMessage(layerError.message)}`,
+      }
     }
   }
 
