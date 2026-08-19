@@ -55,7 +55,10 @@ export default async function MasterItemHistoryPage({
           <AlertDescription>{history.error}</AlertDescription>
         </Alert>
       ) : (
-        <MasterItemHistoryView rows={history.rows} />
+        <MasterItemHistoryView
+          masterItemId={masterItemId}
+          rows={history.rows}
+        />
       )}
     </div>
   )

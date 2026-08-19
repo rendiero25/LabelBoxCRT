@@ -20,6 +20,7 @@ import type {
 import { PaginationControls } from "@/components/shared/pagination-controls"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { HistoryExportMenu } from "@/features/master-items/components/history-export-menu"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -184,8 +185,10 @@ function summarisePrint(row: MasterItemHistoryRow): PrintSummary {
 }
 
 export function MasterItemHistoryView({
+  masterItemId,
   rows,
 }: {
+  masterItemId: string
   rows: MasterItemHistoryRow[]
 }) {
   const [search, setSearch] = useState("")
@@ -407,6 +410,9 @@ export function MasterItemHistoryView({
                 <TableHead className="text-right">Scan</TableHead>
                 <TableHead>Cetak</TableHead>
                 <TableHead>Terakhir dicetak</TableHead>
+                {/* Judul dan tombolnya sama-sama diberi jarak dari tepi tabel;
+                    tanpa itu keduanya menempel di garis kanan. */}
+                <TableHead className="pr-4 text-right">Ekspor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -414,7 +420,7 @@ export function MasterItemHistoryView({
                 <TableRow>
                   <TableCell
                     className="text-muted-foreground py-10 text-center"
-                    colSpan={10}
+                    colSpan={11}
                   >
                     Tidak ada riwayat yang cocok dengan filter ini.
                   </TableCell>
@@ -432,6 +438,7 @@ export function MasterItemHistoryView({
                       accepted={accepted}
                       isOpen={isOpen}
                       key={row.labelBoxId}
+                      masterItemId={masterItemId}
                       onToggle={() =>
                         setExpanded(isOpen ? null : row.labelBoxId)
                       }
@@ -508,12 +515,14 @@ function FilterMenu({
 function HistoryRow({
   accepted,
   isOpen,
+  masterItemId,
   onToggle,
   row,
   summary,
 }: {
   accepted: number
   isOpen: boolean
+  masterItemId: string
   onToggle: () => void
   row: MasterItemHistoryRow
   summary: PrintSummary | undefined
@@ -576,11 +585,18 @@ function HistoryRow({
         <TableCell className="whitespace-nowrap">
           {formatDateTime(summary?.lastAt ?? null)}
         </TableCell>
+        <TableCell className="pr-4 text-right">
+          <HistoryExportMenu
+            boxNumber={row.boxNumber}
+            labelBoxId={row.labelBoxId}
+            masterItemId={masterItemId}
+          />
+        </TableCell>
       </TableRow>
 
       {isOpen ? (
         <TableRow className="hover:bg-transparent">
-          <TableCell className="bg-muted/40 p-0" colSpan={10}>
+          <TableCell className="bg-muted/40 p-0" colSpan={11}>
             <HistoryDetail row={row} />
           </TableCell>
         </TableRow>
