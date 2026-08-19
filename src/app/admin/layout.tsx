@@ -19,11 +19,11 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { SidebarNavLink } from "@/components/shared/sidebar-nav-link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SignOutButton } from "@/features/auth/components/sign-out-button"
@@ -52,12 +52,10 @@ export default async function AdminLayout({
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin">
-                      <LayoutDashboardIcon />
-                      <span>Dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarNavLink href="/admin">
+                    <LayoutDashboardIcon />
+                    <span>Dashboard</span>
+                  </SidebarNavLink>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
@@ -67,20 +65,16 @@ export default async function AdminLayout({
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/products">
-                      <BoxesIcon />
-                      <span>Produk</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarNavLink href="/admin/products">
+                    <BoxesIcon />
+                    <span>Produk</span>
+                  </SidebarNavLink>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/master-items">
-                      <PackageSearchIcon />
-                      <span>Master Item</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarNavLink href="/admin/master-items">
+                    <PackageSearchIcon />
+                    <span>Master Item</span>
+                  </SidebarNavLink>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
@@ -90,28 +84,22 @@ export default async function AdminLayout({
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/suppliers">
-                      <Building2Icon />
-                      <span>Supplier</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarNavLink href="/admin/suppliers">
+                    <Building2Icon />
+                    <span>Supplier</span>
+                  </SidebarNavLink>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/product-mappings">
-                      <Link2Icon />
-                      <span>Product Mapping</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarNavLink href="/admin/product-mappings">
+                    <Link2Icon />
+                    <span>Product Mapping</span>
+                  </SidebarNavLink>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/admin/csv-imports">
-                      <FileSpreadsheetIcon />
-                      <span>CSV Import</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarNavLink href="/admin/csv-imports">
+                    <FileSpreadsheetIcon />
+                    <span>CSV Import</span>
+                  </SidebarNavLink>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>

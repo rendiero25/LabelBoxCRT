@@ -567,7 +567,7 @@ function ProductForm({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor={product ? `partType-${product.id}` : "partType"}>
-            Part
+            Nama
           </FieldLabel>
           <Input
             id={product ? `partType-${product.id}` : "partType"}
@@ -587,7 +587,7 @@ function ProductForm({
           <FieldLabel
             htmlFor={product ? `productName-${product.id}` : "productName"}
           >
-            Nama
+            Part
           </FieldLabel>
           <Input
             id={product ? `productName-${product.id}` : "productName"}

@@ -181,12 +181,17 @@ function Sidebar({
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+        {/* Di layar kecil lebarnya mengikuti isi menunya, bukan satu angka
+            tetap: menu terpanjang yang menentukan, dan sisa layar tetap
+            terlihat supaya jelas sidebarnya melayang di atas halaman. Padding
+            kanan menjaga teks menu tidak menempel di tepi panel; batas atasnya
+            mencegah panel menutupi seluruh layar di ponsel tersempit. */}
         <SheetContent
           dir={dir}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="bg-sidebar text-sidebar-foreground w-auto max-w-[85vw] min-w-56 p-0 pr-4 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
