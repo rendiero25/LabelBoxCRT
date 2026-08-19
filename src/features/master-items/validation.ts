@@ -1,4 +1,4 @@
-const partNoPattern = /^[A-Z0-9][A-Z0-9_./-]{1,127}$/
+const partNoPattern = /^[A-Z0-9][A-Z0-9 _./-]{1,127}$/
 const unitPattern = /^[A-Za-z][A-Za-z ./-]{0,31}$/
 
 type MasterItemInput = {
@@ -19,9 +19,12 @@ function normalizeUnit(value: string): string {
 export function parseMasterItemInput(
   formData: FormData,
 ): { data: MasterItemInput } | { error: string } {
+  // Spasi berderet dirapatkan jadi satu, seperti yang dilakukan RPC-nya:
+  // "VO  B" dan "VO B" adalah part yang sama dan tidak boleh tercatat dua kali.
   const partNo = String(formData.get("partNo") ?? "")
     .trim()
     .toUpperCase()
+    .replace(/\s+/g, " ")
   const partName = String(formData.get("partName") ?? "").trim()
   const unit = normalizeUnit(String(formData.get("unit") ?? ""))
   const rawQuantity = String(formData.get("defaultLabelQty") ?? "").trim()
@@ -32,7 +35,7 @@ export function parseMasterItemInput(
   if (!partNoPattern.test(partNo)) {
     return {
       error:
-        "Part No harus 2–128 karakter huruf besar, angka, titik, garis bawah, garis miring, atau tanda minus.",
+        "Part No harus 2–128 karakter huruf besar, angka, spasi, titik, garis bawah, garis miring, atau tanda minus.",
     }
   }
   if (!partName) return { error: "Nama part wajib diisi." }
@@ -65,7 +68,8 @@ export function masterItemRpcErrorMessage(message: string): string {
     MASTER_ITEM_INPUT_INVALID: "Data Master Item tidak valid.",
     MASTER_ITEM_NOT_FOUND: "Master Item tidak ditemukan.",
     MASTER_ITEM_PART_NO_EXISTS: "Part No sudah digunakan.",
-    MASTER_ITEM_SUPPLIER_NOT_FOUND: "Supplier tidak aktif atau tidak ditemukan.",
+    MASTER_ITEM_SUPPLIER_NOT_FOUND:
+      "Supplier tidak aktif atau tidak ditemukan.",
   }
 
   return (

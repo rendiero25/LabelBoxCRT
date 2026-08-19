@@ -34,9 +34,9 @@ describe("parseMasterItemInput", () => {
     const placeholder = validFormData()
     placeholder.set("supplierId", "none")
     const parsedPlaceholder = parseMasterItemInput(placeholder)
-    expect("data" in parsedPlaceholder && parsedPlaceholder.data.supplierId).toBe(
-      null,
-    )
+    expect(
+      "data" in parsedPlaceholder && parsedPlaceholder.data.supplierId,
+    ).toBe(null)
   })
 
   it("keeps a real supplier id", () => {
@@ -67,6 +67,24 @@ describe("parseMasterItemInput", () => {
   it("rejects an invalid part no", () => {
     const formData = validFormData()
     formData.set("partNo", "!!")
+
+    const result = parseMasterItemInput(formData)
+    expect("error" in result && result.error).toMatch(/Part No/)
+  })
+
+  // Nomor part dari pelanggan memang ditulis berspasi; spasi berderet
+  // dirapatkan supaya satu part tidak tercatat dua kali dengan ejaan berbeda.
+  it("accepts a part no with spaces and collapses repeated ones", () => {
+    const formData = validFormData()
+    formData.set("partNo", "  vo   b   6x7  ")
+
+    const result = parseMasterItemInput(formData)
+    expect("data" in result && result.data.partNo).toBe("VO B 6X7")
+  })
+
+  it("still rejects a part no made of nothing but spaces", () => {
+    const formData = validFormData()
+    formData.set("partNo", "   ")
 
     const result = parseMasterItemInput(formData)
     expect("error" in result && result.error).toMatch(/Part No/)
