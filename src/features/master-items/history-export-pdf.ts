@@ -212,8 +212,9 @@ export function buildLabelBoxHistoryPdf(
         ? labelFor(SESSION_STATUS_LABEL, row.session.status)
         : "Belum discan",
     ],
-    ["Packing Qty", String(row.packingQty)],
-    ["Qty Delivery", String(row.qtyDelivery)],
+    ["Qty/Box", String(row.packingQty)],
+    ["Packing Qty", String(row.qtyDelivery)],
+    ["Qty Delivery", String(row.qtyDeliveryDisplay)],
     ["Item List", String(row.rowNo)],
     ["Label di batch", String(row.labelCount)],
     ["Batch dibuat", formatDateTime(row.batchCreatedAt)],

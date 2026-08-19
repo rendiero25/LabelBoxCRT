@@ -85,6 +85,9 @@ export type MasterItemHistoryRow = {
   lotNo: string
   packingQty: number
   printJobs: HistoryPrintJob[]
+  /** Angka yang dicetak di baris Qty/Delivery label; isian field "Qty Delivery". */
+  qtyDeliveryDisplay: number
+  /** Keping yang dipak; isian field "Packing Qty", pembagi jumlah set label. */
   qtyDelivery: number
   rowNo: number
   scans: HistoryScan[]
@@ -109,7 +112,7 @@ export async function loadMasterItemHistory(
     // kueri diturunkan dari isi literalnya, dan sambungan membuatnya melebar
     // jadi `string` sehingga seluruh baris berubah jadi GenericStringError.
     .select(
-      "id, created_at, closed_at, delivery_number_snapshot, delivery_date_snapshot, lot_no, qty_delivery, packing_qty, label_count, master_item_row_no, label_boxes(id, box_number, set_no, box_no, status, created_at, packing_session_id, packing_sessions(id, status, started_at, ready_at, finalized_at, cancelled_at, cancel_reason))",
+      "id, created_at, closed_at, delivery_number_snapshot, delivery_date_snapshot, lot_no, qty_delivery, qty_delivery_display, packing_qty, label_count, master_item_row_no, label_boxes(id, box_number, set_no, box_no, status, created_at, packing_session_id, packing_sessions(id, status, started_at, ready_at, finalized_at, cancelled_at, cancel_reason))",
     )
     .eq("master_item_id", masterItemId)
     .order("created_at", { ascending: false })
@@ -218,6 +221,7 @@ export async function loadMasterItemHistory(
         packingQty: batch.packing_qty,
         printJobs: sessionId ? (jobsBySession.get(sessionId) ?? []) : [],
         qtyDelivery: batch.qty_delivery,
+        qtyDeliveryDisplay: batch.qty_delivery_display ?? batch.qty_delivery,
         rowNo: batch.master_item_row_no,
         scans: sessionId ? (scansBySession.get(sessionId) ?? []) : [],
         session: session

@@ -34,6 +34,7 @@ import {
   type MasterItemBox,
   type ProductOption,
 } from "@/features/master-items/components/master-item-box-layer-editor"
+import { changedLayerSelections } from "@/features/master-items/box-layer-requirements"
 import { shortenLayerName } from "@/features/master-items/layer-label"
 import { initialMasterItemActionState } from "@/features/master-items/form-state"
 import {
@@ -99,6 +100,12 @@ import {
 
 export type MasterItem = {
   id: string
+  /**
+   * Nomor urut dinamis: posisi Master Item di dalam daftar yang diurutkan
+   * item_code, dihitung Postgres. Nomor inilah yang dipakai QR label box saat
+   * batch dibuat, dan ia bergeser saat Master Item lain ditambah atau dihapus.
+   */
+  row_no: number | null
   item_code: string
   part_no: string
   part_name: string
@@ -114,7 +121,7 @@ export type SupplierOption = {
   supplier_name: string
 }
 
-type SortColumn = "part_no" | "is_active"
+type SortColumn = "row_no" | "part_no" | "is_active"
 type SortDirection = "asc" | "desc"
 
 const PAGE_SIZE = 20
@@ -132,7 +139,7 @@ export function MasterItemDirectory({
 }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
-  const [sortColumn, setSortColumn] = useState<SortColumn>("part_no")
+  const [sortColumn, setSortColumn] = useState<SortColumn>("row_no")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [page, setPage] = useState(1)
 
@@ -173,6 +180,9 @@ export function MasterItemDirectory({
       if (sortColumn === "is_active") {
         return (Number(a.is_active) - Number(b.is_active)) * direction
       }
+      if (sortColumn === "row_no") {
+        return ((a.row_no ?? 0) - (b.row_no ?? 0)) * direction
+      }
       return (
         a[sortColumn]
           .toLocaleLowerCase("id-ID")
@@ -193,6 +203,7 @@ export function MasterItemDirectory({
   )
 
   const sortLabels: Record<SortColumn, string> = {
+    row_no: "Nomor urut",
     part_no: "Part No",
     is_active: "Status",
   }
@@ -295,7 +306,7 @@ export function MasterItemDirectory({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>No</TableHead>
+                <TableHead className="w-16">No urut</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead>Unit / Qty</TableHead>
                 <TableHead>Status</TableHead>
@@ -303,10 +314,13 @@ export function MasterItemDirectory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagedMasterItems.map((masterItem, index) => (
+              {pagedMasterItems.map((masterItem) => (
                 <TableRow key={masterItem.id}>
-                  <TableCell>
-                    {(currentPage - 1) * PAGE_SIZE + index + 1}
+                  {/* Nomor urut yang akan dipakai QR label box, bukan nomor
+                      baris di layar: nomor baris berubah begitu daftarnya
+                      disaring atau dihalamankan. */}
+                  <TableCell className="tabular-nums">
+                    {masterItem.row_no ?? "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
@@ -597,6 +611,15 @@ function EditMasterItemDialog({
     initialLayerProductSelections(boxes, masterItem.id),
   )
 
+  // Pembanding untuk mencari layer yang benar-benar disentuh. Diturunkan dari
+  // props, bukan disimpan sekali di state: setelah simpanan berhasil halaman
+  // direvalidasi dan `boxes` membawa nilai terbaru, jadi simpanan berikutnya
+  // tidak mengirim ulang layer yang sudah sama.
+  const savedSelections = useMemo(
+    () => initialLayerProductSelections(boxes, masterItem.id),
+    [boxes, masterItem.id],
+  )
+
   function toggleProduct(boxLayerId: string, productId: string) {
     setSelections((previous) => {
       const current = previous[boxLayerId] ?? []
@@ -628,7 +651,9 @@ function EditMasterItemDialog({
           action={formAction}
           error={state.error}
           formId={formId}
-          layerRequirementsJson={layerProductSelectionsToPayload(selections)}
+          layerRequirementsJson={layerProductSelectionsToPayload(
+            changedLayerSelections(savedSelections, selections),
+          )}
           masterItem={masterItem}
           showFooter={false}
           suppliers={suppliers}

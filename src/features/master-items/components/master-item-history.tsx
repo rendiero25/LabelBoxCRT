@@ -615,7 +615,14 @@ function HistoryDetail({ row }: { row: MasterItemHistoryRow }) {
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
           <DetailPair label="Item List" value={String(row.rowNo)} />
           <DetailPair label="Qty/Box" value={String(row.packingQty)} />
-          <DetailPair label="Qty/Delivery" value={String(row.qtyDelivery)} />
+          {/* Packing Qty adalah keping yang dipak — angka yang menentukan
+              berapa set label dibuat. Qty/Delivery hanya angka yang dicetak di
+              labelnya. Keduanya diisi terpisah di formulir Tambah label box. */}
+          <DetailPair label="Packing Qty" value={String(row.qtyDelivery)} />
+          <DetailPair
+            label="Qty/Delivery"
+            value={String(row.qtyDeliveryDisplay)}
+          />
           <DetailPair label="Label di batch" value={String(row.labelCount)} />
           <DetailPair
             label="Batch dibuat"

@@ -69,6 +69,7 @@ function historyRow(
       },
     ],
     qtyDelivery: 100,
+    qtyDeliveryDisplay: 5000,
     rowNo: 1,
     scans: [
       {
@@ -176,8 +177,11 @@ describe("buildMasterItemHistoryWorkbook", () => {
 
     expect(cell(sheet, 2, "Nomor Box")).toBe("B101")
     expect(cell(sheet, 2, "Item List")).toBe(1)
+    // Tiga angka yang mudah tertukar: Qty/Box milik Master Item, Packing Qty
+    // keping yang dipak, Qty/Delivery angka yang dicetak di label.
     expect(cell(sheet, 2, "Qty/Box")).toBe(100)
-    expect(cell(sheet, 2, "Qty/Delivery")).toBe(100)
+    expect(cell(sheet, 2, "Packing Qty")).toBe(100)
+    expect(cell(sheet, 2, "Qty/Delivery")).toBe(5000)
     expect(cell(sheet, 2, "Label di batch")).toBe(3)
     expect(cell(sheet, 2, "Box dibuat")).toBeInstanceOf(Date)
     expect(cell(sheet, 2, "Scan dimulai")).toBeInstanceOf(Date)

@@ -29,7 +29,7 @@ export default async function ScanPage({
     supabase
       .from("label_box_batches")
       .select(
-        "id, packing_qty, qty_delivery, lot_no, label_count, qr_generated_at, created_at, closed_at, supplier_code_snapshot, part_no_snapshot, delivery_number_snapshot, delivery_date_snapshot, packing_date, label_boxes(box_number, set_no, box_no, packing_session_id)",
+        "id, packing_qty, qty_delivery, qty_delivery_display, lot_no, label_count, qr_generated_at, created_at, closed_at, supplier_code_snapshot, part_no_snapshot, delivery_number_snapshot, delivery_date_snapshot, packing_date, label_boxes(box_number, set_no, box_no, packing_session_id)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -130,6 +130,7 @@ type LabelBoxBatchQuery = {
   id: string
   packing_qty: number
   qty_delivery: number
+  qty_delivery_display: number | null
   lot_no: string
   label_count: number
   qr_generated_at: string | null
@@ -166,14 +167,19 @@ function toLabelBoxBatchRow(
     labelCount: batch.label_count,
     lotNo: batch.lot_no,
     packingDate: batch.packing_date,
-    packingQty: batch.packing_qty,
+    // Dua angka yang mudah tertukar. Yang diisi operator di field "Packing
+    // Qty" tersimpan sebagai qty_delivery -- itulah yang dibagi Qty/Box Master
+    // Item jadi jumlah set label. Yang diisi di field "Qty Delivery" tersimpan
+    // sebagai qty_delivery_display dan hanya dicetak di labelnya. Kolom
+    // packing_qty adalah Qty/Box milik Master Item, bukan isian formulir.
+    packingQty: batch.qty_delivery,
     partNo: batch.part_no_snapshot,
     printed: batch.label_boxes.some(
       (labelBox) =>
         labelBox.packing_session_id !== null &&
         printedSessionIds.has(labelBox.packing_session_id),
     ),
-    qtyDelivery: batch.qty_delivery,
+    qtyDelivery: batch.qty_delivery_display ?? batch.qty_delivery,
     supplierCode: batch.supplier_code_snapshot,
   }
 }

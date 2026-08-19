@@ -171,6 +171,13 @@ export type Database = {
             foreignKeyName: "boxes_master_item_id_fkey"
             columns: ["master_item_id"]
             isOneToOne: false
+            referencedRelation: "master_item_row_numbers"
+            referencedColumns: ["master_item_id"]
+          },
+          {
+            foreignKeyName: "boxes_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
             referencedRelation: "master_items"
             referencedColumns: ["id"]
           },
@@ -241,6 +248,7 @@ export type Database = {
           master_item_row_no: number
           packing_date: string
           packing_qty: number
+          part_name_snapshot: string
           part_no_snapshot: string
           qr_generated_at: string | null
           qty_delivery: number
@@ -265,6 +273,7 @@ export type Database = {
           master_item_row_no: number
           packing_date: string
           packing_qty: number
+          part_name_snapshot: string
           part_no_snapshot: string
           qr_generated_at?: string | null
           qty_delivery: number
@@ -289,6 +298,7 @@ export type Database = {
           master_item_row_no?: number
           packing_date?: string
           packing_qty?: number
+          part_name_snapshot?: string
           part_no_snapshot?: string
           qr_generated_at?: string | null
           qty_delivery?: number
@@ -318,6 +328,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "delivery_numbers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_box_batches_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_item_row_numbers"
+            referencedColumns: ["master_item_id"]
           },
           {
             foreignKeyName: "label_box_batches_master_item_id_fkey"
@@ -422,6 +439,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "master_item_products_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_item_row_numbers"
+            referencedColumns: ["master_item_id"]
+          },
           {
             foreignKeyName: "master_item_products_master_item_id_fkey"
             columns: ["master_item_id"]
@@ -641,6 +665,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "delivery_numbers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_sessions_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_item_row_numbers"
+            referencedColumns: ["master_item_id"]
           },
           {
             foreignKeyName: "packing_sessions_master_item_id_fkey"
@@ -991,7 +1022,13 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      master_item_row_numbers: {
+        Row: {
+          master_item_id: string | null
+          row_no: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_label_box_scan: {

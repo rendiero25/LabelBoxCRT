@@ -8,39 +8,58 @@ import { createClient } from "@/lib/supabase/server"
 export default async function MasterItemsPage() {
   await requireAdmin()
   const supabase = await createClient()
-  const [masterItemsResult, productsResult, boxesResult, suppliersResult] =
-    await Promise.all([
-      supabase
-        .from("master_items")
-        .select(
-          "id, item_code, part_no, part_name, unit, default_label_qty, supplier_id, is_active",
-        )
-        .order("item_code"),
-      supabase
-        .from("products")
-        .select(
-          "id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions",
-        )
-        .eq("is_active", true)
-        .order("product_code"),
-      supabase
-        .from("boxes")
-        .select(
-          "id, master_item_id, box_no, box_code, box_name, box_layers(id, layer_no, layer_name, box_layer_requirements(product_id, expected_qty)), packing_sessions(id)",
-        )
-        .order("box_no"),
-      supabase
-        .from("suppliers")
-        .select("id, supplier_code, supplier_name")
-        .eq("is_active", true)
-        .order("supplier_code"),
-    ])
+  const [
+    masterItemsResult,
+    rowNumbersResult,
+    productsResult,
+    boxesResult,
+    suppliersResult,
+  ] = await Promise.all([
+    supabase
+      .from("master_items")
+      .select(
+        "id, item_code, part_no, part_name, unit, default_label_qty, supplier_id, is_active",
+      )
+      .order("item_code"),
+    // Nomor urut dihitung Postgres, bukan di sini: nomor yang sama dipakai
+    // saat QR dibuat, dan mengurutkan ulang di javascript berisiko memberi
+    // hasil berbeda dari collation database.
+    supabase.from("master_item_row_numbers").select("master_item_id, row_no"),
+    supabase
+      .from("products")
+      .select(
+        "id, product_code, part_name, outer_diameter, inner_diameter, length, normalized_dimensions",
+      )
+      .eq("is_active", true)
+      .order("product_code"),
+    supabase
+      .from("boxes")
+      .select(
+        "id, master_item_id, box_no, box_code, box_name, box_layers(id, layer_no, layer_name, box_layer_requirements(product_id, expected_qty)), packing_sessions(id)",
+      )
+      .order("box_no"),
+    supabase
+      .from("suppliers")
+      .select("id, supplier_code, supplier_name")
+      .eq("is_active", true)
+      .order("supplier_code"),
+  ])
   const error =
     masterItemsResult.error ??
+    rowNumbersResult.error ??
     productsResult.error ??
     boxesResult.error ??
     suppliersResult.error
-  const masterItems = masterItemsResult.data ?? []
+  const rowNumbers = new Map(
+    (rowNumbersResult.data ?? []).map((row) => [
+      row.master_item_id,
+      row.row_no,
+    ]),
+  )
+  const masterItems = (masterItemsResult.data ?? []).map((masterItem) => ({
+    ...masterItem,
+    row_no: rowNumbers.get(masterItem.id) ?? null,
+  }))
   const suppliers = suppliersResult.data ?? []
   const products = (productsResult.data ?? []).map((product) => ({
     id: product.id,
