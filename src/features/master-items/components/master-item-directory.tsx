@@ -922,8 +922,10 @@ function DeleteMasterItemAction({
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Master Item {partNo}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Master Item yang masih dipakai Box, Product
-              Mapping, atau riwayat packing tidak dapat dihapus.
+              Tindakan ini permanen. Box Definition beserta layernya dan product
+              mapping milik Master Item ini ikut terhapus. Riwayat label box dan
+              packing session yang sudah ada tetap tersimpan dengan data
+              lamanya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <form action={formAction}>

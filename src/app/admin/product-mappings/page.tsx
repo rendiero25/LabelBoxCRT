@@ -32,6 +32,7 @@ export default async function ProductMappingsPage() {
         .from("master_items")
         .select("id, item_code, part_no, part_name, is_active")
         .eq("is_active", true)
+        .is("deleted_at", null)
         .order("part_no"),
       supabase
         .from("products")

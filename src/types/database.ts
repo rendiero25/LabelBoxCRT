@@ -466,6 +466,8 @@ export type Database = {
         Row: {
           created_at: string
           default_label_qty: number
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           is_active: boolean
           item_code: string
@@ -478,6 +480,8 @@ export type Database = {
         Insert: {
           created_at?: string
           default_label_qty?: number
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           is_active?: boolean
           item_code: string
@@ -490,6 +494,8 @@ export type Database = {
         Update: {
           created_at?: string
           default_label_qty?: number
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           is_active?: boolean
           item_code?: string
@@ -500,6 +506,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "master_items_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "master_items_supplier_id_fkey"
             columns: ["supplier_id"]

@@ -36,6 +36,7 @@ export default async function ScanPage({
       .from("master_items")
       .select("id, item_code, part_no, default_label_qty, supplier_id")
       .eq("is_active", true)
+      .is("deleted_at", null)
       .order("item_code"),
     supabase.from("boxes").select("id, master_item_id"),
     supabase

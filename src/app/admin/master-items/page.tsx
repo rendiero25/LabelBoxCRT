@@ -20,6 +20,9 @@ export default async function MasterItemsPage() {
       .select(
         "id, item_code, part_no, part_name, unit, default_label_qty, supplier_id, is_active",
       )
+      // Master Item terhapus tetap ada sebagai jangkar riwayat label box, tapi
+      // tidak boleh muncul lagi di daftar mana pun.
+      .is("deleted_at", null)
       .order("item_code"),
     // Nomor urut dihitung Postgres, bukan di sini: nomor yang sama dipakai
     // saat QR dibuat, dan mengurutkan ulang di javascript berisiko memberi
