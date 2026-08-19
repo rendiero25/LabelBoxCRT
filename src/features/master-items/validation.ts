@@ -64,7 +64,7 @@ export function masterItemRpcErrorMessage(message: string): string {
     MASTER_ITEM_ADMIN_REQUIRED: "Aksi ini hanya tersedia untuk admin aktif.",
     MASTER_ITEM_CODE_EXISTS: "Kode item sudah digunakan.",
     MASTER_ITEM_IN_USE:
-      "Master Item masih dipakai (session packing, box, atau product mapping) dan tidak dapat diubah/dihapus.",
+      "Master Item sedang dipakai batch label box yang belum ditutup atau sesi packing yang belum selesai. Tutup dulu batch-nya, lalu ubah datanya.",
     MASTER_ITEM_INPUT_INVALID: "Data Master Item tidak valid.",
     MASTER_ITEM_NOT_FOUND: "Master Item tidak ditemukan.",
     MASTER_ITEM_PART_NO_EXISTS: "Part No sudah digunakan.",
