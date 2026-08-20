@@ -148,7 +148,7 @@ describe("buildLabelHtml", () => {
   // dan yang dipegang QC belum tentu yang diperiksa di layar.
   it("draws a separator at every row boundary, same as the ZPL path", () => {
     const tops = [
-      ...html.matchAll(/top:([\d.]+)mm;width:([\d.]+)mm;height:0\.25mm/g),
+      ...html.matchAll(/top:([\d.]+)mm;width:([\d.]+)mm;height:0\.4mm/g),
     ]
       .map(([, top, width]) => ({ top: Number(top), width: Number(width) }))
       .sort((left, right) => left.top - right.top)
@@ -166,10 +166,33 @@ describe("buildLabelHtml", () => {
     }
   })
 
+  /**
+   * Garis setipis 0.25mm hanya 0.94 piksel CSS, jadi kepekatannya bergantung
+   * pada di mana ia jatuh di kisi piksel perender cetak. Lima baris label per
+   * lembar berjarak 55mm, dan jarak itu menggeser fasenya, sehingga satu garis
+   * bisa pekat di label baris pertama lalu terbelah rata di dua piksel (47%)
+   * dan hilang pada label baris kedua. Itu yang membuat garis antara QTY/BOX
+   * dan QTY/DELIVERY lenyap di label ketiga, sementara label pertama dan kedua
+   * -- keduanya di baris lembar yang sama -- tetap punya garisnya.
+   *
+   * 0.4mm menjamin kasus terburuknya masih 76% pada satu piksel. Menurunkannya
+   * lagi berarti mengembalikan hilangnya garis di posisi lembar tertentu.
+   */
+  it("draws rules thick enough to survive the print rasteriser", () => {
+    const thicknesses = [
+      ...html.matchAll(/height:([\d.]+)mm;background:#000/g),
+    ].map(([, value]) => Number(value))
+
+    expect(thicknesses.length).toBeGreaterThan(0)
+    for (const thickness of thicknesses) {
+      expect(thickness).toBeGreaterThanOrEqual(0.4)
+    }
+  })
+
   // Baris terakhir dipakai cap QC dan tidak berkolom; garis pemisah kolom yang
   // menembusnya membelah ruang capnya jadi dua.
   it("stops the column divider above the QC row", () => {
-    expect(html).toContain("left:23mm;top:8.5mm;width:0.25mm;height:41.25mm")
+    expect(html).toContain("left:23mm;top:8.5mm;width:0.4mm;height:41.25mm")
   })
 
   // Nama baris QC Passes membentang selebar bingkai: 592 - 22 - 14 = 556 dot,
@@ -245,18 +268,25 @@ describe("buildLabelHtml without a QR", () => {
   // Kolom kanan berhenti di dasar jejak QR (20.875mm); di bawahnya barisnya
   // kembali selebar bingkai.
   it("ends the right column at the foot of that block", () => {
-    expect(html).toContain("left:56.5mm;top:1mm;width:0.25mm;height:19.875mm")
+    expect(html).toContain("left:56.5mm;top:1mm;width:0.4mm;height:19.875mm")
 
     const tops = [
-      ...html.matchAll(/top:([\d.]+)mm;width:([\d.]+)mm;height:0\.25mm/g),
+      ...html.matchAll(/top:([\d.]+)mm;width:([\d.]+)mm;height:0\.4mm/g),
     ]
       .map(([, top, width]) => ({ top: Number(top), width: Number(width) }))
       .sort((left, right) => left.top - right.top)
 
-    const stopsAtRightColumn = new Set([8.5, 12.625, 16.75])
+    // 16.75mm (y=134 dot) adalah dasar blok angka bulan sekaligus atap baris
+    // FIFO, jadi ia melintang penuh seperti di templat ZPL; hanya kedua garis
+    // di dalam blok bulan yang berhenti di kolom kanan.
+    const stopsAtRightColumn = new Set([8.5, 12.625])
     for (const rule of tops) {
       expect(rule.width).toBe(stopsAtRightColumn.has(rule.top) ? 55.5 : 73)
     }
+  })
+
+  it("roofs the FIFO row with a full-width rule, like the QR label does", () => {
+    expect(html).toContain("top:16.75mm;width:73mm;height:0.4mm")
   })
 })
 

@@ -73,8 +73,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v10 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v10")
+  it("exports template version v11 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v11")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -402,10 +402,17 @@ describe("buildLabelZpl without a QR", () => {
       Array.from({ length: 11 }, (_, index) => 68 + index * 33),
     )
 
-    const insideRightColumn = new Set([68, 101, 134])
+    // Hanya kedua garis di dalam blok angka bulan yang berhenti. y=134 adalah
+    // dasar blok itu sekaligus atap baris FIFO, jadi ia melintang penuh —
+    // sebaris dengan garis di atas PART NO di kolom kiri.
+    const insideRightColumn = new Set([68, 101])
     for (const rule of rules) {
       expect(rule.width).toBe(insideRightColumn.has(rule.y) ? 444 : 584)
     }
+  })
+
+  it("roofs the FIFO row with a full-width rule, like the QR label does", () => {
+    expect(zpl).toContain("^FO8,134^GB584,0,2^FS")
   })
 
   // Qty/Box dan Qty/Delivery duduk di bawah jejak QR pada label ini, jadi

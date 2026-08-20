@@ -14,6 +14,11 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * dan supaya tetap muat di tinggi label yang tetap, seluruh baris menyempit
  * dari 40 ke 33 dot dan setiap font ikut mengecil sebanding.
  *
+ * v11 menutup blok angka bulan pada label tanpa QR dengan garis melintang
+ * penuh (y=134), sebaris dengan garis di atas PART NO, sehingga teks "FIFO PT
+ * CRT" punya atap seperti pada label ber-QR. Sebelumnya garis itu berhenti di
+ * kolom kanan dan penanda FIFO mengambang tanpa pemisah dari angka bulannya.
+ *
  * v10 mengisi baris Operator Pack dengan nama yang diketik saat batchnya
  * dibuat, menggantikan teks tetap "AD | SR | ST" yang memuat ketiga nama
  * operator sekaligus untuk dilingkari dengan pena. Panjang namanya tidak bisa
@@ -44,7 +49,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v10"
+export const TEMPLATE_VERSION = "v11"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600
@@ -478,13 +483,17 @@ export function buildLabelZpl(
   // Setiap batas baris lain wajib punya garisnya — dijaga oleh tes yang
   // mencocokkan posisi seluruh garis, bukan cuma jumlahnya.
   //
-  // Tanpa QR, penanda FIFO menempati jejak QR itu sendiri: hanya garis di
-  // dalam jejak itu yang berhenti, dan y=167 kembali jadi garis penutupnya.
+  // Tanpa QR, penanda FIFO menempati jejak QR itu sendiri: angka bulan di
+  // bagian atasnya lalu teks FIFO di baris terakhir jejak itu. Yang berhenti
+  // hanya garis di dalam blok bulan (y=68 dan 101); y=134 adalah dasar blok itu
+  // sekaligus atap baris FIFO, jadi ia melintang penuh — sebaris dengan garis
+  // di atas PART NO — persis seperti y=233 pada label ber-QR. y=167 tetap
+  // garis penutup baris FIFO.
   const ruleWidth = (y: number) =>
     (
       showQr
         ? y < QR_COLUMN_BOTTOM || (y > MONTH_TOP && y < MONTH_BOTTOM)
-        : y < NO_QR_RIGHT_COLUMN_BOTTOM
+        : y < NO_QR_FIFO_TOP
     )
       ? QR_COLUMN_X - FRAME_X
       : FRAME_WIDTH

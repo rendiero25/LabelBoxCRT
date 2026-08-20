@@ -17,8 +17,11 @@ import {
  * Geometrinya diturunkan dari LABEL_LAYOUT, angka dot yang sama dengan templat
  * ZPL, dibagi 8 dot/mm. Menyalin ulang ukurannya ke sini akan membuat label
  * Zebra dan label Canon perlahan berbeda bentuk tanpa ada yang menyadari.
+ *
+ * Satu-satunya angka yang sengaja tidak diturunkan dari sana adalah tebal
+ * garis: lihat RULE_MM di bawah.
  */
-export const HTML_TEMPLATE_VERSION = "v10-html"
+export const HTML_TEMPLATE_VERSION = "v11-html"
 
 const L = LABEL_LAYOUT
 
@@ -27,7 +30,25 @@ function mm(dots: number): string {
   return `${Number((dots / LABEL_DOTS_PER_MM).toFixed(4))}mm`
 }
 
-const BORDER_MM = mm(L.borderDots)
+/**
+ * Tebal garis pada jalur kertas, sengaja lebih tebal dari 2 dot (0.25mm) milik
+ * templat ZPL.
+ *
+ * Perender cetak bekerja dalam piksel CSS (1px = 1/96 inci = 0.2646mm), jadi
+ * garis 0.25mm hanya 0.94px: ia tidak pernah menutupi satu piksel penuh dan
+ * kepekatannya bergantung pada di mana ia jatuh di kisi piksel. Lembar A4 memuat
+ * lima baris label berjarak 55mm, dan 55mm bukan kelipatan bulat piksel, jadi
+ * tiap baris label menggeser fase itu. Akibatnya satu garis yang pekat di label
+ * baris pertama bisa jatuh terbelah rata di dua piksel (47% : 47%) pada label
+ * baris kedua lalu hilang saat dicetak -- persis yang terjadi pada garis antara
+ * QTY/BOX dan QTY/DELIVERY di label ketiga.
+ *
+ * 0.4mm = 1.51px membuat kasus terburuknya 76% pada satu piksel, jadi garisnya
+ * selalu terlihat di baris label mana pun. Geometri labelnya tidak berubah:
+ * yang berbeda hanya tebal goresannya, dan itu tidak ada di jalur ZPL karena
+ * Zebra mencetak dot langsung tanpa rasterisasi.
+ */
+const RULE_MM = "0.4mm"
 
 /**
  * Font bawaan sistem, bukan Outfit yang ditanam sebagai data URL.
@@ -101,14 +122,14 @@ export function fitFontHeight(
 function rule(left: number, top: number, width: number): string {
   return (
     `<div style="position:absolute;left:${mm(left)};top:${mm(top)};` +
-    `width:${mm(width)};height:${BORDER_MM};background:#000"></div>`
+    `width:${mm(width)};height:${RULE_MM};background:#000"></div>`
   )
 }
 
 function verticalRule(left: number, top: number, height: number): string {
   return (
     `<div style="position:absolute;left:${mm(left)};top:${mm(top)};` +
-    `width:${BORDER_MM};height:${mm(height)};background:#000"></div>`
+    `width:${RULE_MM};height:${mm(height)};background:#000"></div>`
   )
 }
 
@@ -169,7 +190,7 @@ function ruleWidth(y: number, showQr: boolean): number {
   return (
     showQr
       ? y < L.qrColumnBottom || (y > L.monthTop && y < L.monthBottom)
-      : y < L.noQrRightColumnBottom
+      : y < L.noQrFifoTop
   )
     ? L.qrColumnX - L.frameX
     : L.frameWidth
@@ -252,11 +273,11 @@ export function buildLabelHtml(
       `width:${mm(L.labelWidth)};height:${mm(L.labelHeight)};` +
       `background:#fff;color:#000;font-family:${FONT_STACK};` +
       `overflow:hidden">`,
-    // Bingkai luar.
+    // Bingkai luar; setebal garis lain supaya tidak ikut menipis sebelah.
     `<div style="position:absolute;box-sizing:border-box;` +
       `left:${mm(L.frameX)};top:${mm(L.frameY)};` +
       `width:${mm(L.frameWidth)};height:${mm(L.frameHeight)};` +
-      `border:${BORDER_MM} solid #000"></div>`,
+      `border:${RULE_MM} solid #000"></div>`,
     rule(L.frameX, L.rowsTop, ruleWidth(L.rowsTop, showQr)),
     verticalRule(L.valueDividerX, L.rowsTop, L.fullWidthRowTop - L.rowsTop),
     verticalRule(L.qrColumnX, L.frameY, rightColumnBottom - L.frameY),
