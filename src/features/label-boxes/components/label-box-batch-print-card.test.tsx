@@ -89,7 +89,35 @@ function jobFixture(index: number): LabelBoxPrintJob {
 let container: HTMLDivElement
 let root: Root
 
+/**
+ * jsdom tidak punya ResizeObserver dan tidak pernah memberi elemen lebar, jadi
+ * previewnya diberi lebar kolom yang masuk akal (600px) supaya skalanya benar-
+ * benar terhitung seperti di browser, bukan berhenti di lebar cadangan.
+ */
+const MEASURED_PREVIEW_WIDTH = 600
+
+class ResizeObserverStub {
+  constructor(private readonly callback: ResizeObserverCallback) {}
+
+  observe(target: Element): void {
+    this.callback(
+      [
+        {
+          contentRect: { width: MEASURED_PREVIEW_WIDTH } as DOMRectReadOnly,
+          target,
+        } as ResizeObserverEntry,
+      ],
+      this as unknown as ResizeObserver,
+    )
+  }
+
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
 beforeEach(() => {
+  ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver =
+    ResizeObserverStub
   ;(
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true
@@ -183,6 +211,32 @@ describe("LabelBoxBatchPrintCard", () => {
     expect(container.textContent).toContain(jobFixture(1).boxNumber)
     expect(container.querySelector("img[src^='data:image/png']")).not.toBeNull()
     expect(container.textContent).toContain(jobFixture(1).lotNo)
+  })
+
+  /**
+   * Preview mengikuti lebar kolomnya, bukan lebar tetap: label 75mm (283.46px
+   * pada 96dpi) di kolom 600px berarti skala 2.12, dan tinggi kotaknya ikut
+   * supaya rasio 75x55mm tetap terjaga. Lebar tetap membuat labelnya kecil di
+   * layar lebar dan terpotong di layar sempit.
+   */
+  it("scales the preview to the width of its column", async () => {
+    await act(async () => {
+      root.render(
+        <LabelBoxBatchPrintCard batchId="c61b11fd-0000-4000-8000-000000000001" />,
+      )
+    })
+
+    const scaled = container.querySelector<HTMLElement>(
+      "[style*='transform: scale']",
+    )
+    const scale = Number(
+      /scale\(([\d.]+)\)/.exec(scaled?.style.transform ?? "")?.[1],
+    )
+
+    expect(scale).toBeCloseTo(MEASURED_PREVIEW_WIDTH / ((75 * 96) / 25.4), 3)
+
+    const box = scaled?.parentElement
+    expect(box?.style.height).toBe(`${((55 * 96) / 25.4) * scale}px`)
   })
 
   /**

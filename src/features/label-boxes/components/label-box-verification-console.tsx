@@ -301,17 +301,32 @@ export function LabelBoxVerificationConsole({
     // Scan ditolak tidak boleh tergeser scan berikutnya: tahan sampai
     // operator menutupnya sendiri. Diterima dan duplikat cukup lewat sendiri
     // supaya tangan operator tidak berhenti mengepak.
+    // Ketiganya memakai kotak besar khusus scan (.cn-scan-toast di
+    // globals.css): operator membacanya dari depan meja sambil memegang
+    // scanner, bukan dari depan layar. Yang diterima sekaligus hijau tua
+    // berhuruf putih supaya "lanjut" terbaca sekilas tanpa mengeja pesannya.
     if (scan.status === "error") {
-      toast.error(scan.message, { closeButton: true, duration: Infinity })
+      toast.error(scan.message, {
+        className: "cn-scan-toast",
+        closeButton: true,
+        duration: Infinity,
+      })
       return
     }
 
     if (scan.status === "duplicate") {
-      toast.warning(scan.message, { closeButton: true, duration: 8_000 })
+      toast.warning(scan.message, {
+        className: "cn-scan-toast",
+        closeButton: true,
+        duration: 8_000,
+      })
       return
     }
 
-    toast.success(scan.message ?? "Scan diterima.", { duration: 3_000 })
+    toast.success(scan.message ?? "Scan diterima.", {
+      className: "cn-scan-toast cn-scan-toast-accepted",
+      duration: 3_000,
+    })
   }, [muted, scanner.lastScan])
 
   // Perpindahan ke daftar label box dikerjakan closeLabelBoxBatchAction lewat

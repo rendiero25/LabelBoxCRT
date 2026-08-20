@@ -16,11 +16,10 @@ export default async function OperatorLayout({
   return (
     <div className="bg-muted/20 min-h-svh">
       <header className="bg-background border-b">
-        {/* Tiga wilayah: navigasi di kiri, status kesiapan di tengah sebagai
-            satu-satunya hal yang harus dilirik operator sebelum scan, dan aksi
-            keluar sendirian di kanan. Kolom kiri dan kanan sama lebarnya
-            supaya status benar-benar berada di tengah header. */}
-        <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-6 py-4 sm:grid-cols-[1fr_auto_1fr]">
+        {/* Dua wilayah: navigasi di kiri, lalu status kesiapan berdampingan
+            dengan tombol keluar di kanan. Status berdiri tepat sebelum tombol
+            keluar, bukan di tengah header. */}
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex flex-wrap items-center gap-1">
             {/* Beranda operator adalah daftar label box, bukan halaman
                 sambutan: dari sanalah setiap pekerjaan scan dimulai. Logo
@@ -57,11 +56,8 @@ export default async function OperatorLayout({
             ) : null}
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <AppStatus />
-          </div>
-
-          <div className="flex justify-end">
             <SignOutButton />
           </div>
         </div>

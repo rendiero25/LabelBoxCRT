@@ -150,6 +150,90 @@
   }
 }
 
+/*
+ * Toast hasil scan verifikasi, dan hanya itu. Operator membacanya dari depan
+ * meja pengepakan sambil memegang scanner, jadi kotaknya dua kali toast biasa.
+ * Toast lain di aplikasi -- simpan data, gagal memuat, ringkasan penutupan
+ * batch -- tetap memakai ukuran dan warna bawaan Sonner.
+ *
+ * Selektornya menyertakan [data-styled='true'] seperti gaya bawaan Sonner lalu
+ * menambah kelasnya sendiri, jadi bobotnya lebih tinggi dan menang tanpa
+ * !important berapa pun urutan <style> yang disuntikkan Sonner saat runtime.
+ */
+[data-sonner-toast][data-styled="true"].cn-scan-toast {
+  gap: 1.5rem;
+  padding: 2.25rem 2.5rem;
+  font-size: 2rem;
+  width: 100%;
+}
+
+/*
+ * Kotak toast tidak boleh lebih lebar dari wadahnya, dan wadah itu dipatok
+ * Sonner selebar --width (356px). Wadahnya dilebarkan hanya ketika ada toast
+ * scan di dalamnya; toast biasa di sampingnya tetap selebar --width.
+ */
+[data-sonner-toaster]:has(.cn-scan-toast) {
+  width: min(52rem, calc(100vw - 2rem));
+}
+
+[data-sonner-toast][data-styled="true"].cn-scan-toast [data-title] {
+  font-size: 2.125rem;
+  font-weight: 600;
+}
+
+[data-sonner-toast][data-styled="true"].cn-scan-toast [data-description] {
+  font-size: 1.875rem;
+}
+
+/* Ikonnya datang dari prop `icons` Toaster dengan kelas size-4; di toast scan
+   kotak dan svg-nya sama-sama ikut sebesar hurufnya. */
+[data-sonner-toast][data-styled="true"].cn-scan-toast [data-icon],
+[data-sonner-toast][data-styled="true"].cn-scan-toast [data-icon] svg {
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+/* Tombol tutup ikut skala toastnya; kalau tidak, ia jadi titik kecil di pojok
+   kotak yang dua kali lebih besar. Posisinya diatur Sonner lewat transform
+   pada sudut, jadi hanya ukurannya yang disentuh di sini. */
+[data-sonner-toast][data-styled="true"].cn-scan-toast [data-close-button] {
+  height: 2rem;
+  width: 2rem;
+}
+
+[data-sonner-toast][data-styled="true"].cn-scan-toast [data-close-button] svg {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+/*
+ * Scan diterima: hijau tua pekat, huruf dan ikon putih. Warna richColors bawaan
+ * Sonner untuk sukses adalah hijau muda dengan huruf hijau tua -- terlalu
+ * sayup dibaca dari jarak meja. [data-type] ikut disebut supaya bobotnya
+ * melebihi aturan richColors yang memakai [data-type='success'].
+ */
+[data-sonner-toast][data-styled="true"][data-type].cn-scan-toast-accepted {
+  background: #14532d;
+  border-color: #14532d;
+  color: #ffffff;
+}
+
+[data-sonner-toast][data-styled="true"][data-type].cn-scan-toast-accepted
+  [data-icon],
+[data-sonner-toast][data-styled="true"][data-type].cn-scan-toast-accepted
+  [data-title],
+[data-sonner-toast][data-styled="true"][data-type].cn-scan-toast-accepted
+  [data-description] {
+  color: #ffffff;
+}
+
+[data-sonner-toast][data-styled="true"][data-type].cn-scan-toast-accepted
+  [data-close-button] {
+  background: #14532d;
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

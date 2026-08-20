@@ -45,11 +45,14 @@ import { buildLabelHtml, buildLabelSheetsHtml } from "@/lib/label/html"
 import { buildLabelZpl, LABEL_DOTS_PER_MM, LABEL_LAYOUT } from "@/lib/label/zpl"
 
 /**
- * Preview label dikecilkan ke lebar tetap ini. Skalanya dihitung dari
- * LABEL_LAYOUT, bukan ditulis ulang, supaya label yang berubah bentuk di
- * templat ikut berubah bentuk di preview.
+ * Preview label mengikuti lebar kolomnya, bukan lebar tetap: di kolom setengah
+ * kartu itu berarti labelnya tercetak di layar sekitar dua kali ukuran aslinya,
+ * dan isi yang paling kecil -- nama field, baris QC -- masih terbaca sebelum
+ * stikernya keluar dari printer.
+ *
+ * Ukuran aslinya diturunkan dari LABEL_LAYOUT, bukan ditulis ulang, supaya
+ * label yang berubah bentuk di templat ikut berubah bentuk di preview.
  */
-const PREVIEW_WIDTH_PX = 260
 const MM_PER_INCH = 25.4
 const CSS_PX_PER_INCH = 96
 
@@ -57,7 +60,41 @@ const LABEL_WIDTH_MM = LABEL_LAYOUT.labelWidth / LABEL_DOTS_PER_MM
 const LABEL_HEIGHT_MM = LABEL_LAYOUT.labelHeight / LABEL_DOTS_PER_MM
 const LABEL_WIDTH_PX = (LABEL_WIDTH_MM * CSS_PX_PER_INCH) / MM_PER_INCH
 const LABEL_HEIGHT_PX = (LABEL_HEIGHT_MM * CSS_PX_PER_INCH) / MM_PER_INCH
-const PREVIEW_SCALE = PREVIEW_WIDTH_PX / LABEL_WIDTH_PX
+
+/**
+ * Lebar kolom preview sebelum terukur: dipakai pada render pertama dan di
+ * server, lalu langsung diganti lebar sebenarnya oleh ResizeObserver.
+ */
+const PREVIEW_FALLBACK_WIDTH_PX = 260
+
+/**
+ * Lebar kolom preview yang sedang berlaku. Diukur, bukan ditebak: kolomnya ikut
+ * lebar jendela, dan skala preview harus mengikutinya supaya label tidak
+ * terpotong saat jendelanya menyempit.
+ */
+function usePreviewWidth(): [(node: HTMLDivElement | null) => void, number] {
+  const [width, setWidth] = useState(PREVIEW_FALLBACK_WIDTH_PX)
+  const observer = useRef<ResizeObserver | null>(null)
+
+  // Callback ref, bukan useEffect: kotak previewnya baru dipasang setelah job
+  // cetak siap, jadi elemennya belum ada saat efek pertama berjalan.
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    observer.current?.disconnect()
+    // Tanpa ResizeObserver previewnya tetap tampil pada lebar cadangan, bukan
+    // menjatuhkan seluruh kartu cetak.
+    if (!node || typeof ResizeObserver === "undefined") return
+
+    observer.current = new ResizeObserver(([entry]) => {
+      const measured = entry.contentRect.width
+      if (measured > 0) setWidth(measured)
+    })
+    observer.current.observe(node)
+  }, [])
+
+  useEffect(() => () => observer.current?.disconnect(), [])
+
+  return [ref, width]
+}
 
 export function LabelBoxBatchPrintCard({
   batchId,
@@ -84,6 +121,8 @@ export function LabelBoxBatchPrintCard({
     boxNumber: string
     html: string
   } | null>(null)
+  const [previewRef, previewWidth] = usePreviewWidth()
+  const previewScale = previewWidth / LABEL_WIDTH_PX
   const inFlight = useRef(false)
 
   const activePrinter = autoSelectPrinter(selectedPrinter, printers)
@@ -370,7 +409,11 @@ export function LabelBoxBatchPrintCard({
         <h2 className="font-semibold">Cetak label batch</h2>
       </div>
 
-      <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_auto]">
+      {/* Dua kolom sama lebar: kendali cetak di kiri, preview label di kanan.
+          minmax(0,1fr) dua kali, bukan grid-cols-2, supaya isi yang panjang
+          (nama printer, pesan gagal) menyusut di dalam kolomnya dan tidak
+          melebarkan kartunya. */}
+      <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="grid min-w-0 gap-4">
           {status !== "connected" ? (
             <Alert variant="destructive">
@@ -550,22 +593,22 @@ export function LabelBoxBatchPrintCard({
             sendiri. Kotaknya selalu putih: label dicetak di atas kertas putih,
             dan preview yang ikut tema gelap tidak lagi menunjukkan hasilnya. */}
         {preview && jobs.length > 0 ? (
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             <p className="text-muted-foreground text-sm">
               Preview label ·{" "}
               <span className="font-mono">{preview.boxNumber}</span>
             </p>
+            {/* Kotak luar yang diukur; tingginya mengikuti skala supaya rasio
+                label 75x55 mm tetap terjaga berapa pun lebar kolomnya. */}
             <div
-              className="overflow-hidden rounded-md border bg-white"
-              style={{
-                height: LABEL_HEIGHT_PX * PREVIEW_SCALE,
-                width: PREVIEW_WIDTH_PX,
-              }}
+              className="w-full overflow-hidden rounded-md border bg-white"
+              ref={previewRef}
+              style={{ height: LABEL_HEIGHT_PX * previewScale }}
             >
               <div
                 dangerouslySetInnerHTML={{ __html: preview.html }}
                 style={{
-                  transform: `scale(${PREVIEW_SCALE})`,
+                  transform: `scale(${previewScale})`,
                   transformOrigin: "top left",
                 }}
               />

@@ -17,6 +17,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // Ukuran bawaan untuk seluruh aplikasi. Toast hasil scan verifikasi yang
+      // dibesarkan memakai kelasnya sendiri (.cn-scan-toast di globals.css),
+      // termasuk ukuran svg ikon ini.
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
