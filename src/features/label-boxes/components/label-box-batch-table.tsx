@@ -42,7 +42,6 @@ export type LabelBoxBatchRow = {
   masterItemId: string
   operatorName: string
   packingDate: string
-  packingQty: number
   partNo: string
   printed: boolean
   qtyDelivery: number
@@ -98,7 +97,6 @@ export function LabelBoxBatchTable({
                 <TableHead>Supplier</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead className="text-right">Qty Delivery</TableHead>
-                <TableHead className="text-right">Packing Qty</TableHead>
                 <TableHead>Lot No</TableHead>
                 <TableHead className="text-right">Label</TableHead>
                 <TableHead>Status</TableHead>
@@ -115,9 +113,6 @@ export function LabelBoxBatchTable({
                     <TableCell>{formatShortDate(batch.deliveryDate)}</TableCell>
                     <TableCell>{batch.supplierCode}</TableCell>
                     <TableCell>{batch.partNo}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {batch.packingQty}
-                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {batch.qtyDelivery}
                     </TableCell>
@@ -180,7 +175,7 @@ export function LabelBoxBatchTable({
                   </TableRow>
                   {expandedId === batch.id ? (
                     <TableRow>
-                      <TableCell colSpan={10}>
+                      <TableCell colSpan={9}>
                         <div className="flex flex-wrap gap-2">
                           {batch.boxNumbers.map((boxNumber) => (
                             <span

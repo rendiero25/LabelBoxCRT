@@ -287,44 +287,28 @@ export function LabelBoxBatchDialog({
               </Select>
             </Field>
 
-            {/* Packing Qty yang menentukan berapa label dicetak; Qty
-                    Delivery hanya angka yang tercetak di labelnya. Keduanya
-                    berdampingan supaya operator melihat bahwa keduanya memang
-                    dua angka, bukan satu yang tertulis dua kali. */}
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="label-box-packing-qty">
-                  Qty Delivery
-                </FieldLabel>
-                <Input
-                  id="label-box-packing-qty"
-                  inputMode="numeric"
-                  name="packingQty"
-                  placeholder="100"
-                  required
-                />
-                <FieldDescription>
-                  {selectedMasterItem
-                    ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label.`
-                    : "Harus kelipatan Qty/Box Master Item."}
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="label-box-qty-delivery">
-                  Packing Qty
-                </FieldLabel>
-                <Input
-                  id="label-box-qty-delivery"
-                  inputMode="numeric"
-                  name="qtyDelivery"
-                  placeholder="100"
-                  required
-                />
-                <FieldDescription>
-                  Dicetak di baris Qty/Delivery label.
-                </FieldDescription>
-              </Field>
-            </div>
+            {/* Satu angka jumlah saja. Ia yang dibagi Qty/Box Master Item jadi
+                jumlah set label, dan ia juga yang tercetak di baris
+                Qty/Delivery. Dulu ada field "Packing Qty" kedua khusus untuk
+                yang tercetak; keduanya nyaris selalu diisi angka yang sama dan
+                tertukar tanpa ketahuan. */}
+            <Field>
+              <FieldLabel htmlFor="label-box-qty-delivery">
+                Qty Delivery
+              </FieldLabel>
+              <Input
+                id="label-box-qty-delivery"
+                inputMode="numeric"
+                name="qtyDelivery"
+                placeholder="100"
+                required
+              />
+              <FieldDescription>
+                {selectedMasterItem
+                  ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label, dan angkanya tercetak di baris Qty/Delivery.`
+                  : "Harus kelipatan Qty/Box Master Item; angkanya tercetak di baris Qty/Delivery."}
+              </FieldDescription>
+            </Field>
 
             <Field>
               <FieldLabel htmlFor="label-box-lot">Lot Number</FieldLabel>

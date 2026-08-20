@@ -114,13 +114,16 @@ export async function createLabelBoxBatchAction(
   const supplierId = valueFromFormData(formData, "supplierId")
   const masterItemId = valueFromFormData(formData, "masterItemId")
   /**
-   * Dua angka yang mudah tertukar. Yang diisi di field "Packing Qty" adalah
-   * keping yang dipak: itu yang dibagi Qty/Box Master Item menjadi jumlah set
-   * label, dan di database namanya qty_delivery. Yang diisi di field "Qty
-   * Delivery" hanya dicetak di baris Qty/Delivery label dan tidak menentukan
-   * apa pun.
+   * Satu-satunya angka jumlah yang diisi operator. Ia menentukan berapa set
+   * label dibuat (dibagi Qty/Box Master Item) sekaligus jadi angka yang
+   * tercetak di baris Qty/Delivery label.
+   *
+   * Formulirnya dulu punya dua field: "Qty Delivery" yang tersimpan sebagai
+   * qty_delivery dan "Packing Qty" yang hanya dicetak (qty_delivery_display).
+   * Keduanya nyaris selalu diisi angka yang sama dan tertukar tanpa ketahuan,
+   * jadi yang kedua dibuang; kolom display-nya ikut angka ini lewat default
+   * `coalesce` di RPC-nya.
    */
-  const rawPackingQty = String(formData.get("packingQty") ?? "").trim()
   const rawQtyDelivery = String(formData.get("qtyDelivery") ?? "").trim()
 
   if (
@@ -135,10 +138,6 @@ export async function createLabelBoxBatchAction(
   const delivery = batchFieldsFromFormData(formData)
   if ("error" in delivery) return delivery
 
-  if (!/^[1-9]\d{0,6}$/.test(rawPackingQty)) {
-    return { error: "Packing Qty harus bilangan bulat lebih besar dari 0." }
-  }
-
   if (!/^[1-9]\d{0,6}$/.test(rawQtyDelivery)) {
     return { error: "Qty Delivery harus bilangan bulat lebih besar dari 0." }
   }
@@ -151,8 +150,7 @@ export async function createLabelBoxBatchAction(
     p_master_item_id: masterItemId,
     p_operator_name: delivery.operatorName,
     p_packing_date: delivery.packingDate,
-    p_qty_delivery: Number(rawPackingQty),
-    p_qty_delivery_display: Number(rawQtyDelivery),
+    p_qty_delivery: Number(rawQtyDelivery),
     p_supplier_id: supplierId,
   })
 
@@ -195,7 +193,7 @@ export async function createLabelBoxBatchAction(
       masterItemRowNo: batch.master_item_row_no,
       packingDate: batch.packing_date,
       packingQty: batch.packing_qty,
-      qtyDelivery: batch.qty_delivery_display,
+      qtyDelivery: batch.qty_delivery,
       supplierCode: batch.supplier_code,
     },
     success: `${batch.label_count} label box dibuat untuk ${batch.delivery_number}.`,
@@ -274,15 +272,10 @@ export async function rebuildLabelBoxBatchAction(
   const delivery = batchFieldsFromFormData(formData)
   if ("error" in delivery) return delivery
 
-  const rawPackingQty = String(formData.get("packingQty") ?? "").trim()
   const rawQtyDelivery = String(formData.get("qtyDelivery") ?? "").trim()
 
-  if (!/^[1-9]\d{0,6}$/.test(rawPackingQty)) {
-    return { error: "Qty Delivery harus bilangan bulat lebih besar dari 0." }
-  }
-
   if (!/^[1-9]\d{0,6}$/.test(rawQtyDelivery)) {
-    return { error: "Packing Qty harus bilangan bulat lebih besar dari 0." }
+    return { error: "Qty Delivery harus bilangan bulat lebih besar dari 0." }
   }
 
   const supabase = await createClient()
@@ -294,8 +287,7 @@ export async function rebuildLabelBoxBatchAction(
     p_master_item_id: masterItemId,
     p_operator_name: delivery.operatorName,
     p_packing_date: delivery.packingDate,
-    p_qty_delivery: Number(rawPackingQty),
-    p_qty_delivery_display: Number(rawQtyDelivery),
+    p_qty_delivery: Number(rawQtyDelivery),
     p_supplier_id: supplierId,
   })
 

@@ -64,7 +64,6 @@ export type LabelBoxBatchEditable = {
   masterItemId: string
   operatorName: string
   packingDate: string
-  packingQty: number
   partNo: string
   qtyDelivery: number
   supplierId: string
@@ -72,7 +71,7 @@ export type LabelBoxBatchEditable = {
 
 /**
  * Batch yang belum ditutup boleh disunting seluruhnya — termasuk supplier,
- * Master Item, dan kedua angka Qty. Ketiganya menentukan berapa banyak nomor
+ * Master Item, dan Qty Delivery. Ketiganya menentukan berapa banyak nomor
  * box yang ada, jadi menggantinya berarti nomor box lama dibuang dan dirakit
  * ulang: scannya mulai lagi dari awal dengan data yang baru. Itu memang yang
  * dibutuhkan ketika kesalahan datanya baru ketahuan di tengah verifikasi.
@@ -283,40 +282,23 @@ export function EditLabelBoxBatchDialog({
                   </Select>
                 </Field>
 
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor={`edit-qty-delivery-${batch.id}`}>
-                      Qty Delivery
-                    </FieldLabel>
-                    <Input
-                      defaultValue={batch.packingQty}
-                      id={`edit-qty-delivery-${batch.id}`}
-                      inputMode="numeric"
-                      name="packingQty"
-                      required
-                    />
-                    <FieldDescription>
-                      {selectedMasterItem
-                        ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label.`
-                        : "Harus kelipatan Qty/Box Master Item."}
-                    </FieldDescription>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor={`edit-packing-qty-${batch.id}`}>
-                      Packing Qty
-                    </FieldLabel>
-                    <Input
-                      defaultValue={batch.qtyDelivery}
-                      id={`edit-packing-qty-${batch.id}`}
-                      inputMode="numeric"
-                      name="qtyDelivery"
-                      required
-                    />
-                    <FieldDescription>
-                      Dicetak di baris Qty/Delivery label.
-                    </FieldDescription>
-                  </Field>
-                </div>
+                <Field>
+                  <FieldLabel htmlFor={`edit-qty-delivery-${batch.id}`}>
+                    Qty Delivery
+                  </FieldLabel>
+                  <Input
+                    defaultValue={batch.qtyDelivery}
+                    id={`edit-qty-delivery-${batch.id}`}
+                    inputMode="numeric"
+                    name="qtyDelivery"
+                    required
+                  />
+                  <FieldDescription>
+                    {selectedMasterItem
+                      ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label, dan angkanya tercetak di baris Qty/Delivery.`
+                      : "Harus kelipatan Qty/Box Master Item; angkanya tercetak di baris Qty/Delivery."}
+                  </FieldDescription>
+                </Field>
               </>
             )}
           </FieldGroup>
