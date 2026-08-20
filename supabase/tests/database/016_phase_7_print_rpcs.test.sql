@@ -46,12 +46,14 @@ values ('a7600000-0000-0000-0000-000000000001', 'a7100000-0000-0000-0000-0000000
 insert into public.print_jobs (
   id, packing_session_id, status, supplier_code_snapshot, supplier_name_snapshot,
   part_no_snapshot, part_name_snapshot, qty_snapshot, delivery_number_snapshot,
-  delivery_date_snapshot, box_code_snapshot, box_name_snapshot, sequence_no,
+  delivery_date_snapshot, packing_date_snapshot, operator_name_snapshot,
+  box_code_snapshot, box_name_snapshot, sequence_no,
   label_reference, template_version, zpl_payload, created_by
 ) values (
   'a7700000-0000-0000-0000-000000000001', 'a7600000-0000-0000-0000-000000000001', 'pending',
   '10015', 'Phase 7 Supplier', 'PHASE7-PART', 'Phase 7 Part', 100, 'DN-P7-001',
-  date '2026-05-15', 'B701', 'Phase 7 Box', 9001, '9001-150526-B701', 'v1',
+  date '2026-05-15', date '2026-05-13', 'Phase 7 Operator',
+  'B701', 'Phase 7 Box', 9001, '9001-150526-B701', 'v1',
   'PENDING_ZPL_GENERATION', 'a7100000-0000-0000-0000-000000000001'
 );
 

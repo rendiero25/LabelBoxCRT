@@ -32,6 +32,8 @@ export type LabelBoxPrintJob = {
   labelReference: string
   lotNo: string
   masterItemRowNo: number
+  /** Nama operator yang mengepak; dicetak di baris Operator Pack label. */
+  operatorName: string
   packingDate: string
   partName: string
   partNo: string

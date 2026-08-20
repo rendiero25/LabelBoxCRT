@@ -108,7 +108,7 @@ insert into public.delivery_numbers (
 
 insert into public.label_box_batches (
   id, delivery_number_id, supplier_id, master_item_id, master_item_row_no,
-  packing_qty, qty_delivery, lot_no, label_count, created_by,
+  packing_qty, qty_delivery, lot_no, operator_name, label_count, created_by,
   supplier_code_snapshot, item_code_snapshot, part_no_snapshot,
   part_name_snapshot, delivery_number_snapshot, delivery_date_snapshot,
   packing_date, closed_at
@@ -117,7 +117,7 @@ insert into public.label_box_batches (
   '9d900000-0000-0000-0000-000000000050',
   '9d900000-0000-0000-0000-000000000010',
   '9d900000-0000-0000-0000-000000000021',
-  1, 100, 100, 'LOT-DELETE', 1,
+  1, 100, 100, 'LOT-DELETE', 'OP-DELETE', 1,
   '9d900000-0000-0000-0000-000000000001',
   'DELSUP', 'del-shipped', 'DEL-SHIPPED', 'Delete Shipped',
   'DN-DELETE-0001', date '2026-08-26', date '2026-08-20', now()

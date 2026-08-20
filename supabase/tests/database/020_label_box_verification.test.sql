@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(28);
+select plan(29);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -96,7 +96,8 @@ from public.create_label_box_batch(
   date '2026-07-27',
   '96200000-0000-0000-0000-000000000001',
   2,
-  'LOT-VF-A'
+  'LOT-VF-A',
+  'OP-VF-A'
 );
 grant select on verify_batch to public;
 
@@ -240,6 +241,19 @@ select is(
     where id = (select batch_id from verify_batch)
   ),
   'create_label_box_print_jobs mengembalikan packing_date dari batch'
+);
+
+-- Baris "Operator Pack" ikut jalur yang sama: nama operator disnapshot ke print
+-- job saat dibuat, jadi label yang dicetak ulang tetap menyebut nama yang sama
+-- walau batchnya sudah disunting sesudahnya.
+select is(
+  (select distinct operator_name from verify_jobs_open),
+  (
+    select operator_name
+    from public.label_box_batches
+    where id = (select batch_id from verify_batch)
+  ),
+  'create_label_box_print_jobs mengembalikan nama operator dari batch'
 );
 
 -- Kedua produk sudah pernah discan (produk pertama di box 1, produk kedua
@@ -402,7 +416,8 @@ from public.create_label_box_batch(
   date '2026-07-28',
   '96200000-0000-0000-0000-000000000001',
   2,
-  'LOT-VF-B'
+  'LOT-VF-B',
+  'OP-VF-B'
 );
 grant select on verify_batch_2 to public;
 

@@ -246,6 +246,7 @@ export type Database = {
           lot_no: string
           master_item_id: string
           master_item_row_no: number
+          operator_name: string
           packing_date: string
           packing_qty: number
           part_name_snapshot: string
@@ -271,6 +272,7 @@ export type Database = {
           lot_no: string
           master_item_id: string
           master_item_row_no: number
+          operator_name: string
           packing_date: string
           packing_qty: number
           part_name_snapshot: string
@@ -296,6 +298,7 @@ export type Database = {
           lot_no?: string
           master_item_id?: string
           master_item_row_no?: number
+          operator_name?: string
           packing_date?: string
           packing_qty?: number
           part_name_snapshot?: string
@@ -756,6 +759,7 @@ export type Database = {
           id: string
           label_reference: string
           lot_no_snapshot: string | null
+          operator_name_snapshot: string
           packing_date_snapshot: string
           packing_session_id: string
           parent_print_job_id: string | null
@@ -786,6 +790,7 @@ export type Database = {
           id?: string
           label_reference: string
           lot_no_snapshot?: string | null
+          operator_name_snapshot: string
           packing_date_snapshot: string
           packing_session_id: string
           parent_print_job_id?: string | null
@@ -816,6 +821,7 @@ export type Database = {
           id?: string
           label_reference?: string
           lot_no_snapshot?: string | null
+          operator_name_snapshot?: string
           packing_date_snapshot?: string
           packing_session_id?: string
           parent_print_job_id?: string | null
@@ -1164,6 +1170,7 @@ export type Database = {
           p_delivery_number: string
           p_lot_no: string
           p_master_item_id: string
+          p_operator_name?: string
           p_packing_date: string
           p_qty_delivery: number
           p_qty_delivery_display?: number
@@ -1177,6 +1184,7 @@ export type Database = {
           label_count: number
           lot_no: string
           master_item_row_no: number
+          operator_name: string
           packing_date: string
           packing_qty: number
           qr_generated_at: string
@@ -1196,6 +1204,7 @@ export type Database = {
           label_reference: string
           lot_no: string
           master_item_row_no: number
+          operator_name: string
           packing_date: string
           part_name: string
           part_no: string
@@ -1220,6 +1229,7 @@ export type Database = {
           label_reference: string
           lot_no: string
           master_item_row_no: number
+          operator_name: string
           packing_date: string
           part_name: string
           part_no: string
@@ -1329,6 +1339,36 @@ export type Database = {
           row_number: number
         }[]
       }
+      rebuild_label_box_batch: {
+        Args: {
+          p_batch_id: string
+          p_delivery_date: string
+          p_delivery_number: string
+          p_lot_no: string
+          p_master_item_id: string
+          p_operator_name?: string
+          p_packing_date: string
+          p_qty_delivery: number
+          p_qty_delivery_display?: number
+          p_supplier_id: string
+        }
+        Returns: {
+          batch_id: string
+          delivery_date: string
+          delivery_number: string
+          item_code: string
+          label_count: number
+          lot_no: string
+          master_item_row_no: number
+          operator_name: string
+          packing_date: string
+          packing_qty: number
+          qr_generated_at: string
+          qty_delivery: number
+          qty_delivery_display: number
+          supplier_code: string
+        }[]
+      }
       save_box_layer_requirements: {
         Args: { p_box_layer_id: string; p_requirements: Json }
         Returns: undefined
@@ -1380,6 +1420,7 @@ export type Database = {
           p_delivery_date: string
           p_delivery_number: string
           p_lot_no: string
+          p_operator_name?: string
           p_packing_date: string
         }
         Returns: {
@@ -1388,6 +1429,7 @@ export type Database = {
           delivery_number: string
           label_count: number
           lot_no: string
+          operator_name: string
           packing_date: string
         }[]
       }
@@ -1470,12 +1512,7 @@ export type Database = {
         | "expired"
       print_attempt_result: "sent" | "failed"
       print_job_status:
-        | "pending"
-        | "printing"
-        | "sent"
-        | "confirmed"
-        | "failed"
-        | "cancelled"
+        "pending" | "printing" | "sent" | "confirmed" | "failed" | "cancelled"
       reprint_status: "requested" | "approved" | "rejected" | "executed"
       scan_result: "accepted" | "invalid" | "duplicate" | "over_qty"
       user_role: "admin" | "user"
@@ -1494,12 +1531,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1521,13 +1558,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1546,13 +1582,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1571,13 +1606,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1590,11 +1624,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

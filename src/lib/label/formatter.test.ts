@@ -14,6 +14,7 @@ const baseSnapshot: FinalizedLabelSnapshot = {
   qtyDelivery: 200,
   masterItemRowNo: 1,
   lotNo: "M-CRT-004A-581-300726-B001",
+  operatorName: "Andi",
   boxNumber: "B101",
   packingDate: "2026-08-05",
   deliveryDate: "2026-08-15",
@@ -29,6 +30,7 @@ describe("formatLabelFields", () => {
       packingQty: "100 pcs",
       qtyDelivery: "200 pcs",
       lotNo: "01-M-CRT-004A-581-300726-B001-B101",
+      operatorName: "Andi",
       packingDate: "05-AUG-2026",
       deliveryDate: "15-AUG-2026",
       deliveryMonth: "8",
@@ -139,6 +141,15 @@ describe("formatLabelFields", () => {
     expect(() =>
       formatLabelFields({ ...baseSnapshot, deliveryDate: "15-05-2026" }),
     ).toThrow()
+  })
+
+  // Baris Operator Pack dulu teks tetap di templat; sekarang datang dari batch,
+  // jadi nilainya harus sampai apa adanya ke perender label.
+  it("carries the operator name from the snapshot to the label rows", () => {
+    expect(
+      formatLabelFields({ ...baseSnapshot, operatorName: "Siti Rahayu" })
+        .operatorName,
+    ).toBe("Siti Rahayu")
   })
 
   it("passes the stored QR payload through untouched", () => {

@@ -18,7 +18,7 @@ import {
  * ZPL, dibagi 8 dot/mm. Menyalin ulang ukurannya ke sini akan membuat label
  * Zebra dan label Canon perlahan berbeda bentuk tanpa ada yang menyadari.
  */
-export const HTML_TEMPLATE_VERSION = "v9-html"
+export const HTML_TEMPLATE_VERSION = "v10-html"
 
 const L = LABEL_LAYOUT
 

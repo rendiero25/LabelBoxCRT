@@ -15,6 +15,7 @@ import {
   initialLabelBoxBatchActionState,
   type LabelBoxBatchActionState,
 } from "@/features/label-boxes/form-state"
+import type { LabelBoxMasterItemOption } from "@/features/label-boxes/master-item-options"
 import { useActionStateToast } from "@/components/shared/action-state-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -60,13 +61,7 @@ export type LabelBoxSupplierOption = {
   supplierCode: string
 }
 
-export type LabelBoxMasterItemOption = {
-  id: string
-  itemCode: string
-  packingQty: number
-  partNo: string
-  supplierId: string | null
-}
+export type { LabelBoxMasterItemOption }
 
 /**
  * Menutup dialognya begitu satu batch berhasil dibuat.
@@ -114,8 +109,14 @@ export function LabelBoxBatchDialog({
   // "Gunakan untuk Label Box" di Master Item mendarat di sini dengan
   // ?masterItemId=..., jadi dialognya langsung terbuka dan terisi. Hanya nilai
   // awal: setelah itu operator bebas mengubah pilihannya.
+  //
+  // Master Item tanpa Box tidak mengisi apa pun walau alamatnya diketik tangan:
+  // pilihannya sendiri dinonaktifkan, dan dialog yang terbuka dengan pilihan
+  // yang tidak bisa disimpan lebih membingungkan daripada dialog yang tertutup.
   const prefillMasterItem =
-    masterItems.find((item) => item.id === prefillMasterItemId) ?? null
+    masterItems.find(
+      (item) => item.id === prefillMasterItemId && item.hasBox,
+    ) ?? null
 
   const [open, setOpen] = useState(prefillMasterItem !== null)
   const [supplierId, setSupplierId] = useState(
@@ -264,12 +265,21 @@ export function LabelBoxBatchDialog({
                 <SelectContent>
                   {filteredMasterItems.length === 0 ? (
                     <div className="text-muted-foreground px-2 py-1.5 text-sm">
-                      Tidak ada Master Item ber-Box untuk supplier ini.
+                      Tidak ada Master Item untuk supplier ini.
                     </div>
                   ) : (
+                    // Master Item tanpa Box tetap terlihat supaya daftarnya sama
+                    // dengan halaman admin, tetapi tidak bisa dipilih: label
+                    // boxnya akan berjumlah nol.
                     filteredMasterItems.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.partNo}
+                      <SelectItem
+                        disabled={!item.hasBox}
+                        key={item.id}
+                        value={item.id}
+                      >
+                        {item.hasBox
+                          ? item.partNo
+                          : `${item.partNo} · belum punya Box`}
                       </SelectItem>
                     ))
                   )}
@@ -284,7 +294,7 @@ export function LabelBoxBatchDialog({
             <div className="grid gap-5 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="label-box-packing-qty">
-                  Packing Qty
+                  Qty Delivery
                 </FieldLabel>
                 <Input
                   id="label-box-packing-qty"
@@ -301,7 +311,7 @@ export function LabelBoxBatchDialog({
               </Field>
               <Field>
                 <FieldLabel htmlFor="label-box-qty-delivery">
-                  Qty Delivery
+                  Packing Qty
                 </FieldLabel>
                 <Input
                   id="label-box-qty-delivery"
@@ -325,6 +335,22 @@ export function LabelBoxBatchDialog({
                 placeholder="LOT-2026-07-001"
                 required
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="label-box-operator">
+                Nama Operator
+              </FieldLabel>
+              <Input
+                id="label-box-operator"
+                maxLength={100}
+                name="operatorName"
+                placeholder="AD"
+                required
+              />
+              <FieldDescription>
+                Dicetak di baris Operator Pack label.
+              </FieldDescription>
             </Field>
           </FieldGroup>
           <DialogFooter>

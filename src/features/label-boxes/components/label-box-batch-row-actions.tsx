@@ -1,12 +1,17 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useMemo, useState } from "react"
 import { PencilIcon, Trash2Icon } from "lucide-react"
 
 import {
   deleteLabelBoxBatchAction,
+  rebuildLabelBoxBatchAction,
   updateLabelBoxBatchAction,
 } from "@/features/label-boxes/actions"
+import type {
+  LabelBoxMasterItemOption,
+  LabelBoxSupplierOption,
+} from "@/features/label-boxes/components/label-box-batch-dialog"
 import { initialLabelBoxBatchActionState } from "@/features/label-boxes/form-state"
 import {
   useActionStateToast,
@@ -40,31 +45,68 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 
 export type LabelBoxBatchEditable = {
+  closed: boolean
   deliveryDate: string
   deliveryNumber: string
   id: string
   labelCount: number
   lotNo: string
+  masterItemId: string
+  operatorName: string
   packingDate: string
+  packingQty: number
   partNo: string
+  qtyDelivery: number
+  supplierId: string
 }
 
 /**
- * Supplier, Master Item, dan Qty Delivery tidak ada di sini: ketiganya yang
- * menentukan berapa banyak dan nomor berapa saja label boxnya, jadi mengubahnya
- * berarti membuat batch baru. Yang tersisa hanya keterangan kirimannya.
+ * Batch yang belum ditutup boleh disunting seluruhnya — termasuk supplier,
+ * Master Item, dan kedua angka Qty. Ketiganya menentukan berapa banyak nomor
+ * box yang ada, jadi menggantinya berarti nomor box lama dibuang dan dirakit
+ * ulang: scannya mulai lagi dari awal dengan data yang baru. Itu memang yang
+ * dibutuhkan ketika kesalahan datanya baru ketahuan di tengah verifikasi.
+ *
+ * Batch yang verifikasinya sudah selesai hanya menerima keterangan kirimannya:
+ * labelnya sudah tercetak dan menempel di box, dan hasil scannya bukti kiriman.
  */
 export function EditLabelBoxBatchDialog({
   batch,
+  masterItems,
+  suppliers,
 }: {
   batch: LabelBoxBatchEditable
+  masterItems: LabelBoxMasterItemOption[]
+  suppliers: LabelBoxSupplierOption[]
 }) {
   const [state, formAction, isPending] = useActionState(
-    updateLabelBoxBatchAction,
+    batch.closed ? updateLabelBoxBatchAction : rebuildLabelBoxBatchAction,
     initialLabelBoxBatchActionState,
+  )
+  const [supplierId, setSupplierId] = useState(batch.supplierId)
+  const [masterItemId, setMasterItemId] = useState(batch.masterItemId)
+
+  const filteredMasterItems = useMemo(
+    () =>
+      masterItems.filter(
+        (item) => item.supplierId === null || item.supplierId === supplierId,
+      ),
+    [masterItems, supplierId],
+  )
+
+  const selectedMasterItem = useMemo(
+    () => masterItems.find((item) => item.id === masterItemId) ?? null,
+    [masterItemId, masterItems],
   )
   useActionStateToast(state)
   const [open, setOpen] = useState(false)
@@ -78,12 +120,14 @@ export function EditLabelBoxBatchDialog({
           Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit label box {batch.deliveryNumber}</DialogTitle>
           <DialogDescription>
-            {batch.partNo} · {batch.labelCount} box. Nomor box tetap, QR tiap
-            box dibuat ulang mengikuti data baru.
+            {batch.partNo} · {batch.labelCount} box.{" "}
+            {batch.closed
+              ? "Verifikasi sudah selesai, jadi hanya keterangan kiriman yang bisa diubah. Nomor box tetap, QR tiap box dibuat ulang mengikuti data baru."
+              : "Seluruh data bisa diubah. Nomor box dan QR dibuat ulang, dan scan yang sudah masuk dihapus supaya verifikasinya dimulai lagi dari awal dengan data baru."}
           </DialogDescription>
         </DialogHeader>
         {/* Dialog yang tertutup melepas isinya, jadi form baru selalu mulai
@@ -95,6 +139,12 @@ export function EditLabelBoxBatchDialog({
             </Alert>
           ) : null}
           <input name="batchId" type="hidden" value={batch.id} />
+          {batch.closed ? null : (
+            <>
+              <input name="supplierId" type="hidden" value={supplierId} />
+              <input name="masterItemId" type="hidden" value={masterItemId} />
+            </>
+          )}
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor={`edit-packing-date-${batch.id}`}>
@@ -150,6 +200,125 @@ export function EditLabelBoxBatchDialog({
                 required
               />
             </Field>
+
+            <Field>
+              <FieldLabel htmlFor={`edit-operator-${batch.id}`}>
+                Nama Operator
+              </FieldLabel>
+              <Input
+                defaultValue={batch.operatorName}
+                id={`edit-operator-${batch.id}`}
+                maxLength={100}
+                name="operatorName"
+                required
+              />
+              <FieldDescription>
+                Dicetak di baris Operator Pack label.
+              </FieldDescription>
+            </Field>
+
+            {batch.closed ? null : (
+              <>
+                <Field>
+                  <FieldLabel htmlFor={`edit-supplier-${batch.id}`}>
+                    Kode Supplier
+                  </FieldLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      setSupplierId(value)
+                      // Master Item milik supplier lain tidak boleh ikut
+                      // terbawa saat suppliernya diganti.
+                      const stillFits = masterItems.some(
+                        (item) =>
+                          item.id === masterItemId &&
+                          (item.supplierId === null ||
+                            item.supplierId === value),
+                      )
+                      if (!stillFits) setMasterItemId("")
+                    }}
+                    value={supplierId}
+                  >
+                    <SelectTrigger id={`edit-supplier-${batch.id}`}>
+                      <SelectValue placeholder="Pilih kode supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.supplierCode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor={`edit-master-item-${batch.id}`}>
+                    Part No
+                  </FieldLabel>
+                  <Select onValueChange={setMasterItemId} value={masterItemId}>
+                    <SelectTrigger id={`edit-master-item-${batch.id}`}>
+                      <SelectValue placeholder="Pilih Part No" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredMasterItems.length === 0 ? (
+                        <SelectItem disabled value="none">
+                          Tidak ada Master Item untuk supplier ini
+                        </SelectItem>
+                      ) : (
+                        // Sama seperti dialog Tambah: yang belum punya Box tetap
+                        // terlihat, tapi tidak bisa dipilih.
+                        filteredMasterItems.map((item) => (
+                          <SelectItem
+                            disabled={!item.hasBox}
+                            key={item.id}
+                            value={item.id}
+                          >
+                            {item.hasBox
+                              ? item.partNo
+                              : `${item.partNo} · belum punya Box`}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor={`edit-qty-delivery-${batch.id}`}>
+                      Qty Delivery
+                    </FieldLabel>
+                    <Input
+                      defaultValue={batch.packingQty}
+                      id={`edit-qty-delivery-${batch.id}`}
+                      inputMode="numeric"
+                      name="packingQty"
+                      required
+                    />
+                    <FieldDescription>
+                      {selectedMasterItem
+                        ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label.`
+                        : "Harus kelipatan Qty/Box Master Item."}
+                    </FieldDescription>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`edit-packing-qty-${batch.id}`}>
+                      Packing Qty
+                    </FieldLabel>
+                    <Input
+                      defaultValue={batch.qtyDelivery}
+                      id={`edit-packing-qty-${batch.id}`}
+                      inputMode="numeric"
+                      name="qtyDelivery"
+                      required
+                    />
+                    <FieldDescription>
+                      Dicetak di baris Qty/Delivery label.
+                    </FieldDescription>
+                  </Field>
+                </div>
+              </>
+            )}
           </FieldGroup>
           <DialogFooter>
             <Button
@@ -159,7 +328,12 @@ export function EditLabelBoxBatchDialog({
             >
               Batal
             </Button>
-            <Button disabled={isPending} type="submit">
+            <Button
+              disabled={
+                isPending || (!batch.closed && (!supplierId || !masterItemId))
+              }
+              type="submit"
+            >
               {isPending ? <Spinner data-icon="inline-start" /> : null}
               Simpan
             </Button>

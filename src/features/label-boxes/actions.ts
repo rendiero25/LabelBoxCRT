@@ -15,7 +15,11 @@ const safeRpcMessages: Record<string, string> = {
     "Delivery Number ini sudah terdaftar dengan tanggal berbeda.",
   DELIVERY_NUMBER_DATE_SHARED:
     "Delivery Number ini dipakai batch lain, jadi tanggalnya tidak bisa diubah dari sini.",
+  LABEL_BOX_BATCH_CLOSED:
+    "Verifikasi batch ini sudah selesai, jadi isinya tidak bisa dirakit ulang. Hanya Delivery Number, tanggal, dan Lot No yang masih bisa diubah.",
   LABEL_BOX_BATCH_NOT_FOUND: "Data label box tidak ditemukan.",
+  QTY_DELIVERY_DISPLAY_INVALID:
+    "Packing Qty yang dicetak harus bilangan bulat lebih besar dari 0.",
   DELIVERY_NUMBER_INVALID:
     "Delivery Number wajib diisi (maksimal 100 karakter).",
   DELIVERY_NUMBER_NOT_ACTIVE:
@@ -25,6 +29,7 @@ const safeRpcMessages: Record<string, string> = {
   MASTER_ITEM_NOT_ACTIVE: "Master Item tidak aktif atau tidak ditemukan.",
   MASTER_ITEM_SUPPLIER_MISMATCH:
     "Master Item ini tidak terdaftar untuk supplier yang dipilih.",
+  OPERATOR_NAME_INVALID: "Nama Operator wajib diisi (maksimal 100 karakter).",
   PACKING_DATE_INVALID: "Tanggal Packing tidak valid.",
   QTY_DELIVERY_INVALID:
     "Qty Delivery tidak valid (maksimal 99 kali Packing Qty).",
@@ -42,7 +47,7 @@ function rpcErrorMessage(code: string, fallback: string): string {
 }
 
 /**
- * Keempat field yang boleh disunting, dibaca dan divalidasi sekali supaya
+ * Kelima field yang boleh disunting, dibaca dan divalidasi sekali supaya
  * pesan salahnya sama persis dengan yang dipakai saat membuat batch.
  */
 function batchFieldsFromFormData(formData: FormData):
@@ -51,12 +56,14 @@ function batchFieldsFromFormData(formData: FormData):
       deliveryDate: string
       deliveryNumber: string
       lotNo: string
+      operatorName: string
       packingDate: string
     } {
   const deliveryNumber = valueFromFormData(formData, "deliveryNumber")
   const deliveryDate = valueFromFormData(formData, "deliveryDate")
   const packingDate = valueFromFormData(formData, "packingDate")
   const lotNo = valueFromFormData(formData, "lotNo")
+  const operatorName = valueFromFormData(formData, "operatorName")
 
   if (!deliveryNumber || deliveryNumber.trim().length > 100) {
     return { error: "Delivery Number wajib diisi (maksimal 100 karakter)." }
@@ -74,10 +81,15 @@ function batchFieldsFromFormData(formData: FormData):
     return { error: "Lot No wajib diisi (maksimal 100 karakter)." }
   }
 
+  if (!operatorName || operatorName.trim().length > 100) {
+    return { error: "Nama Operator wajib diisi (maksimal 100 karakter)." }
+  }
+
   return {
     deliveryDate,
     deliveryNumber: deliveryNumber.trim(),
     lotNo: lotNo.trim(),
+    operatorName: operatorName.trim(),
     packingDate,
   }
 }
@@ -137,6 +149,7 @@ export async function createLabelBoxBatchAction(
     p_delivery_number: delivery.deliveryNumber,
     p_lot_no: delivery.lotNo,
     p_master_item_id: masterItemId,
+    p_operator_name: delivery.operatorName,
     p_packing_date: delivery.packingDate,
     p_qty_delivery: Number(rawPackingQty),
     p_qty_delivery_display: Number(rawQtyDelivery),
@@ -212,6 +225,7 @@ export async function updateLabelBoxBatchAction(
     p_delivery_date: delivery.deliveryDate,
     p_delivery_number: delivery.deliveryNumber,
     p_lot_no: delivery.lotNo,
+    p_operator_name: delivery.operatorName,
     p_packing_date: delivery.packingDate,
   })
 
@@ -227,6 +241,76 @@ export async function updateLabelBoxBatchAction(
   revalidatePath("/scan")
   return {
     success: `Data label box ${data[0].delivery_number} diperbarui.`,
+  }
+}
+
+/**
+ * Sunting penuh: seluruh isian formulir diganti dan batchnya dirakit ulang.
+ *
+ * Dipakai hanya untuk batch yang belum ditutup. Supplier, Master Item, dan Qty
+ * menentukan berapa banyak nomor box yang ada, jadi mengubahnya berarti membuang
+ * nomor box lama beserta hasil scannya dan memulainya lagi dari awal — dan
+ * itulah yang diminta ketika data batch ternyata salah di tengah verifikasi.
+ */
+export async function rebuildLabelBoxBatchAction(
+  _previousState: LabelBoxBatchActionState,
+  formData: FormData,
+): Promise<LabelBoxBatchActionState> {
+  const batchId = valueFromFormData(formData, "batchId")
+  const supplierId = valueFromFormData(formData, "supplierId")
+  const masterItemId = valueFromFormData(formData, "masterItemId")
+
+  if (
+    !batchId ||
+    !uuidPattern.test(batchId) ||
+    !supplierId ||
+    !uuidPattern.test(supplierId) ||
+    !masterItemId ||
+    !uuidPattern.test(masterItemId)
+  ) {
+    return { error: "Supplier dan Master Item wajib dipilih." }
+  }
+
+  const delivery = batchFieldsFromFormData(formData)
+  if ("error" in delivery) return delivery
+
+  const rawPackingQty = String(formData.get("packingQty") ?? "").trim()
+  const rawQtyDelivery = String(formData.get("qtyDelivery") ?? "").trim()
+
+  if (!/^[1-9]\d{0,6}$/.test(rawPackingQty)) {
+    return { error: "Qty Delivery harus bilangan bulat lebih besar dari 0." }
+  }
+
+  if (!/^[1-9]\d{0,6}$/.test(rawQtyDelivery)) {
+    return { error: "Packing Qty harus bilangan bulat lebih besar dari 0." }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("rebuild_label_box_batch", {
+    p_batch_id: batchId,
+    p_delivery_date: delivery.deliveryDate,
+    p_delivery_number: delivery.deliveryNumber,
+    p_lot_no: delivery.lotNo,
+    p_master_item_id: masterItemId,
+    p_operator_name: delivery.operatorName,
+    p_packing_date: delivery.packingDate,
+    p_qty_delivery: Number(rawPackingQty),
+    p_qty_delivery_display: Number(rawQtyDelivery),
+    p_supplier_id: supplierId,
+  })
+
+  if (error || !data?.[0]) {
+    return {
+      error: rpcErrorMessage(
+        error?.message ?? "",
+        "Gagal memperbarui data label box. Coba lagi atau hubungi admin.",
+      ),
+    }
+  }
+
+  revalidatePath("/scan")
+  return {
+    success: `Data label box ${data[0].delivery_number} diperbarui: ${data[0].label_count} nomor box dibuat ulang dan scannya dimulai dari awal.`,
   }
 }
 

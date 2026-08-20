@@ -62,7 +62,7 @@ insert into public.delivery_numbers (
 -- sini aturan penguncian dan salinan datanya, bukan perakitan batchnya.
 insert into public.label_box_batches (
   id, delivery_number_id, supplier_id, master_item_id, master_item_row_no,
-  packing_qty, qty_delivery, lot_no, label_count, created_by,
+  packing_qty, qty_delivery, lot_no, operator_name, label_count, created_by,
   supplier_code_snapshot, item_code_snapshot, part_no_snapshot,
   part_name_snapshot, delivery_number_snapshot, delivery_date_snapshot,
   packing_date
@@ -71,7 +71,7 @@ insert into public.label_box_batches (
   '9d400000-0000-0000-0000-000000000030',
   '9d400000-0000-0000-0000-000000000010',
   '9d400000-0000-0000-0000-000000000020',
-  1, 100, 100, 'LOT-EDIT-1', 1,
+  1, 100, 100, 'LOT-EDIT-1', 'OP-EDIT', 1,
   '9d400000-0000-0000-0000-000000000001',
   'SUPEDIT', 'mstritem-edit', 'EDIT-BEFORE', 'Part Sebelum Edit',
   'DN-EDIT-0001', date '2026-08-26', date '2026-08-20'

@@ -18,6 +18,7 @@ const sampleFields: FormattedLabelFields = {
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
+  operatorName: "Andi",
   packingDate: "10-AUG-2026",
   deliveryDate: "15-AUG-2026",
   deliveryMonth: "8",
@@ -72,8 +73,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v9 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v9")
+  it("exports template version v10 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v10")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -166,6 +167,17 @@ describe("buildLabelZpl", () => {
     }
   })
 
+  // Baris Operator Pack dulu memuat ketiga nama operator sekaligus untuk
+  // dilingkari pena. Sekarang ia menyebut satu nama yang datang dari batch,
+  // jadi teks tetap yang lama tidak boleh tertinggal di templat.
+  it("prints the operator name from the batch on the Operator Pack row", () => {
+    expect(zpl).toContain("^FDANDI^FS")
+    expect(zpl).not.toContain("AD | SR | ST")
+
+    const other = buildLabelZpl({ ...sampleFields, operatorName: "Siti" })
+    expect(other).toContain("^FDSITI^FS")
+  })
+
   it("escapes ZPL control characters in dynamic values", () => {
     const zplEscaped = buildLabelZpl({ ...sampleFields, lotNo: "B^1~X_2" })
     expect(zplEscaped).toContain("B_5e1_7eX_5f2")
@@ -182,7 +194,7 @@ describe("buildLabelZpl", () => {
 
     const supplierId = blocks.find((block) => block.text === "10015")
     const lotNo = blocks.find((block) => block.text.startsWith("01-M-CRT"))
-    const operatorPack = blocks.find((block) => block.text === "AD | SR | ST")
+    const operatorPack = blocks.find((block) => block.text === "ANDI")
     const fieldName = blocks.find((block) => block.text === "DELIVERY DATE")
     const qcPasses = blocks.find((block) => block.text === "QC Passes")
 
@@ -322,7 +334,7 @@ describe("buildLabelZpl", () => {
     // Packing Date, Delivery Date, dan Operator Pack sudah di luar kolom
     // kanan, jadi selebar bingkai (418), bukan berhenti di kolom QR (278).
     expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FD15-AUG-2026^FS")
-    expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FDAD | SR | ST^FS")
+    expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FDANDI^FS")
   })
 
   it("prints the fixed Part Name value regardless of the input fields", () => {

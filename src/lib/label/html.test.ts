@@ -20,6 +20,7 @@ const sampleFields: FormattedLabelFields = {
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
+  operatorName: "Andi",
   packingDate: "10-AUG-2026",
   deliveryDate: "15-AUG-2026",
   deliveryMonth: "8",
@@ -106,7 +107,6 @@ describe("buildLabelHtml", () => {
       sampleFields.qtyDelivery,
       sampleFields.packingDate,
       sampleFields.deliveryDate,
-      "AD | SR | ST",
     ]) {
       expect(html).toContain(`>${value.toUpperCase()}</div>`)
     }
@@ -115,9 +115,16 @@ describe("buildLabelHtml", () => {
       sampleFields.supplierName,
       sampleFields.partNo,
       sampleFields.lotNo,
+      sampleFields.operatorName,
     ]) {
       expect(html).toContain(`>${value.toUpperCase()}<`)
     }
+  })
+
+  // Baris Operator Pack ikut data batch sekarang, bukan teks tetap di templat.
+  it("prints the operator name from the fields on the Operator Pack row", () => {
+    expect(html).toContain(">ANDI<")
+    expect(html).not.toContain("AD | SR | ST")
   })
 
   it("prints the fixed Part Name value regardless of the input fields", () => {

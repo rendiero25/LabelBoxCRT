@@ -14,6 +14,11 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * dan supaya tetap muat di tinggi label yang tetap, seluruh baris menyempit
  * dari 40 ke 33 dot dan setiap font ikut mengecil sebanding.
  *
+ * v10 mengisi baris Operator Pack dengan nama yang diketik saat batchnya
+ * dibuat, menggantikan teks tetap "AD | SR | ST" yang memuat ketiga nama
+ * operator sekaligus untuk dilingkari dengan pena. Panjang namanya tidak bisa
+ * diperkirakan, jadi barisnya ikut merapatkan hurufnya seperti baris Customer.
+ *
  * v9 membuat QR jadi milik satu label saja. Hanya label pertama batch (box 1
  * set 1) yang membawanya; sisanya memakai kolom kanan yang sama untuk penanda
  * FIFO belaka, dengan angka bulan yang membesar mengisi bekas tempat QR. Nilai
@@ -39,7 +44,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v9"
+export const TEMPLATE_VERSION = "v10"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600
@@ -262,8 +267,6 @@ export type LabelRow = {
   value: string
 }
 
-/** Ketiga operator packing dicetak tetap; yang mengepak melingkari namanya. */
-const OPERATOR_PACK_TEXT = "AD | SR | ST"
 const QC_PASSES_TEXT = "QC Passes"
 /** Semua Master Item saat ini bertipe tube; nilainya tetap, bukan dari fields. */
 const PART_NAME_TEXT = "Tube"
@@ -345,10 +348,13 @@ export function labelRowsFor(fields: FormattedLabelFields): LabelRow[] {
       label: upper("Lot No"),
       value: upper(fields.lotNo),
     },
+    // Nama yang diketik operator, panjangnya bebas, jadi hurufnya dirapatkan
+    // sampai muat seperti baris Customer -- bukan dipotong ^FB di tepi kolom.
     {
+      fitValueToColumn: true,
       font: VALUE_FONT,
       label: upper("Operator Pack"),
-      value: OPERATOR_PACK_TEXT,
+      value: upper(fields.operatorName),
     },
     {
       font: VALUE_FONT,

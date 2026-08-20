@@ -72,6 +72,7 @@ function jobFixture(index: number): LabelBoxPrintJob {
     labelReference: `11${index}-260826-B${index}01`,
     lotNo: "CRT082805",
     masterItemRowNo: 1,
+    operatorName: "Andi",
     packingDate: "2026-08-12",
     partName: "Tube Assy",
     partNo: "3210A-K1Z-NA01-DL",

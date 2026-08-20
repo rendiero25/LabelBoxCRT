@@ -34,8 +34,8 @@ insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
 select has_function(
   'public',
   'update_label_box_batch',
-  array['uuid', 'text', 'date', 'date', 'text'],
-  'update_label_box_batch RPC takes batch, DN, date, packing date, lot'
+  array['uuid', 'text', 'date', 'date', 'text', 'text'],
+  'update_label_box_batch RPC takes batch, DN, date, packing date, lot, nama operator'
 );
 
 select has_function(
@@ -61,7 +61,8 @@ from public.create_label_box_batch(
   date '2026-08-05',
   '96210000-0000-0000-0000-000000000001',
   100,
-  'LOT-EDIT-A'
+  'LOT-EDIT-A',
+  'OP-EDIT-A'
 );
 grant select on edit_batch to public;
 
@@ -72,7 +73,8 @@ from public.update_label_box_batch(
   'DN-LB-EDIT-2',
   date '2026-08-09',
   date '2026-08-08',
-  'LOT-EDIT-B'
+  'LOT-EDIT-B',
+  'OP-EDIT-B'
 );
 grant select on edit_result to public;
 
@@ -107,7 +109,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       (select batch_id from edit_batch), 'DN-LB-EDIT-2', date '2026-08-09',
-      null, 'LOT-EDIT-B'
+      null, 'LOT-EDIT-B', 'OP-EDIT-B'
     )
   $$,
   'P0001',
@@ -164,7 +166,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       (select batch_id from edit_batch), '   ', date '2026-08-09',
-      date '2026-08-08', 'LOT-EDIT-B'
+      date '2026-08-08', 'LOT-EDIT-B', 'OP-EDIT-B'
     )
   $$,
   'P0001',
@@ -176,7 +178,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       (select batch_id from edit_batch), 'DN-LB-EDIT-2', date '2026-08-09',
-      date '2026-08-08', ''
+      date '2026-08-08', '', 'OP-EDIT-B'
     )
   $$,
   'P0001',
@@ -188,7 +190,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       '00000000-0000-0000-0000-000000000000',
-      'DN-LB-EDIT-2', date '2026-08-09', date '2026-08-08', 'LOT-EDIT-B'
+      'DN-LB-EDIT-2', date '2026-08-09', date '2026-08-08', 'LOT-EDIT-B', 'OP-EDIT-B'
     )
   $$,
   'P0001',
@@ -207,7 +209,8 @@ from public.create_label_box_batch(
   date '2026-08-08',
   '96210000-0000-0000-0000-000000000001',
   100,
-  'LOT-EDIT-C'
+  'LOT-EDIT-C',
+  'OP-EDIT-C'
 );
 grant select on shared_batch to public;
 
@@ -215,7 +218,7 @@ select throws_ok(
   $$
     select public.update_label_box_batch(
       (select batch_id from edit_batch),
-      'DN-LB-EDIT-2', date '2026-08-10', date '2026-08-08', 'LOT-EDIT-B'
+      'DN-LB-EDIT-2', date '2026-08-10', date '2026-08-08', 'LOT-EDIT-B', 'OP-EDIT-B'
     )
   $$,
   'P0001',

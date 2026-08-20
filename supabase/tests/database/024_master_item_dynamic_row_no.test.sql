@@ -82,7 +82,8 @@ from public.create_label_box_batch(
   date '2026-08-20',
   '9d800000-0000-0000-0000-000000000020',
   100,
-  'LOT-DYNAMIC'
+  'LOT-DYNAMIC',
+  'OP-DYNAMIC'
 );
 
 grant select on table dynamic_batch to authenticated;

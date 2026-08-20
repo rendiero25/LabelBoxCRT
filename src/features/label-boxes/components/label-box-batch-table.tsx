@@ -39,12 +39,15 @@ export type LabelBoxBatchRow = {
   id: string
   labelCount: number
   lotNo: string
+  masterItemId: string
+  operatorName: string
   packingDate: string
   packingQty: number
   partNo: string
   printed: boolean
   qtyDelivery: number
   supplierCode: string
+  supplierId: string
 }
 
 export function LabelBoxBatchTable({
@@ -94,8 +97,8 @@ export function LabelBoxBatchTable({
                 <TableHead>Tanggal</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead>Master Item</TableHead>
-                <TableHead className="text-right">Packing Qty</TableHead>
                 <TableHead className="text-right">Qty Delivery</TableHead>
+                <TableHead className="text-right">Packing Qty</TableHead>
                 <TableHead>Lot No</TableHead>
                 <TableHead className="text-right">Label</TableHead>
                 <TableHead>Status</TableHead>
@@ -166,7 +169,11 @@ export function LabelBoxBatchTable({
                             </Link>
                           </Button>
                         )}
-                        <EditLabelBoxBatchDialog batch={batch} />
+                        <EditLabelBoxBatchDialog
+                          batch={batch}
+                          masterItems={masterItems}
+                          suppliers={suppliers}
+                        />
                         <DeleteLabelBoxBatchAction batch={batch} />
                       </div>
                     </TableCell>

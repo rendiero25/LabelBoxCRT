@@ -10,6 +10,8 @@ export type FinalizedLabelSnapshot = {
   qtyDelivery: number
   masterItemRowNo: number
   lotNo: string
+  /** Nama operator yang mengepak, dicetak di baris Operator Pack. */
+  operatorName: string
   boxNumber: string
   packingDate: string
   deliveryDate: string
@@ -30,6 +32,12 @@ export type FormattedLabelFields = {
    * ("Item List", "Lot No", "No Box") dan menghabiskan tiga baris label.
    */
   lotNo: string
+  /**
+   * Nama operator yang mengepak, diisi di formulir label box. Barisnya dulu
+   * teks tetap berisi ketiga nama operator sekaligus dan yang mengepak
+   * melingkari namanya; sekarang satu nama saja yang dicetak.
+   */
+  operatorName: string
   packingDate: string
   deliveryDate: string
   /** Bulan kirim tanpa angka nol di depan, dicetak besar sebagai penanda FIFO. */
@@ -144,6 +152,7 @@ export function formatLabelFields(
     packingQty: withUnit(snapshot.packingQty),
     qtyDelivery: withUnit(snapshot.qtyDelivery),
     lotNo: formatLotNoLine(snapshot),
+    operatorName: text(snapshot.operatorName),
     packingDate: formatShortDate(snapshot.packingDate),
     deliveryDate: formatShortDate(snapshot.deliveryDate),
     deliveryMonth: formatDeliveryMonth(snapshot.deliveryDate),

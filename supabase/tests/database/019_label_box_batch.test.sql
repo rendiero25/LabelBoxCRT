@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(26);
+select plan(27);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -41,8 +41,8 @@ insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values
 select has_function(
   'public',
   'create_label_box_batch',
-  array['uuid', 'text', 'date', 'date', 'uuid', 'integer', 'text', 'integer'],
-  'create_label_box_batch RPC takes supplier, DN, date, packing date, master item, qty, lot, qty cetak'
+  array['uuid', 'text', 'date', 'date', 'uuid', 'integer', 'text', 'text', 'integer'],
+  'create_label_box_batch RPC takes supplier, DN, date, packing date, master item, qty, lot, nama operator, qty cetak'
 );
 
 -- Empat bulan yang ejaannya berbeda dari singkatan Indonesia yang dipakai
@@ -78,7 +78,8 @@ from public.create_label_box_batch(
   date '2026-07-25',
   '96190000-0000-0000-0000-000000000001',
   100,
-  'LOT-LB-A'
+  'LOT-LB-A',
+  'OP-LB-A'
 );
 grant select on labelbox_batch_a to public;
 
@@ -136,6 +137,7 @@ select is(
       '96190000-0000-0000-0000-000000000001',
       100,
       'LOT-LB-DISPLAY',
+      'OP-LB-DISPLAY',
       2500
     )
   ),
@@ -189,7 +191,8 @@ select throws_ok(
       null,
       '96190000-0000-0000-0000-000000000001',
       100,
-      'LOT-LB-F'
+      'LOT-LB-F',
+      'OP-LB-F'
     )
   $$,
   'P0001',
@@ -219,7 +222,8 @@ from public.create_label_box_batch(
   date '2026-07-25',
   '96190000-0000-0000-0000-000000000001',
   200,
-  'LOT-LB-B'
+  'LOT-LB-B',
+  'OP-LB-B'
 );
 grant select on labelbox_batch_b to public;
 
@@ -261,7 +265,8 @@ select throws_ok(
       date '2026-07-31',
       '96190000-0000-0000-0000-000000000001',
       100,
-      'LOT-LB-C'
+      'LOT-LB-C',
+      'OP-LB-C'
     )
   $$,
   'P0001',
@@ -278,7 +283,8 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       150,
-      'LOT-LB-C'
+      'LOT-LB-C',
+      'OP-LB-C'
     )
   $$,
   'P0001',
@@ -295,7 +301,8 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       10000,
-      'LOT-LB-C'
+      'LOT-LB-C',
+      'OP-LB-C'
     )
   $$,
   'P0001',
@@ -312,7 +319,8 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000002',
       100,
-      'LOT-LB-C'
+      'LOT-LB-C',
+      'OP-LB-C'
     )
   $$,
   'P0001',
@@ -329,7 +337,8 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
-      'LOT-LB-C'
+      'LOT-LB-C',
+      'OP-LB-C'
     )
   $$,
   'P0001',
@@ -346,12 +355,33 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
-      '   '
+      '   ',
+      'OP-LB-EMPTY'
     )
   $$,
   'P0001',
   'LOT_NO_INVALID',
   'lot no kosong ditolak'
+);
+
+-- Nama operator dicetak di baris Operator Pack label; batch tanpa nama itu
+-- menghasilkan label dengan baris kosong yang tidak bisa ditelusuri lagi.
+select throws_ok(
+  $$
+    select public.create_label_box_batch(
+      '95190000-0000-0000-0000-000000000001',
+      'DN-LABELBOX-2',
+      date '2026-07-28',
+      date '2026-07-25',
+      '96190000-0000-0000-0000-000000000001',
+      100,
+      'LOT-LB-G',
+      '   '
+    )
+  $$,
+  'P0001',
+  'OPERATOR_NAME_INVALID',
+  'nama operator kosong ditolak'
 );
 
 -- Admin bisa menutup DN kapan saja; label tidak boleh dibuat setelahnya.
@@ -378,7 +408,8 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
-      'LOT-LB-E'
+      'LOT-LB-E',
+      'OP-LB-E'
     )
   $$,
   'P0001',
@@ -398,7 +429,8 @@ select throws_ok(
       date '2026-07-25',
       '96190000-0000-0000-0000-000000000001',
       100,
-      'LOT-LB-D'
+      'LOT-LB-D',
+      'OP-LB-D'
     )
   $$,
   '42501',
