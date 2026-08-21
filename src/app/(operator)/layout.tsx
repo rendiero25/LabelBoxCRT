@@ -1,6 +1,11 @@
 import Image from "next/image"
 import Link from "next/link"
-import { HouseIcon, LayoutDashboardIcon } from "lucide-react"
+import {
+  BoxesIcon,
+  ClipboardCheckIcon,
+  HouseIcon,
+  LayoutDashboardIcon,
+} from "lucide-react"
 
 import { AppStatus } from "@/components/shared/app-status"
 import { Button } from "@/components/ui/button"
@@ -43,9 +48,30 @@ export default async function OperatorLayout({
             <Button asChild size="sm" variant="ghost">
               <Link href="/scan">
                 <HouseIcon data-icon="inline-start" />
-                Halaman awal
+                Beranda
               </Link>
             </Button>
+            {/* Label Box menunjuk ke halaman yang sama dengan Beranda: daftar
+                label box memang beranda operator. Dua menu itu diminta berdiri
+                sendiri supaya sejajar dengan Verifikasi Pengiriman. */}
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/scan">
+                <BoxesIcon data-icon="inline-start" />
+                Label Box
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/verifikasi-pengiriman">
+                <ClipboardCheckIcon data-icon="inline-start" />
+                Verifikasi Pengiriman
+              </Link>
+            </Button>
+          </div>
+
+          {/* Pintu ke admin berdiri di kanan, tepat sebelum status sistem:
+              kolom kiri milik navigasi operator, dan admin bukan salah satu
+              tujuannya sehari-hari. */}
+          <div className="flex flex-wrap items-center justify-end gap-3">
             {isAdminRole(auth.profile.role) ? (
               <Button asChild size="sm" variant="ghost">
                 <Link href="/admin">
@@ -54,9 +80,6 @@ export default async function OperatorLayout({
                 </Link>
               </Button>
             ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-3">
             <AppStatus />
             <SignOutButton />
           </div>

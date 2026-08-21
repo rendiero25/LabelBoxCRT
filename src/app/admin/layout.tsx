@@ -1,5 +1,4 @@
 import Image from "next/image"
-import Link from "next/link"
 import {
   Building2Icon,
   BoxesIcon,
@@ -7,7 +6,6 @@ import {
   LayoutDashboardIcon,
   Link2Icon,
   PackageSearchIcon,
-  ScanLineIcon,
 } from "lucide-react"
 
 import {
@@ -25,7 +23,6 @@ import {
 } from "@/components/ui/sidebar"
 import { SidebarNavLink } from "@/components/shared/sidebar-nav-link"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { SignOutButton } from "@/features/auth/components/sign-out-button"
 import { requireAdmin } from "@/features/auth/server"
 
@@ -109,17 +106,10 @@ export default async function AdminLayout({
       <SidebarInset>
         <header className="bg-background flex h-14 items-center gap-3 border-b px-4">
           <SidebarTrigger />
-          <p className="font-medium">Admin Label Box</p>
           <Badge className="hidden sm:inline-flex" variant="secondary">
             {auth.profile.display_name}
           </Badge>
           <div className="ml-auto flex items-center gap-2">
-            <Button asChild size="sm" variant="secondary">
-              <Link href="/scan">
-                <ScanLineIcon />
-                Ke Halaman Scan
-              </Link>
-            </Button>
             <SignOutButton />
           </div>
         </header>
