@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(22);
+select plan(23);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -69,6 +69,18 @@ select matches(
   (select box_code from public.boxes where box_no = 1 and master_item_id = '92180000-0000-0000-0000-000000000001'),
   '^box-\d+$',
   'box_code is auto-generated in box-NN format'
+);
+
+-- box_code_seq sudah lewat 99 di project dev. Ketika nomornya masih dipad
+-- dengan lpad(teks, 2, '0'), sepuluh nilai berturut-turut (100..109) dipotong
+-- jadi kode yang sama 'box-10' dan Box kedua ditolak boxes_box_code_key.
+select is(
+  (
+    select count(distinct box_code)::integer
+    from public.boxes where master_item_id = '92180000-0000-0000-0000-000000000001'
+  ),
+  3,
+  'each Box keeps its own code once box_code_seq passes 99'
 );
 
 select throws_ok(

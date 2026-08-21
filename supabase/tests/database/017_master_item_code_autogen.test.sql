@@ -9,7 +9,17 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(11);
+select plan(12);
+
+-- Parkir master_item_code_seq tepat di 99 supaya dua create pertama di bawah
+-- menyeberangi batas dua digit: 99 lalu 100. Di situlah lpad(teks, 2, '0')
+-- dulu memotong dan mengembalikan 'mstritem-10'. Nilai aslinya dikembalikan
+-- di akhir file -- setval tidak ikut rollback, jadi ia harus dipulangkan
+-- sendiri.
+create temporary table master_item_code_seq_before as
+select last_value, is_called from public.master_item_code_seq;
+
+select setval('public.master_item_code_seq', 99, false);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -74,6 +84,12 @@ select isnt(
   'automatic item codes are unique'
 );
 
+select is(
+  (select item_code from public.master_items where part_no = 'AUTOGEN-B'),
+  'mstritem-100',
+  'the code after mstritem-99 widens instead of truncating back to mstritem-10'
+);
+
 select lives_ok(
   $$ select public.create_master_item('AUTOGEN-C', 'Autogen Part C', 'Pcs', 100, 'manual-csv-code') $$,
   'admin (simulating CSV import) creates a master item with an explicit code'
@@ -111,6 +127,12 @@ select is(
 );
 
 reset role;
+
+select setval(
+  'public.master_item_code_seq',
+  (select last_value from master_item_code_seq_before),
+  (select is_called from master_item_code_seq_before)
+);
 
 select * from finish();
 
