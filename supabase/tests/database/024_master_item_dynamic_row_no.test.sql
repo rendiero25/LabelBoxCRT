@@ -63,13 +63,18 @@ select set_config(
 set local role authenticated;
 
 -- Kode item 'zzz-dynamic' berada di urutan terakhir, jadi nomornya sama dengan
--- jumlah seluruh Master Item.
+-- jumlah Master Item yang belum terhapus. Yang sudah terhapus tidak ikut
+-- dihitung: ia tidak muncul di daftar mana pun, jadi ia juga tidak memakan
+-- nomor.
 select is(
   (
     select row_no from public.master_item_row_numbers
     where master_item_id = '9d800000-0000-0000-0000-000000000020'
   ),
-  (select count(*)::integer from public.master_items),
+  (
+    select count(*)::integer from public.master_items
+    where deleted_at is null
+  ),
   'the view ranks a master item by its item code'
 );
 

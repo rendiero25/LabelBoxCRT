@@ -2,14 +2,20 @@
 -- bersama Box Definition dan product mapping miliknya; yang sudah punya
 -- riwayat ditandai terhapus sehingga hilang dari semua daftar, sementara batch
 -- label box dan packing sessionnya tetap utuh dengan data lamanya.
+--
+-- Bagian kedua file ini menjaga agar Master Item terhapus tidak bisa hidup
+-- kembali: set_master_item_active menolaknya, dan setiap jalur yang dulu hanya
+-- menyaring is_active kini ikut menyaring deleted_at.
+--
 -- Migrasi: supabase/migrations/20260819200000_master_item_soft_delete.sql
+--          supabase/migrations/20260821011651_master_item_deleted_stays_deleted.sql
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(13);
+select plan(23);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -40,6 +46,16 @@ insert into public.products (
 ) values (
   '9d900000-0000-0000-0000-000000000015', 'delprod-01', 'Delete Product',
   6, 7, 455, true
+);
+
+-- Produk kedua dipakai bagian kedua file ini: ia belum pernah dipetakan ke
+-- Master Item mana pun, jadi setiap penolakan yang muncul benar-benar datang
+-- dari Master Item-nya, bukan dari mapping yang kebetulan sudah ada.
+insert into public.products (
+  id, product_code, part_name, outer_diameter, inner_diameter, length, is_active
+) values (
+  '9d900000-0000-0000-0000-000000000016', 'delprod-02', 'Delete Product Two',
+  8, 9, 455, true
 );
 
 -- Master Item yang hanya punya definisi: Box, layer, kebutuhan produk, dan
@@ -90,6 +106,53 @@ insert into public.master_items (
   'del-shipped',
   'DEL-SHIPPED',
   'Delete Shipped',
+  'Pcs',
+  100,
+  '9d900000-0000-0000-0000-000000000010'
+);
+
+-- Definisi milik Master Item berriwayat ini tidak ikut dibuang saat ia
+-- diarsipkan, jadi ia masih punya Box, layer, dan mapping sesudahnya -- persis
+-- keadaan yang dipakai bagian kedua file ini.
+insert into public.boxes (id, master_item_id, box_no, box_code, box_name) values (
+  '9d900000-0000-0000-0000-000000000031',
+  '9d900000-0000-0000-0000-000000000021',
+  1, 'del-box-02', 'Box 1'
+);
+
+insert into public.box_layers (id, box_id, layer_no, layer_name, sort_order) values (
+  '9d900000-0000-0000-0000-000000000041',
+  '9d900000-0000-0000-0000-000000000031',
+  1, 'Layer 1', 1
+);
+
+insert into public.box_layer_requirements (
+  box_layer_id, product_id, expected_qty, sort_order
+) values (
+  '9d900000-0000-0000-0000-000000000041',
+  '9d900000-0000-0000-0000-000000000015',
+  1,
+  1
+);
+
+insert into public.master_item_products (
+  id, master_item_id, product_id, is_active
+) values (
+  '9d900000-0000-0000-0000-000000000070',
+  '9d900000-0000-0000-0000-000000000021',
+  '9d900000-0000-0000-0000-000000000015',
+  false
+);
+
+-- Pembanding yang masih hidup: apa pun yang ditolak untuk Master Item terhapus
+-- harus tetap berjalan untuk Master Item biasa.
+insert into public.master_items (
+  id, item_code, part_no, part_name, unit, default_label_qty, supplier_id
+) values (
+  '9d900000-0000-0000-0000-000000000022',
+  'del-live',
+  'DEL-LIVE',
+  'Delete Live',
   'Pcs',
   100,
   '9d900000-0000-0000-0000-000000000010'
@@ -226,6 +289,111 @@ select is_empty(
   $$ select 1 from public.master_item_products
      where master_item_id = '9d900000-0000-0000-0000-000000000020' $$,
   'and its product mapping'
+);
+
+-- Master Item terhapus tidak boleh dihidupkan kembali. Menyalakan is_active-nya
+-- akan mengembalikannya ke setiap jalur yang menyaring is_active saja, padahal
+-- ia sudah hilang dari semua daftar dan tidak lagi punya nomor urut.
+select throws_ok(
+  $$ select public.set_master_item_active('9d900000-0000-0000-0000-000000000021', true) $$,
+  'MASTER_ITEM_NOT_FOUND',
+  'a deleted master item cannot be switched back on'
+);
+
+select is(
+  (select is_active from public.master_items
+   where id = '9d900000-0000-0000-0000-000000000021'),
+  false,
+  'the refused reactivation leaves it deactivated'
+);
+
+-- Mematikannya pun tidak ada artinya: bagi RPC ini baris terhapus sudah tidak
+-- ada, sama seperti pada update_master_item dan delete_master_item.
+select throws_ok(
+  $$ select public.set_master_item_active('9d900000-0000-0000-0000-000000000021', false) $$,
+  'MASTER_ITEM_NOT_FOUND',
+  'and it is missing either way round, not just for reactivation'
+);
+
+select lives_ok(
+  $$ select public.set_master_item_active('9d900000-0000-0000-0000-000000000022', false) $$,
+  'a master item that is still there can still be switched off'
+);
+
+-- Sisa berkas ini memaksa keadaan yang dulu bisa dibuat set_master_item_active:
+-- baris terhapus yang is_active-nya menyala. Setiap jalur yang hanya membaca
+-- is_active akan menerimanya kembali sebagai Master Item yang sah, jadi jalur
+-- itu harus ikut membaca deleted_at -- bukan bersandar pada satu RPC saja.
+reset role;
+update public.master_items
+set is_active = true
+where id = '9d900000-0000-0000-0000-000000000021';
+set local role authenticated;
+
+select throws_ok(
+  $$ select * from public.create_master_item_box('9d900000-0000-0000-0000-000000000021') $$,
+  'MASTER_ITEM_BOX_MASTER_ITEM_NOT_FOUND',
+  'no new box definition can be hung on a deleted master item'
+);
+
+select ok(
+  (select 'Master Item aktif tidak ditemukan.' = any(preview.errors)
+   from public.preview_csv_import(
+     'product_mapping',
+     $$[{"line": "2", "item_code": "del-shipped", "product_code": "delprod-02"}]$$::jsonb
+   ) as preview),
+  'the csv preview refuses a deleted master item as a mapping target'
+);
+
+select throws_ok(
+  $sql$ select public.import_csv_master_data(
+          'product_mapping',
+          $$[{"line": "2", "item_code": "del-shipped", "product_code": "delprod-02"}]$$::jsonb,
+          '9d900000-0000-0000-0000-000000000090'
+        ) $sql$,
+  'CSV_IMPORT_PREVIEW_INVALID',
+  'and the import behind it stops on the same row'
+);
+
+select throws_ok(
+  $$ select public.create_master_item_product_mapping(
+       '9d900000-0000-0000-0000-000000000021',
+       '9d900000-0000-0000-0000-000000000016'
+     ) $$,
+  'PRODUCT_MAPPING_MASTER_ITEM_NOT_FOUND',
+  'a deleted master item cannot take a new product mapping'
+);
+
+select throws_ok(
+  $$ select public.set_master_item_product_active('9d900000-0000-0000-0000-000000000070', true) $$,
+  'PRODUCT_MAPPING_INPUT_INVALID',
+  'and the mapping it already had cannot be switched back on'
+);
+
+-- Jaring terakhir di ujung jalur scan: sesi yang menunjuk Master Item terhapus
+-- ditolak sebelum satu scan pun tercatat.
+reset role;
+insert into public.packing_sessions (
+  id, operator_id, master_item_id, box_id, status
+) values (
+  '9d900000-0000-0000-0000-000000000080',
+  '9d900000-0000-0000-0000-000000000001',
+  '9d900000-0000-0000-0000-000000000021',
+  '9d900000-0000-0000-0000-000000000031',
+  'scanning'
+);
+set local role authenticated;
+
+select throws_ok(
+  $$ select * from public.accept_packing_scan(
+       '9d900000-0000-0000-0000-000000000080',
+       'DELSUP|DEL-SHIPPED|100|1-LOT-DELETE-B101|260826',
+       'hash-delete-0001',
+       '6x7x455',
+       '6x7x455'
+     ) $$,
+  'MASTER_ITEM_NOT_ACTIVE',
+  'a scan against a deleted master item is refused'
 );
 
 reset role;

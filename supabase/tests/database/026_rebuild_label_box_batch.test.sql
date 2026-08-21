@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(9);
+select plan(10);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -135,6 +135,18 @@ select is(
   (select label_count from rebuilt),
   2,
   'the box count follows the new master item and qty'
+);
+
+-- Nomor urut ikut Master Item barunya, dan angkanya harus sama persis dengan
+-- yang dilihat admin di layar -- keduanya menghitung dari Master Item yang
+-- belum terhapus saja.
+select is(
+  (select master_item_row_no from rebuilt),
+  (
+    select row_no from public.master_item_row_numbers
+    where master_item_id = '9dc00000-0000-0000-0000-000000000021'
+  ),
+  'the rebuilt batch takes the number the view shows on screen'
 );
 
 select is(
