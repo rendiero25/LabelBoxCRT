@@ -41,10 +41,18 @@ select results_eq(
   'development product dimensions are seeded as outer x inner x length'
 );
 
+-- part_no and is_active are deliberately not asserted here, for the same
+-- reason they are left out of the product assertion above: Part No became
+-- editable from the admin UI (20260819090000_master_item_part_no_allow_space)
+-- and a Master Item that already has shipping history can be archived from it
+-- (20260819200000_master_item_soft_delete), which also clears is_active. Both
+-- have since happened to this row in the dev project. What the seed owns is
+-- the identity of the row, and that row stays put as the anchor of its own
+-- history.
 select results_eq(
-  $$ select part_no from public.master_items where item_code = 'dm-0001' and is_active $$,
-  array['3210A-K1Z-NA01-DL'::text],
-  'master item and authoritative Part No are seeded'
+  $$ select item_code from public.master_items where item_code = 'dm-0001' $$,
+  array['dm-0001'::text],
+  'master item is seeded'
 );
 
 select results_eq(

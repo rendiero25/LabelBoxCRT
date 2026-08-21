@@ -103,8 +103,9 @@ select columns_are(
   'public',
   'products',
   array[
-    'id', 'product_code', 'part_name', 'outer_diameter', 'inner_diameter',
-    'length', 'normalized_dimensions', 'is_active', 'created_at', 'updated_at'
+    'id', 'product_code', 'part_name', 'part_type', 'outer_diameter',
+    'inner_diameter', 'length', 'normalized_dimensions', 'is_active',
+    'created_at', 'updated_at'
   ],
   'products columns stay locked'
 );
@@ -128,7 +129,8 @@ select columns_are(
   'master_items',
   array[
     'id', 'item_code', 'part_no', 'part_name', 'unit', 'default_label_qty',
-    'is_active', 'created_at', 'updated_at', 'supplier_id'
+    'is_active', 'created_at', 'updated_at', 'supplier_id',
+    'deleted_at', 'deleted_by'
   ],
   'master_items columns stay locked'
 );
@@ -208,8 +210,8 @@ select has_table('public', 'packing_session_scans', 'packing_session_scans exist
 select has_index(
   'public',
   'packing_session_scans',
-  'packing_session_scans_accepted_label_uid_idx',
-  'accepted label UID is globally unique'
+  'packing_session_scans_accepted_label_uid_per_batch_idx',
+  'accepted label UID is unique inside its batch'
 );
 
 select has_table('public', 'sequence_counters', 'sequence_counters exists');

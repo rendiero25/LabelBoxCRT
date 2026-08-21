@@ -146,10 +146,22 @@ select lives_ok(
   $$ delete from public.suppliers where supplier_code = 'RLS-ADMIN' $$,
   'admin can delete unreferenced master data'
 );
+-- Scoped to the two fixture sessions, the same way every other assertion in
+-- this file scopes to its RLS-% / 10000000-... rows: the hosted dev project
+-- carries real packing sessions of its own, so an unscoped count(*) measures
+-- dev data, not the policy. What matters here is that an admin sees the
+-- session owned by *another* operator too -- the contrast with 'operator
+-- reads own session only' above.
 select results_eq(
-  $$ select count(*)::bigint from public.packing_sessions $$,
+  $$
+    select count(*)::bigint from public.packing_sessions
+    where id in (
+      '80000000-0000-0000-0000-000000000001',
+      '80000000-0000-0000-0000-000000000002'
+    )
+  $$,
   array[2::bigint],
-  'admin reads all packing sessions'
+  'admin reads packing sessions of every operator'
 );
 select throws_ok(
   $$ insert into public.audit_logs (actor_id, action, entity_type) values ('10000000-0000-0000-0000-000000000001', 'test', 'test') $$,

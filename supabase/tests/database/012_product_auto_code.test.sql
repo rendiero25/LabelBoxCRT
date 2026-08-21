@@ -34,7 +34,7 @@ set local role authenticated;
 select has_function(
   'public',
   'create_product',
-  array['text', 'numeric', 'numeric', 'numeric'],
+  array['text', 'text', 'numeric', 'numeric', 'numeric'],
   'create_product only accepts product details'
 );
 
@@ -43,7 +43,7 @@ select has_function(
 -- several products sharing these names.
 select lives_ok(
   $$ create temporary table product_auto_code_first as
-     select * from public.create_product('VO-B', 6, 7, 525) $$,
+     select * from public.create_product('VO-B', 'Tube', 6, 7, 525) $$,
   'admin creates a product without providing a code'
 );
 
@@ -55,7 +55,7 @@ select matches(
 
 select lives_ok(
   $$ create temporary table product_auto_code_second as
-     select * from public.create_product('VO-C', 6, 7, 530) $$,
+     select * from public.create_product('VO-C', 'Tube Assy', 6, 7, 530) $$,
   'admin creates a second product without providing a code'
 );
 
