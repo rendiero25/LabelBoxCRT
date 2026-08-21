@@ -15,6 +15,7 @@ const sampleFields: FormattedLabelFields = {
   supplierCode: "10015",
   supplierName: "PT SUMBER KABEL",
   partNo: "3210A-K1Z-NA01-DL",
+  partName: "Tube Assy",
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
@@ -73,8 +74,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v11 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v11")
+  it("exports template version v12 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v12")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })
@@ -337,9 +338,23 @@ describe("buildLabelZpl", () => {
     expect(zpl).toContain("E:OUTFITRG.TTF^FB380,1,0,L,0^FH^FDANDI^FS")
   })
 
-  it("prints the fixed Part Name value regardless of the input fields", () => {
+  // Baris Part Name dulu teks tetap "Tube": semua Master Item bertipe tube saat
+  // baris itu dibuat. Master Item bernama lain akan tercetak Tube juga.
+  it("prints the Part Name from the fields, not a fixed value", () => {
     expect(zpl).toContain(
-      "^A@N,23,12,E:OUTFITRG.TTF^FB240,1,0,L,0^FH^FDTUBE^FS",
+      "^A@N,23,12,E:OUTFITRG.TTF^FB240,1,0,L,0^FH^FDTUBE ASSY^FS",
+    )
+  })
+
+  // Nama part panjang dirapatkan seperti baris Customer, bukan dipotong ^FB di
+  // tepi kolom: potongannya baru ketahuan setelah label menempel di box.
+  it("narrows a long Part Name instead of letting ^FB clip it", () => {
+    const zplLongPartName = buildLabelZpl({
+      ...sampleFields,
+      partName: "Tube Assy Besar Untuk Kabel Panjang",
+    })
+    expect(zplLongPartName).toContain(
+      "^A@N,23,9,E:OUTFITRG.TTF^FB240,1,0,L,0^FH^FDTUBE ASSY BESAR UNTUK KABEL PANJANG^FS",
     )
   })
 

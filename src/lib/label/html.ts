@@ -21,7 +21,7 @@ import {
  * Satu-satunya angka yang sengaja tidak diturunkan dari sana adalah tebal
  * garis: lihat RULE_MM di bawah.
  */
-export const HTML_TEMPLATE_VERSION = "v11-html"
+export const HTML_TEMPLATE_VERSION = "v12-html"
 
 const L = LABEL_LAYOUT
 

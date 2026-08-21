@@ -10,6 +10,7 @@ const baseSnapshot: FinalizedLabelSnapshot = {
   supplierCode: "10015",
   supplierName: "PT SUMBER KABEL",
   partNo: "3210A-K1Z-NA01-DL",
+  partName: "Tube Assy",
   packingQty: 100,
   qtyDelivery: 200,
   masterItemRowNo: 1,
@@ -27,6 +28,7 @@ describe("formatLabelFields", () => {
       supplierCode: "10015",
       supplierName: "PT SUMBER KABEL",
       partNo: "3210A-K1Z-NA01-DL",
+      partName: "Tube Assy",
       packingQty: "100 pcs",
       qtyDelivery: "200 pcs",
       lotNo: "01-M-CRT-004A-581-300726-B001-B101",
@@ -135,6 +137,15 @@ describe("formatLabelFields", () => {
     } as unknown as FinalizedLabelSnapshot
 
     expect(formatLabelFields(incomplete).supplierName).toBe("")
+  })
+
+  // Baris Part Name dulu teks tetap "Tube"; sekarang datang dari Master Item,
+  // jadi nilainya harus sampai apa adanya ke perender label.
+  it("carries the master item part name from the snapshot to the label rows", () => {
+    expect(
+      formatLabelFields({ ...baseSnapshot, partName: "Tube Assy Besar" })
+        .partName,
+    ).toBe("Tube Assy Besar")
   })
 
   it("throws when deliveryDate is not a parseable ISO date", () => {

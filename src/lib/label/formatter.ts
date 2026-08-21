@@ -6,6 +6,8 @@ export type FinalizedLabelSnapshot = {
   supplierCode: string
   supplierName: string
   partNo: string
+  /** Nama Part Master Item, dicetak di baris Part Name di bawah Part No. */
+  partName: string
   packingQty: number
   qtyDelivery: number
   masterItemRowNo: number
@@ -24,6 +26,12 @@ export type FormattedLabelFields = {
   /** Nama supplier, dicetak di baris Customer di bawah Supplier ID. */
   supplierName: string
   partNo: string
+  /**
+   * Nama Part Master Item. Dulu teks tetap "Tube" di dalam templat: seluruh
+   * Master Item bertipe tube saat baris ini dibuat. Sekarang tiap Master Item
+   * membawa namanya sendiri, jadi nilai tetap itu akan salah pada item lain.
+   */
+  partName: string
   packingQty: string
   qtyDelivery: string
   /**
@@ -149,6 +157,7 @@ export function formatLabelFields(
     supplierCode: text(snapshot.supplierCode),
     supplierName: text(snapshot.supplierName),
     partNo: text(snapshot.partNo),
+    partName: text(snapshot.partName),
     packingQty: withUnit(snapshot.packingQty),
     qtyDelivery: withUnit(snapshot.qtyDelivery),
     lotNo: formatLotNoLine(snapshot),

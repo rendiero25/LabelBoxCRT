@@ -17,6 +17,7 @@ const sampleFields: FormattedLabelFields = {
   supplierCode: "10015",
   supplierName: "PT SUMBER KABEL",
   partNo: "3210A-K1Z-NA01-DL",
+  partName: "Tube Assy",
   packingQty: "100 pcs",
   qtyDelivery: "200 pcs",
   lotNo: "01-M-CRT-004A-581-300726-B001-B101",
@@ -127,8 +128,10 @@ describe("buildLabelHtml", () => {
     expect(html).not.toContain("AD | SR | ST")
   })
 
-  it("prints the fixed Part Name value regardless of the input fields", () => {
-    expect(html).toContain(">TUBE</div>")
+  // Baris Part Name ikut Master Item sekarang, bukan teks tetap "Tube".
+  it("prints the Part Name from the fields on the Part Name row", () => {
+    expect(html).toContain(">TUBE ASSY<")
+    expect(html).not.toContain(">TUBE</div>")
   })
 
   // Nama field dipatok satu ukuran untuk seluruh kolom kiri. Kalau yang

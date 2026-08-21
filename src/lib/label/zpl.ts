@@ -14,6 +14,13 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * dan supaya tetap muat di tinggi label yang tetap, seluruh baris menyempit
  * dari 40 ke 33 dot dan setiap font ikut mengecil sebanding.
  *
+ * v12 mengisi baris Part Name dengan Nama Part Master Item, menggantikan teks
+ * tetap "Tube" yang dipasang di v8. Waktu itu seluruh Master Item bertipe tube
+ * sehingga nilai tetap selalu benar; begitu ada Master Item bernama lain, tiap
+ * labelnya mengaku Tube. Nilainya sudah ikut batch sejak awal
+ * (label_box_batches.part_name_snapshot), jadi yang berubah hanya asal
+ * nilainya, bukan tata letaknya.
+ *
  * v11 menutup blok angka bulan pada label tanpa QR dengan garis melintang
  * penuh (y=134), sebaris dengan garis di atas PART NO, sehingga teks "FIFO PT
  * CRT" punya atap seperti pada label ber-QR. Sebelumnya garis itu berhenti di
@@ -49,7 +56,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v11"
+export const TEMPLATE_VERSION = "v12"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600
@@ -273,8 +280,6 @@ export type LabelRow = {
 }
 
 const QC_PASSES_TEXT = "QC Passes"
-/** Semua Master Item saat ini bertipe tube; nilainya tetap, bukan dari fields. */
-const PART_NAME_TEXT = "Tube"
 
 /**
  * Kedua kolom dicetak huruf besar. Huruf kecil pada cetakan termal di media
@@ -313,12 +318,13 @@ export function labelRowsFor(fields: FormattedLabelFields): LabelRow[] {
       label: upper("Part No"),
       value: upper(fields.partNo),
     },
-    // Semua Master Item saat ini bertipe tube; nilainya konstan, berbeda
-    // dengan baris lain yang datanya ikut batch/master item.
+    // Nama Part Master Item, panjangnya bebas seperti baris Customer, jadi
+    // hurufnya dirapatkan sampai muat alih-alih dipotong ^FB di tepi kolom.
     {
+      fitValueToColumn: true,
       font: VALUE_FONT,
       label: upper("Part Name"),
-      value: upper(PART_NAME_TEXT),
+      value: upper(fields.partName),
     },
     {
       boldValue: true,
