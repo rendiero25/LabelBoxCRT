@@ -18,9 +18,11 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
   UploadIcon,
+  XCircleIcon,
 } from "lucide-react"
 
 import { useActionStateToast } from "@/components/shared/action-state-toast"
+import { cn } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -330,21 +332,64 @@ function VerificationPanel({
     [router, session.id, session.sessionNo],
   )
 
-  const { pending } = useScannerListener({
+  const { lastScan, pending } = useScannerListener({
     enabled: active,
     onScan: handleScan,
   })
 
   return (
-    <Button
-      onClick={onToggle}
-      size="sm"
-      type="button"
-      variant={active ? "default" : "outline"}
-    >
-      {pending ? <Spinner /> : <ScanLineIcon data-icon="inline-start" />}
-      {active ? "Scan aktif" : "Mulai scan"}
-    </Button>
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-2">
+        {/* Titik berdenyut adalah satu-satunya penanda yang masih terlihat
+            sambil operator menunduk memegang scanner, bukan menatap layar:
+            warna tombolnya sendiri baru terbaca kalau matanya sudah di sana. */}
+        {active ? (
+          <span className="relative flex size-2.5">
+            <span
+              className={cn(
+                "absolute inline-flex h-full w-full rounded-full opacity-75",
+                pending
+                  ? "bg-muted-foreground animate-pulse"
+                  : "bg-success animate-ping",
+              )}
+            />
+            <span
+              className={cn(
+                "relative inline-flex size-2.5 rounded-full",
+                pending ? "bg-muted-foreground" : "bg-success",
+              )}
+            />
+          </span>
+        ) : null}
+        <Button
+          onClick={onToggle}
+          size="sm"
+          type="button"
+          variant={active ? "default" : "outline"}
+        >
+          {pending ? <Spinner /> : <ScanLineIcon data-icon="inline-start" />}
+          {active ? "Scan aktif" : "Mulai scan"}
+        </Button>
+      </div>
+      {/* Hasil scan terakhir bertahan di layar, bukan cuma lewat lewat sebagai
+          toast: toast bisa terlewat waktu operator sedang menempel label,
+          sementara baris ini tetap terbaca begitu ia menoleh ke layar lagi. */}
+      {active && lastScan ? (
+        <p
+          className={cn(
+            "flex max-w-64 items-center gap-1.5 text-right text-xs",
+            lastScan.status === "success" ? "text-success" : "text-destructive",
+          )}
+        >
+          {lastScan.status === "success" ? (
+            <CheckCircle2Icon className="size-3.5 shrink-0" />
+          ) : (
+            <XCircleIcon className="size-3.5 shrink-0" />
+          )}
+          {lastScan.message ?? lastScan.rawPayload}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -410,9 +455,17 @@ export function DeliverySessionWorkspace({
               ? !toggled.has(session.id)
               : toggled.has(session.id)
 
+          const scanning = scanningSessionId === session.id
+
           return (
             <section
-              className="bg-background flex flex-col gap-4 rounded-xl border p-5"
+              className={cn(
+                "bg-background flex flex-col gap-4 rounded-xl border p-5",
+                // Cincin di sekeliling kartu, bukan cuma warna tombolnya:
+                // dengan beberapa session terbuka sekaligus, ini yang
+                // menjawab "yang mana sedang menerima scan" dari kejauhan.
+                scanning && "ring-success/50 ring-2",
+              )}
               key={session.id}
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
