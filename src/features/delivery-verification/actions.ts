@@ -198,6 +198,37 @@ export async function verifyDeliveryLabelAction(input: {
   }
 }
 
+/**
+ * Membuang satu session beserta jadwal dan catatan scannya.
+ *
+ * Yang hilang bukan cuma sessionnya melainkan seluruh bukti pemeriksaannya,
+ * jadi RPC-nya menuliskan ringkasan ke audit_logs lebih dulu.
+ */
+export async function deleteDeliverySessionAction(
+  sessionId: string,
+): Promise<UploadScheduleState> {
+  if (!uuidPattern.test(sessionId)) {
+    return { error: "Session tidak valid." }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_delivery_verification_session", {
+    p_session_id: sessionId,
+  })
+
+  if (error) {
+    return {
+      error: rpcErrorMessage(
+        error.message,
+        "Gagal menghapus session. Coba lagi atau hubungi admin.",
+      ),
+    }
+  }
+
+  revalidatePath("/verifikasi-pengiriman")
+  return { success: "Session dihapus." }
+}
+
 export async function deleteScheduleRowAction(
   rowId: string,
 ): Promise<UploadScheduleState> {

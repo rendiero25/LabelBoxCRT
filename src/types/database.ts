@@ -1552,6 +1552,10 @@ export type Database = {
         Args: { p_row_id: string }
         Returns: undefined
       }
+      delete_delivery_verification_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
       delete_label_box_batch: {
         Args: { p_batch_id: string }
         Returns: {

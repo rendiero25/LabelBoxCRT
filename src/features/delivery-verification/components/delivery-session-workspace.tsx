@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   CheckCircle2Icon,
+  ChevronDownIcon,
   CircleDashedIcon,
   PlusIcon,
   ScanLineIcon,
@@ -20,6 +21,16 @@ import {
 } from "lucide-react"
 
 import { useActionStateToast } from "@/components/shared/action-state-toast"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty"
@@ -34,6 +45,7 @@ import {
 } from "@/components/ui/table"
 import {
   createDeliverySessionAction,
+  deleteDeliverySessionAction,
   deleteScheduleRowAction,
   uploadScheduleFileAction,
   verifyDeliveryLabelAction,
@@ -133,6 +145,66 @@ function DeleteRowButton({ rowId }: { rowId: string }) {
     >
       {isPending ? <Spinner /> : <Trash2Icon />}
     </Button>
+  )
+}
+
+/**
+ * Menghapus satu session. Konfirmasinya menyebut angka yang ikut hilang, bukan
+ * "tindakan ini permanen" belaka: yang terbuang bersama sessionnya adalah
+ * seluruh bukti pemeriksaan kiriman itu, dan besarnya baru terasa kalau
+ * disebutkan.
+ */
+function DeleteSessionButton({ session }: { session: DeliverySession }) {
+  const [isPending, startTransition] = useTransition()
+  const [state, setState] = useState(initialUploadScheduleState)
+  const [open, setOpen] = useState(false)
+  useActionStateToast(state)
+
+  const verified = session.rows.filter((row) => row.verifiedAt).length
+
+  return (
+    <AlertDialog onOpenChange={setOpen} open={open}>
+      <AlertDialogTrigger asChild>
+        <Button
+          aria-label={`Hapus Session ${session.sessionNo}`}
+          size="icon"
+          variant="ghost"
+        >
+          <Trash2Icon />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Hapus Session {session.sessionNo}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {session.rows.length === 0
+              ? "Session ini belum berisi jadwal apa pun."
+              : `${session.rows.length} baris jadwal ikut terhapus, termasuk ${verified} yang sudah PASS, beserta seluruh catatan scannya.`}{" "}
+            Tindakan ini permanen.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <Button
+            disabled={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await deleteDeliverySessionAction(session.id)
+                setState(result)
+                if (result.success) setOpen(false)
+              })
+            }
+            type="button"
+            variant="destructive"
+          >
+            {isPending ? <Spinner data-icon="inline-start" /> : null}
+            Hapus
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -285,6 +357,28 @@ export function DeliverySessionWorkspace({
     null,
   )
 
+  /**
+   * Session yang sudah selesai terlipat sendiri; yang masih berjalan terbuka.
+   * Yang disimpan hanya penyimpangan dari aturan itu, bukan keadaan tiap
+   * session, supaya session baru yang datang setelah halaman dimuat tetap
+   * terbuka tanpa perlu didaftarkan lebih dulu.
+   */
+  const [toggled, setToggled] = useState<Set<string>>(new Set())
+
+  const toggleExpanded = (sessionId: string) => {
+    setToggled((current) => {
+      const next = new Set(current)
+      if (next.has(sessionId)) next.delete(sessionId)
+      else next.add(sessionId)
+      return next
+    })
+
+    // Menutup session yang sedang mendengarkan scan sekaligus mematikan
+    // pendengarnya: scan yang masuk ke jadwal yang tidak terlihat tidak bisa
+    // diperiksa operator.
+    setScanningSessionId((current) => (current === sessionId ? null : current))
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -311,6 +405,10 @@ export function DeliverySessionWorkspace({
           const unresolved = session.rows.filter(
             (row) => !row.resolvedPartNo,
           ).length
+          const expanded =
+            session.status === "open"
+              ? !toggled.has(session.id)
+              : toggled.has(session.id)
 
           return (
             <section
@@ -319,9 +417,24 @@ export function DeliverySessionWorkspace({
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-lg font-semibold">
-                    Session {session.sessionNo}
-                  </h2>
+                  {/* Judulnya sendiri yang jadi tombol buka-tutup: sasaran
+                      klik terbesar di baris ini, dan operator memakai layar
+                      sentuh di lantai produksi. */}
+                  <button
+                    aria-expanded={expanded}
+                    className="focus-visible:ring-ring flex items-center gap-2 rounded-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    onClick={() => toggleExpanded(session.id)}
+                    type="button"
+                  >
+                    <ChevronDownIcon
+                      className={`size-4 transition-transform ${
+                        expanded ? "" : "-rotate-90"
+                      }`}
+                    />
+                    <h2 className="text-lg font-semibold">
+                      Session {session.sessionNo}
+                    </h2>
+                  </button>
                   <Badge
                     variant={
                       session.status === "done" ? "default" : "secondary"
@@ -343,28 +456,36 @@ export function DeliverySessionWorkspace({
                     </span>
                   ) : null}
                 </div>
-                {session.status === "open" ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <ScheduleUpload sessionId={session.id} />
-                    {session.rows.length > 0 ? (
-                      <VerificationPanel
-                        active={scanningSessionId === session.id}
-                        onToggle={() =>
-                          setScanningSessionId((current) =>
-                            current === session.id ? null : session.id,
-                          )
-                        }
-                        session={session}
-                      />
-                    ) : null}
-                  </div>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Upload dan scan ikut tersembunyi saat ditutup. Tombol yang
+                      mengubah isi session tidak boleh bisa ditekan sementara
+                      isinya tidak kelihatan. */}
+                  {expanded && session.status === "open" ? (
+                    <>
+                      <ScheduleUpload sessionId={session.id} />
+                      {session.rows.length > 0 ? (
+                        <VerificationPanel
+                          active={scanningSessionId === session.id}
+                          onToggle={() =>
+                            setScanningSessionId((current) =>
+                              current === session.id ? null : session.id,
+                            )
+                          }
+                          session={session}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                  <DeleteSessionButton session={session} />
+                </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium">Schedule Delivery</h3>
-                <ScheduleTable session={session} />
-              </div>
+              {expanded ? (
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-sm font-medium">Schedule Delivery</h3>
+                  <ScheduleTable session={session} />
+                </div>
+              ) : null}
             </section>
           )
         })
