@@ -1,7 +1,9 @@
 import Image from "next/image"
+import Link from "next/link"
 import {
   Building2Icon,
   BoxesIcon,
+  ClipboardCheckIcon,
   FileSpreadsheetIcon,
   LayoutDashboardIcon,
   Link2Icon,
@@ -23,6 +25,7 @@ import {
 } from "@/components/ui/sidebar"
 import { SidebarNavLink } from "@/components/shared/sidebar-nav-link"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { SignOutButton } from "@/features/auth/components/sign-out-button"
 import { requireAdmin } from "@/features/auth/server"
 
@@ -109,7 +112,23 @@ export default async function AdminLayout({
           <Badge className="hidden sm:inline-flex" variant="secondary">
             {auth.profile.display_name}
           </Badge>
+          {/* Kedua halaman operator dinamai sama persis dengan menunya di
+              header operator. Sidebar di kiri memuat administrasi; keduanya
+              bukan itu, jadi keduanya berdiri di header seperti di sisi
+              operator. */}
           <div className="ml-auto flex items-center gap-2">
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/scan">
+                <BoxesIcon data-icon="inline-start" />
+                Label Box
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/verifikasi-pengiriman">
+                <ClipboardCheckIcon data-icon="inline-start" />
+                Verifikasi Pengiriman
+              </Link>
+            </Button>
             <SignOutButton />
           </div>
         </header>

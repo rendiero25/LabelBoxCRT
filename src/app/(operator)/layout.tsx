@@ -3,7 +3,6 @@ import Link from "next/link"
 import {
   BoxesIcon,
   ClipboardCheckIcon,
-  HouseIcon,
   LayoutDashboardIcon,
 } from "lucide-react"
 
@@ -26,9 +25,8 @@ export default async function OperatorLayout({
             keluar, bukan di tengah header. */}
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex flex-wrap items-center gap-1">
-            {/* Beranda operator adalah daftar label box, bukan halaman
-                sambutan: dari sanalah setiap pekerjaan scan dimulai. Logo
-                membawa ke tempat yang sama seperti tombolnya. */}
+            {/* Logo membawa ke daftar label box: dari sanalah setiap pekerjaan
+                scan dimulai, dan itu pula tujuan menu Label Box. */}
             <Link
               aria-label="Kembali ke daftar label box"
               className="focus-visible:ring-ring mr-2 rounded-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -45,15 +43,6 @@ export default async function OperatorLayout({
                 width={39}
               />
             </Link>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/scan">
-                <HouseIcon data-icon="inline-start" />
-                Beranda
-              </Link>
-            </Button>
-            {/* Label Box menunjuk ke halaman yang sama dengan Beranda: daftar
-                label box memang beranda operator. Dua menu itu diminta berdiri
-                sendiri supaya sejajar dengan Verifikasi Pengiriman. */}
             <Button asChild size="sm" variant="ghost">
               <Link href="/scan">
                 <BoxesIcon data-icon="inline-start" />
