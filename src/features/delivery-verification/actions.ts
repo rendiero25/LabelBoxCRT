@@ -179,14 +179,17 @@ export async function verifyDeliveryLabelAction(input: {
   // Pesannya menyebut kenapa, bukan cuma PASS atau NOT PASS. Operator yang
   // hanya diberi "NOT PASS" akan mengulang scan label yang sama alih-alih
   // mencari label yang benar.
+  //
+  // "Qty per Box" adalah nama yang dipakai operator untuk angka ini -- baris
+  // Qty/Delivery pada label, bukan baris Qty/Box milik Master Item.
   const message =
     outcome === "pass"
-      ? `PASS — ${row.product_size} (${row.qty}) cocok dengan ${row.part_no}.`
+      ? `PASS — ${row.product_size}, Qty per Box ${row.qty} cocok dengan ${row.part_no}.`
       : outcome === "duplicate_label"
         ? "NOT PASS — label ini sudah dipakai untuk baris lain di session ini."
         : outcome === "unknown_label"
           ? "NOT PASS — QR ini bukan label box yang dikenal sistem."
-          : `NOT PASS — tidak ada baris jadwal yang cocok dengan ${row.part_no} (${row.packing_qty}).`
+          : `NOT PASS — tidak ada baris jadwal yang cocok dengan ${row.part_no} (Qty per Box ${row.packing_qty}).`
 
   revalidatePath("/verifikasi-pengiriman")
   return {

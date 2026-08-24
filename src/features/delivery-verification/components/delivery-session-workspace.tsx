@@ -230,7 +230,11 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
           <TableRow>
             <TableHead className="w-12">#</TableHead>
             <TableHead>Ukuran Produk</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
+            {/* "Qty per Box" adalah nama yang dipakai operator untuk angka
+                yang tercetak di baris Qty/Delivery label -- field ketiga QR
+                sejak 20260821083835. Bukan Qty/Box milik Master Item, yang
+                nilainya sama untuk setiap kiriman dan tidak pernah berubah. */}
+            <TableHead className="text-right">Qty per Box</TableHead>
             <TableHead>Master Item</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
