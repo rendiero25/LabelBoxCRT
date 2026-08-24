@@ -8,6 +8,12 @@ set local search_path = extensions, public, pg_catalog;
 
 select plan(15);
 
+-- nextval() tidak ikut rollback, jadi tiap kali file ini dijalankan ia membakar
+-- satu nomor session dan session nyata berikutnya melompat. Nilai aslinya
+-- ditangkap di sini dan dikembalikan setelah `reset role` di bawah.
+create temporary table delivery_session_seq_before as
+select last_value, is_called from public.delivery_verification_session_seq;
+
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values
@@ -180,6 +186,12 @@ select lives_ok(
 );
 
 reset role;
+
+select setval(
+  'public.delivery_verification_session_seq',
+  (select last_value from delivery_session_seq_before),
+  (select is_called from delivery_session_seq_before)
+);
 
 select * from finish();
 
