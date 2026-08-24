@@ -1,11 +1,21 @@
 "use client"
 
-import { useActionState, useRef, useState, useTransition } from "react"
+import {
+  useActionState,
+  useCallback,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   CheckCircle2Icon,
   CircleDashedIcon,
   PlusIcon,
+  ScanLineIcon,
   Trash2Icon,
+  TriangleAlertIcon,
   UploadIcon,
 } from "lucide-react"
 
@@ -26,11 +36,13 @@ import {
   createDeliverySessionAction,
   deleteScheduleRowAction,
   uploadScheduleFileAction,
+  verifyDeliveryLabelAction,
 } from "@/features/delivery-verification/actions"
 import {
   type DeliverySession,
   initialUploadScheduleState,
 } from "@/features/delivery-verification/form-state"
+import { useScannerListener } from "@/features/scan/use-scanner-listener"
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("id-ID", {
@@ -130,7 +142,7 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
       <Empty className="border-none">
         <EmptyTitle>Belum ada jadwal</EmptyTitle>
         <EmptyDescription>
-          Unggah file Excel berisi kolom Part No dan Qty. File berikutnya
+          Unggah file Excel berisi kolom ukuran produk dan Qty. File berikutnya
           menambah baris di bawahnya.
         </EmptyDescription>
       </Empty>
@@ -143,8 +155,9 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-12">#</TableHead>
-            <TableHead>Part No</TableHead>
+            <TableHead>Ukuran Produk</TableHead>
             <TableHead className="text-right">Qty</TableHead>
+            <TableHead>Master Item</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
             <TableHead className="w-12" />
@@ -154,17 +167,28 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
           {session.rows.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="tabular-nums">{row.rowNo}</TableCell>
-              <TableCell className="font-medium">{row.partNo}</TableCell>
+              <TableCell className="font-medium">{row.productSize}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {row.qty}
+              </TableCell>
+              <TableCell>
+                {/* Ukuran yang tidak menunjuk produk mana pun ditandai di sini,
+                    bukan didiamkan sampai scan. Baris seperti ini tidak akan
+                    pernah PASS, dan operator harus tahu sebelum truknya
+                    diperiksa satu per satu. */}
+                {row.resolvedPartNo ? (
+                  <span className="text-sm">{row.resolvedPartNo}</span>
+                ) : (
+                  <span className="text-warning flex items-center gap-1.5 text-xs">
+                    <TriangleAlertIcon className="size-3.5 shrink-0" />
+                    Ukuran tidak dikenal
+                  </span>
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground text-xs">
                 {row.sourceFileName}
               </TableCell>
               <TableCell className="text-center">
-                {/* Centang hijau diisi Bagian 2. Sampai itu ada, tiap baris
-                    berdiri sebagai lingkaran kosong supaya kolomnya sudah
-                    terbaca sebagai daftar pekerjaan yang belum selesai. */}
                 {row.verifiedAt ? (
                   <CheckCircle2Icon className="text-success mx-auto size-5" />
                 ) : (
@@ -182,11 +206,85 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
   )
 }
 
+/**
+ * Bagian 2. Scanner adalah keyboard wedge, jadi tidak ada field yang diketik:
+ * pendengarnya menangkap ketikan di halaman dan mengirim satu baris per Enter.
+ *
+ * Hanya satu session yang boleh mendengarkan sekaligus. Dua session terbuka
+ * yang sama-sama menerima scan akan membuat satu label masuk ke jadwal yang
+ * salah tanpa cara mengetahuinya.
+ */
+function VerificationPanel({
+  active,
+  onToggle,
+  session,
+}: {
+  active: boolean
+  onToggle: () => void
+  session: DeliverySession
+}) {
+  const router = useRouter()
+
+  const handleScan = useCallback(
+    async (rawPayload: string) => {
+      const result = await verifyDeliveryLabelAction({
+        qrPayload: rawPayload,
+        sessionId: session.id,
+      })
+
+      if (result.outcome === "pass") {
+        toast.success(result.message)
+        // DELIVERY OK berdiri sendiri sesudah PASS-nya, bukan menggantikannya:
+        // yang terakhir tetap perlu tahu labelnya diterima.
+        if (result.deliveryOk) {
+          toast.success(`DELIVERY OK — Session ${session.sessionNo} selesai.`)
+        }
+      } else {
+        toast.error(result.message)
+      }
+
+      router.refresh()
+
+      return {
+        message: result.message,
+        status:
+          result.outcome === "pass"
+            ? ("success" as const)
+            : result.outcome === "duplicate_label"
+              ? ("duplicate" as const)
+              : ("error" as const),
+      }
+    },
+    [router, session.id, session.sessionNo],
+  )
+
+  const { pending } = useScannerListener({
+    enabled: active,
+    onScan: handleScan,
+  })
+
+  return (
+    <Button
+      onClick={onToggle}
+      size="sm"
+      type="button"
+      variant={active ? "default" : "outline"}
+    >
+      {pending ? <Spinner /> : <ScanLineIcon data-icon="inline-start" />}
+      {active ? "Scan aktif" : "Mulai scan"}
+    </Button>
+  )
+}
+
 export function DeliverySessionWorkspace({
   sessions,
 }: {
   sessions: DeliverySession[]
 }) {
+  const [scanningSessionId, setScanningSessionId] = useState<string | null>(
+    null,
+  )
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -210,6 +308,9 @@ export function DeliverySessionWorkspace({
       ) : (
         sessions.map((session) => {
           const verified = session.rows.filter((row) => row.verifiedAt).length
+          const unresolved = session.rows.filter(
+            (row) => !row.resolvedPartNo,
+          ).length
 
           return (
             <section
@@ -236,9 +337,27 @@ export function DeliverySessionWorkspace({
                       {verified}/{session.rows.length} terverifikasi
                     </span>
                   ) : null}
+                  {unresolved > 0 ? (
+                    <span className="text-warning text-xs">
+                      {unresolved} ukuran tidak dikenal
+                    </span>
+                  ) : null}
                 </div>
                 {session.status === "open" ? (
-                  <ScheduleUpload sessionId={session.id} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ScheduleUpload sessionId={session.id} />
+                    {session.rows.length > 0 ? (
+                      <VerificationPanel
+                        active={scanningSessionId === session.id}
+                        onToggle={() =>
+                          setScanningSessionId((current) =>
+                            current === session.id ? null : session.id,
+                          )
+                        }
+                        session={session}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
 

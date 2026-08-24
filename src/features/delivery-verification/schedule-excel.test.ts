@@ -31,8 +31,8 @@ describe("parseScheduleWorkbook", () => {
     expect(result).toEqual({
       ok: true,
       rows: [
-        { partNo: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
-        { partNo: "3210A-K1Z-NA01-DL", qty: "300" },
+        { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+        { productSize: "3210A-K1Z-NA01-DL", qty: "300" },
       ],
     })
   })
@@ -63,7 +63,7 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { partNo: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+      { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
     ])
   })
 
@@ -82,7 +82,31 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { partNo: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+      { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+    ])
+  })
+
+  /**
+   * Bentuk dokumen jadwal yang sebenarnya dipakai: kolom nomor urut di depan,
+   * header "Part no", dan Part No yang kerap berspasi ekor karena diketik
+   * tangan. Datanya diganti; yang dikunci di sini susunannya.
+   */
+  it("reads the shape of the real delivery schedule", async () => {
+    const result = await parseScheduleWorkbook(
+      await workbookBuffer([
+        ["No", "Part no", "Qty"],
+        [1, "VS-X T0.3XW100 L=120MM", 2000],
+        [2, "VS-X T0.3XW100 L=185MM ", 3000],
+        [3, "VS-X T0.3XW60 L=110 MM ", 6000],
+      ]),
+    )
+
+    expect(result.ok && result.rows).toEqual([
+      { productSize: "VS-X T0.3XW100 L=120MM", qty: "2000" },
+      { productSize: "VS-X T0.3XW100 L=185MM", qty: "3000" },
+      // Spasi di dalam nama dipertahankan apa adanya; hanya yang di ujung
+      // dibuang dan yang berderet dirapatkan jadi satu.
+      { productSize: "VS-X T0.3XW60 L=110 MM", qty: "6000" },
     ])
   })
 
@@ -95,7 +119,7 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { partNo: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+      { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
     ])
   })
 

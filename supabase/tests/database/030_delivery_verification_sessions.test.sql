@@ -66,8 +66,8 @@ select is(
     select count(*)::integer from public.add_delivery_schedule_rows(
       (select id from verif_session),
       'jadwal-a.xlsx',
-      '[{"partNo": "QRPQ-PART", "qty": "5000"},
-        {"partNo": "lain-part", "qty": "300"}]'::jsonb
+      '[{"productSize": "QRPQ-PART", "qty": "5000"},
+        {"productSize": "lain-part", "qty": "300"}]'::jsonb
     )
   ),
   2,
@@ -76,7 +76,7 @@ select is(
 
 select is(
   (
-    select string_agg(part_no, ',' order by row_no)
+    select string_agg(product_size, ',' order by row_no)
     from public.delivery_schedule_rows
     where session_id = (select id from verif_session)
   ),
@@ -90,7 +90,7 @@ select lives_ok(
     select public.add_delivery_schedule_rows(
       (select id from verif_session),
       'jadwal-b.xlsx',
-      '[{"partNo": "QRPQ-PART", "qty": "7000"}]'::jsonb
+      '[{"productSize": "QRPQ-PART", "qty": "7000"}]'::jsonb
     )
   $$,
   'file kedua bisa diunggah ke session yang sama'
@@ -113,7 +113,7 @@ select is(
     select string_agg(qty::text, ',' order by row_no)
     from public.delivery_schedule_rows
     where session_id = (select id from verif_session)
-      and part_no = 'QRPQ-PART'
+      and product_size = 'QRPQ-PART'
   ),
   '5000,7000',
   'part no kembar berdiri sebagai dua baris dengan qty masing-masing'
@@ -154,7 +154,7 @@ select throws_ok(
     select public.add_delivery_schedule_rows(
       (select id from verif_session),
       'rusak.xlsx',
-      '[{"partNo": "", "qty": "10"}]'::jsonb
+      '[{"productSize": "", "qty": "10"}]'::jsonb
     )
   $$,
   'P0001', 'DELIVERY_ROWS_INVALID',
@@ -166,7 +166,7 @@ select throws_ok(
     select public.add_delivery_schedule_rows(
       (select id from verif_session),
       'rusak.xlsx',
-      '[{"partNo": "ADA", "qty": "0"}]'::jsonb
+      '[{"productSize": "ADA", "qty": "0"}]'::jsonb
     )
   $$,
   'P0001', 'DELIVERY_ROWS_INVALID',

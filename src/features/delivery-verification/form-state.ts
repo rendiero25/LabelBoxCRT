@@ -1,10 +1,17 @@
 export type DeliveryScheduleRow = {
   id: string
-  partNo: string
+  /** Ukuran produk apa adanya dari file jadwal, misal "VS-B T0.3XW100 L=120MM". */
+  productSize: string
   qty: number
+  /**
+   * Part No Master Item hasil terjemahan ukuran di atas, null kalau ukurannya
+   * tidak menunjuk produk mana pun. Baris ber-null tidak akan pernah PASS, dan
+   * operator perlu tahu itu saat mengunggah filenya -- bukan setelah seluruh
+   * truk selesai discan.
+   */
+  resolvedPartNo: string | null
   rowNo: number
   sourceFileName: string
-  /** Terisi ketika satu label box cocok dengan baris ini (Bagian 2). */
   verifiedAt: string | null
 }
 
@@ -29,3 +36,14 @@ export type UploadScheduleState = {
 }
 
 export const initialUploadScheduleState: UploadScheduleState = {}
+
+export type DeliveryScanOutcome =
+  "pass" | "not_pass" | "unknown_label" | "duplicate_label"
+
+export type DeliveryScanResult = {
+  deliveryOk: boolean
+  message: string
+  outcome: DeliveryScanOutcome | "error"
+  verifiedCount: number
+  totalCount: number
+}

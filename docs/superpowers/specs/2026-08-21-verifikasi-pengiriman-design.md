@@ -13,8 +13,13 @@ session apa tanpa membukanya.
 
 ## Bagian 1 — Schedule Delivery
 
-Tabel dua kolom: **Part No** (Part No Master Item) dan **Qty** (Packing Qty).
-Nilainya datang dari upload Excel atau PDF.
+Tabel dua kolom: **Ukuran Produk** dan **Qty** (Packing Qty). Nilainya datang
+dari upload Excel atau PDF.
+
+Kolom pertama semula dikira Part No Master Item. Ternyata ukuran produk —
+`VS-B T0.3XW100 L=120MM` — jadi label kolomnya dan nama kolom databasenya
+(`product_size`) mengikuti arti itu. Header di file tetap bertulis "Part no";
+parser mengenalinya dari nama, bukan dari artinya.
 
 Satu file boleh memuat satu baris maupun banyak; parser membaca semua yang ada
 lalu menambahkannya ke bawah tabel. Upload berikutnya menambah lagi, tidak
@@ -35,8 +40,29 @@ sehingga parsernya harus diikat ke tata letak dokumen yang sebenarnya.
 
 ## Bagian 2 — Verifikasi Label
 
-Scan QR label box. Yang dicocokkan: Part No Master Item dan Packing Qty —
-angka yang di label tercetak di baris QTY/DELIVERY.
+Scan QR label box. Baris jadwal menyebut ukuran produk sedangkan label
+menyebut Master Item, jadi ada satu langkah terjemahan di antaranya:
+
+**ukuran produk → produk → Master Item**, lewat `master_item_products`.
+
+Ukuran diurai dengan satu aturan untuk semua bentuk penulisan: tiga angka
+pertama diambil berurutan, dan nama part dicocokkan sebagai awalan teksnya.
+
+```
+'VO-B D6X7 Pt.L=525'      ->  VO-B  +  6 x 7 x 525      (tabung)
+'VS-B T0.3XW100 L=120MM'  ->  VS-B  +  0.3 x 100 x 120  (pelat)
+```
+
+Angka dibandingkan sebagai angka, bukan teks, supaya `0.3` dan `0.30` sama —
+dokumen jadwal diketik tangan.
+
+Baris PASS kalau Master Item hasil terjemahan sama dengan Master Item label
+yang discan **dan** Qty jadwal sama dengan Packing Qty label
+(`qty_delivery_display`) — angka yang di label tercetak di baris QTY/DELIVERY.
+
+Ukuran yang tidak menunjuk produk mana pun tetap boleh diunggah; barisnya
+ditandai "Ukuran tidak dikenal" di layar sejak upload, jauh sebelum truknya
+diperiksa.
 
 **Isi string QR tidak dipercaya.** Tiga generasi QR beredar, dan dua di
 antaranya berbentuk sama persis (lima field) tetapi field ketiganya berbeda
@@ -67,12 +93,12 @@ delivery_verification_sessions
   id, session_no, status (open|done), created_by, created_at, closed_at
 
 delivery_schedule_rows
-  id, session_id, row_no, part_no, qty, source_file_name, created_at,
+  id, session_id, row_no, product_size, qty, source_file_name, created_at,
   verified_at, verified_label_box_id        -- null selama belum PASS
 
-delivery_verification_scans                 -- menyusul bersama Bagian 2
-  id, session_id, scanned_at, scanned_by, qr_payload,
-  result (pass|not_pass|unknown_label), matched_row_id
+delivery_verification_scans
+  id, session_id, scanned_at, scanned_by, qr_payload, label_box_id,
+  result (pass|not_pass|unknown_label|duplicate_label), matched_row_id
 ```
 
 Tabel scan membuat NOT PASS bisa ditelusuri. Tanpanya, scan yang gagal hilang

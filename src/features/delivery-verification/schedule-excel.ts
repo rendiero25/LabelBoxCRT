@@ -7,7 +7,7 @@ import ExcelJS from "exceljs"
  * seperti 5000.4 yang seharusnya ditolak.
  */
 export type ScheduleRowDraft = {
-  partNo: string
+  productSize: string
   qty: string
 }
 
@@ -37,7 +37,7 @@ function headerKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
-function isPartNoHeader(key: string): boolean {
+function isProductSizeHeader(key: string): boolean {
   return key.includes("part") && (key.includes("no") || key.includes("number"))
 }
 
@@ -99,7 +99,7 @@ function qtyDigits(raw: string): string | null {
 
 type HeaderPosition = {
   headerRow: number
-  partNoColumn: number
+  productSizeColumn: number
   qtyColumn: number
 }
 
@@ -108,18 +108,19 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
 
   for (let rowNumber = 1; rowNumber <= lastRow; rowNumber += 1) {
     const row = sheet.getRow(rowNumber)
-    let partNoColumn = 0
+    let productSizeColumn = 0
     let qtyColumn = 0
 
     row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
       const key = headerKey(cellText(cell.value))
       if (key === "") return
-      if (partNoColumn === 0 && isPartNoHeader(key)) partNoColumn = columnNumber
+      if (productSizeColumn === 0 && isProductSizeHeader(key))
+        productSizeColumn = columnNumber
       if (qtyColumn === 0 && isQtyHeader(key)) qtyColumn = columnNumber
     })
 
-    if (partNoColumn > 0 && qtyColumn > 0) {
-      return { headerRow: rowNumber, partNoColumn, qtyColumn }
+    if (productSizeColumn > 0 && qtyColumn > 0) {
+      return { headerRow: rowNumber, productSizeColumn, qtyColumn }
     }
   }
 
@@ -163,10 +164,10 @@ export async function parseScheduleWorkbook(
     rowNumber += 1
   ) {
     const row = sheet.getRow(rowNumber)
-    const partNo = cellText(row.getCell(header.partNoColumn).value)
+    const productSize = cellText(row.getCell(header.productSizeColumn).value)
       .replace(/\s+/g, " ")
       .trim()
-    if (partNo === "") continue
+    if (productSize === "") continue
 
     const qty = qtyDigits(cellText(row.getCell(header.qtyColumn).value))
     if (qty === null) {
@@ -177,7 +178,7 @@ export async function parseScheduleWorkbook(
       }
     }
 
-    rows.push({ partNo, qty })
+    rows.push({ productSize, qty })
   }
 
   if (rows.length === 0) return { ok: false, code: "SCHEDULE_NO_ROWS" }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import {
   type CreateDeliverySessionState,
+  type DeliveryScanResult,
   type UploadScheduleState,
 } from "@/features/delivery-verification/form-state"
 import {
@@ -24,6 +25,7 @@ const safeRpcMessages: Record<string, string> = {
   DELIVERY_ROWS_INVALID:
     "Ada baris yang Part No atau Qty-nya tidak terbaca. Periksa isinya lalu unggah lagi.",
   DELIVERY_ROW_NOT_FOUND: "Baris jadwal tidak ditemukan.",
+  DELIVERY_SCAN_EMPTY: "Hasil scan kosong.",
   DELIVERY_SESSION_CLOSED:
     "Session ini sudah selesai, isinya tidak bisa diubah.",
   DELIVERY_SESSION_NOT_FOUND: "Session tidak ditemukan.",
@@ -132,6 +134,67 @@ export async function uploadScheduleFileAction(
   revalidatePath("/verifikasi-pengiriman")
   return {
     success: `${data.length} baris ditambahkan dari ${file.name}.`,
+  }
+}
+
+/**
+ * Mencocokkan satu label box hasil scan dengan jadwal session.
+ *
+ * Payload dikirim apa adanya ke RPC dan tidak diurai di sini. Tiga generasi QR
+ * beredar dan dua di antaranya berbentuk sama persis sementara field ketiganya
+ * berbeda arti, jadi angka apa pun yang dibaca dari string akan benar untuk
+ * sebagian label dan salah untuk sisanya. RPC-nya mencari payload itu di
+ * label_boxes dan mengambil angkanya dari batch.
+ */
+export async function verifyDeliveryLabelAction(input: {
+  qrPayload: string
+  sessionId: string
+}): Promise<DeliveryScanResult> {
+  const empty = { deliveryOk: false, totalCount: 0, verifiedCount: 0 }
+
+  if (!uuidPattern.test(input.sessionId)) {
+    return { ...empty, message: "Session tidak valid.", outcome: "error" }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("verify_delivery_label", {
+    p_qr_payload: input.qrPayload,
+    p_session_id: input.sessionId,
+  })
+
+  if (error || !data?.[0]) {
+    return {
+      ...empty,
+      message: rpcErrorMessage(
+        error?.message ?? "",
+        "Scan gagal diproses. Coba lagi atau hubungi admin.",
+      ),
+      outcome: "error",
+    }
+  }
+
+  const row = data[0]
+  const outcome = row.result as DeliveryScanResult["outcome"]
+
+  // Pesannya menyebut kenapa, bukan cuma PASS atau NOT PASS. Operator yang
+  // hanya diberi "NOT PASS" akan mengulang scan label yang sama alih-alih
+  // mencari label yang benar.
+  const message =
+    outcome === "pass"
+      ? `PASS — ${row.product_size} (${row.qty}) cocok dengan ${row.part_no}.`
+      : outcome === "duplicate_label"
+        ? "NOT PASS — label ini sudah dipakai untuk baris lain di session ini."
+        : outcome === "unknown_label"
+          ? "NOT PASS — QR ini bukan label box yang dikenal sistem."
+          : `NOT PASS — tidak ada baris jadwal yang cocok dengan ${row.part_no} (${row.packing_qty}).`
+
+  revalidatePath("/verifikasi-pengiriman")
+  return {
+    deliveryOk: row.delivery_ok,
+    message,
+    outcome,
+    totalCount: row.total_count,
+    verifiedCount: row.verified_count,
   }
 }
 

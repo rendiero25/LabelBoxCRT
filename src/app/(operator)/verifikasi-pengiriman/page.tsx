@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic"
 type ScheduleRowRecord = {
   id: string
   row_no: number
-  part_no: string
+  product_size: string
   qty: number
   source_file_name: string
   verified_at: string | null
+  resolved_part_no: string | null
 }
 
 type SessionRecord = {
@@ -19,42 +20,56 @@ type SessionRecord = {
   session_no: number
   status: "open" | "done"
   created_at: string
-  delivery_schedule_rows: ScheduleRowRecord[]
 }
 
 export default async function VerifikasiPengirimanPage() {
   await requireActiveUser()
 
   const supabase = await createClient()
-  const { data } = await supabase
-    .from("delivery_verification_sessions")
-    .select(
-      "id, session_no, status, created_at, delivery_schedule_rows(id, row_no, part_no, qty, source_file_name, verified_at)",
-    )
-    .order("created_at", { ascending: false })
 
-  const sessions: DeliverySession[] = ((data ?? []) as SessionRecord[]).map(
-    (session) => ({
-      createdAt: session.created_at,
-      id: session.id,
-      // Urutan baris ditentukan di sini, bukan diserahkan ke urutan balik
-      // Postgres: tanpa urutan yang dipatok, dua baris hasil satu upload bisa
-      // bertukar tempat antar muat halaman dan operator kehilangan jejak nomor
-      // barisnya.
-      rows: [...session.delivery_schedule_rows]
-        .sort((left, right) => left.row_no - right.row_no)
-        .map((row) => ({
-          id: row.id,
-          partNo: row.part_no,
-          qty: row.qty,
-          rowNo: row.row_no,
-          sourceFileName: row.source_file_name,
-          verifiedAt: row.verified_at,
-        })),
-      sessionNo: session.session_no,
-      status: session.status,
-    }),
-  )
+  // Barisnya diambil dari view, bukan dari tabelnya: view itu yang menyertakan
+  // Master Item hasil terjemahan ukuran, dan layar memerlukannya sebelum satu
+  // pun scan terjadi. Dua query, bukan satu embed, karena PostgREST tidak
+  // menyimpulkan hubungan antara tabel session dan sebuah view.
+  const [{ data: sessionRows }, { data: scheduleRows }] = await Promise.all([
+    supabase
+      .from("delivery_verification_sessions")
+      .select("id, session_no, status, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("delivery_schedule_rows_resolved")
+      .select(
+        "id, session_id, row_no, product_size, qty, source_file_name, verified_at, resolved_part_no",
+      )
+      .order("row_no"),
+  ])
+
+  const rowsBySession = new Map<string, ScheduleRowRecord[]>()
+  for (const row of (scheduleRows ?? []) as (ScheduleRowRecord & {
+    session_id: string
+  })[]) {
+    const bucket = rowsBySession.get(row.session_id)
+    if (bucket) bucket.push(row)
+    else rowsBySession.set(row.session_id, [row])
+  }
+
+  const sessions: DeliverySession[] = (
+    (sessionRows ?? []) as SessionRecord[]
+  ).map((session) => ({
+    createdAt: session.created_at,
+    id: session.id,
+    rows: (rowsBySession.get(session.id) ?? []).map((row) => ({
+      id: row.id,
+      productSize: row.product_size,
+      qty: row.qty,
+      resolvedPartNo: row.resolved_part_no,
+      rowNo: row.row_no,
+      sourceFileName: row.source_file_name,
+      verifiedAt: row.verified_at,
+    })),
+    sessionNo: session.session_no,
+    status: session.status,
+  }))
 
   return <DeliverySessionWorkspace sessions={sessions} />
 }

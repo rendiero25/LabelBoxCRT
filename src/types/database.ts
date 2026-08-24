@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -235,7 +235,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          part_no: string
+          product_size: string
           qty: number
           row_no: number
           session_id: string
@@ -246,7 +246,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          part_no: string
+          product_size: string
           qty: number
           row_no: number
           session_id: string
@@ -257,7 +257,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          part_no?: string
+          product_size?: string
           qty?: number
           row_no?: number
           session_id?: string
@@ -278,6 +278,75 @@ export type Database = {
             columns: ["verified_label_box_id"]
             isOneToOne: false
             referencedRelation: "label_boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_verification_scans: {
+        Row: {
+          id: string
+          label_box_id: string | null
+          matched_row_id: string | null
+          qr_payload: string
+          result: Database["public"]["Enums"]["delivery_scan_result"]
+          scanned_at: string
+          scanned_by: string
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          label_box_id?: string | null
+          matched_row_id?: string | null
+          qr_payload: string
+          result: Database["public"]["Enums"]["delivery_scan_result"]
+          scanned_at?: string
+          scanned_by: string
+          session_id: string
+        }
+        Update: {
+          id?: string
+          label_box_id?: string | null
+          matched_row_id?: string | null
+          qr_payload?: string
+          result?: Database["public"]["Enums"]["delivery_scan_result"]
+          scanned_at?: string
+          scanned_by?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_verification_scans_label_box_id_fkey"
+            columns: ["label_box_id"]
+            isOneToOne: false
+            referencedRelation: "label_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_verification_scans_matched_row_id_fkey"
+            columns: ["matched_row_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_schedule_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_verification_scans_matched_row_id_fkey"
+            columns: ["matched_row_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_schedule_rows_resolved"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_verification_scans_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_verification_scans_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_verification_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1130,6 +1199,63 @@ export type Database = {
       }
     }
     Views: {
+      delivery_schedule_rows_resolved: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          product_size: string | null
+          qty: number | null
+          resolved_master_item_id: string | null
+          resolved_part_no: string | null
+          row_no: number | null
+          session_id: string | null
+          source_file_name: string | null
+          verified_at: string | null
+          verified_label_box_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          product_size?: string | null
+          qty?: number | null
+          resolved_master_item_id?: never
+          resolved_part_no?: never
+          row_no?: number | null
+          session_id?: string | null
+          source_file_name?: string | null
+          verified_at?: string | null
+          verified_label_box_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          product_size?: string | null
+          qty?: number | null
+          resolved_master_item_id?: never
+          resolved_part_no?: never
+          row_no?: number | null
+          session_id?: string | null
+          source_file_name?: string | null
+          verified_at?: string | null
+          verified_label_box_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_schedule_rows_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_verification_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_schedule_rows_verified_label_box_id_fkey"
+            columns: ["verified_label_box_id"]
+            isOneToOne: false
+            referencedRelation: "label_boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_item_row_numbers: {
         Row: {
           master_item_id: string | null
@@ -1186,7 +1312,7 @@ export type Database = {
         Returns: {
           created_at: string
           id: string
-          part_no: string
+          product_size: string
           qty: number
           row_no: number
           source_file_name: string
@@ -1607,8 +1733,25 @@ export type Database = {
           updated_at: string
         }[]
       }
+      verify_delivery_label: {
+        Args: { p_qr_payload: string; p_session_id: string }
+        Returns: {
+          delivery_ok: boolean
+          matched_row_id: string
+          matched_row_no: number
+          packing_qty: number
+          part_no: string
+          product_size: string
+          qty: number
+          result: Database["public"]["Enums"]["delivery_scan_result"]
+          total_count: number
+          verified_count: number
+        }[]
+      }
     }
     Enums: {
+      delivery_scan_result:
+        "pass" | "not_pass" | "unknown_label" | "duplicate_label"
       delivery_status: "draft" | "active" | "closed" | "cancelled"
       delivery_verification_status: "open" | "done"
       label_box_status: "generated" | "verified"
@@ -1754,6 +1897,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      delivery_scan_result: [
+        "pass",
+        "not_pass",
+        "unknown_label",
+        "duplicate_label",
+      ],
       delivery_status: ["draft", "active", "closed", "cancelled"],
       delivery_verification_status: ["open", "done"],
       label_box_status: ["generated", "verified"],
