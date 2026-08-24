@@ -53,6 +53,7 @@ import {
   verifyDeliveryLabelAction,
 } from "@/features/delivery-verification/actions"
 import {
+  type DeliveryScanResult,
   type DeliverySession,
   initialUploadScheduleState,
 } from "@/features/delivery-verification/form-state"
@@ -305,10 +306,26 @@ function VerificationPanel({
 
   const handleScan = useCallback(
     async (rawPayload: string) => {
-      const result = await verifyDeliveryLabelAction({
-        qrPayload: rawPayload,
-        sessionId: session.id,
-      })
+      let result: DeliveryScanResult
+
+      try {
+        result = await verifyDeliveryLabelAction({
+          qrPayload: rawPayload,
+          sessionId: session.id,
+        })
+      } catch (thrown) {
+        // Beda dari NOT PASS: ini panggilannya sendiri yang gagal total --
+        // jaringan putus, atau server action-nya sudah tidak sinkron dengan
+        // build yang sedang dipakai browser setelah kode diubah. Tanpa
+        // penangkapan ini kegagalan seperti itu membisu -- scanner-listener.ts
+        // menangkapnya lagi di lapisan bawah tapi tidak pernah menampilkan
+        // toast -- dan operator mengira scannya tidak terbaca sama sekali.
+        console.error("verifyDeliveryLabelAction gagal:", thrown)
+        const message =
+          "Scan gagal diproses karena kesalahan tak terduga. Coba lagi; kalau berulang, muat ulang halaman."
+        toast.error(message)
+        return { message, status: "error" as const }
+      }
 
       if (result.outcome === "pass") {
         toast.success(result.message)
@@ -408,11 +425,42 @@ export function DeliverySessionWorkspace({
 
   /**
    * Session yang sudah selesai terlipat sendiri; yang masih berjalan terbuka.
-   * Yang disimpan hanya penyimpangan dari aturan itu, bukan keadaan tiap
-   * session, supaya session baru yang datang setelah halaman dimuat tetap
-   * terbuka tanpa perlu didaftarkan lebih dulu.
+   * Bawaan itu dipatok sekali saat sessionnya pertama kali terlihat -- bukan
+   * dihitung ulang dari session.status yang sedang berjalan tiap render. Scan
+   * terakhir yang melunasi sebuah session mengubah status-nya jadi 'done' di
+   * RPC yang sama, dan menghitung ulang dari status itu berarti kartunya
+   * menutup diri sendiri tepat pada render yang sama saat operator baru
+   * melihat hasilnya -- persis yang dilaporkan sebagai "mode scan langsung
+   * off".
+   *
+   * Dipatok lewat pola "menyesuaikan state saat prop berubah" dari React --
+   * memanggil setState langsung di badan render, dijaga kondisi -- bukan
+   * lewat ref yang dibaca langsung saat render (melanggar react-hooks/refs,
+   * karena render harus murni) maupun lewat useEffect (React sendiri
+   * menganjurkan menghindarinya untuk penyesuaian macam ini: satu putaran
+   * render tambahan yang terlihat, alih-alih ditangani React sebelum commit).
+   *
+   * `toggled` menyimpan hanya penyimpangan dari bawaan itu, bukan keadaan
+   * tiap session, supaya session baru yang datang setelah halaman dimuat
+   * tetap mengikuti bawaannya sendiri tanpa perlu didaftarkan lebih dulu.
    */
+  const [defaultExpandedById, setDefaultExpandedById] = useState<
+    Map<string, boolean>
+  >(new Map())
   const [toggled, setToggled] = useState<Set<string>>(new Set())
+
+  const unseenSession = sessions.find(
+    (session) => !defaultExpandedById.has(session.id),
+  )
+  if (unseenSession) {
+    const next = new Map(defaultExpandedById)
+    for (const session of sessions) {
+      if (!next.has(session.id)) {
+        next.set(session.id, session.status === "open")
+      }
+    }
+    setDefaultExpandedById(next)
+  }
 
   const toggleExpanded = (sessionId: string) => {
     setToggled((current) => {
@@ -454,10 +502,11 @@ export function DeliverySessionWorkspace({
           const unresolved = session.rows.filter(
             (row) => !row.resolvedPartNo,
           ).length
-          const expanded =
-            session.status === "open"
-              ? !toggled.has(session.id)
-              : toggled.has(session.id)
+          const defaultExpanded =
+            defaultExpandedById.get(session.id) ?? session.status === "open"
+          const expanded = toggled.has(session.id)
+            ? !defaultExpanded
+            : defaultExpanded
 
           const scanning = scanningSessionId === session.id
 
