@@ -74,8 +74,8 @@ describe("qrMagnificationFor", () => {
 describe("buildLabelZpl", () => {
   const zpl = buildLabelZpl(sampleFields)
 
-  it("exports template version v12 and 203dpi 75x55mm landscape dimensions", () => {
-    expect(TEMPLATE_VERSION).toBe("v12")
+  it("exports template version v13 and 203dpi 75x55mm landscape dimensions", () => {
+    expect(TEMPLATE_VERSION).toBe("v13")
     expect(LABEL_WIDTH_DOTS).toBe(600)
     expect(LABEL_LENGTH_DOTS).toBe(440)
   })

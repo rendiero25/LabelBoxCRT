@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -227,6 +227,95 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_schedule_rows: {
+        Row: {
+          created_at: string
+          id: string
+          part_no: string
+          qty: number
+          row_no: number
+          session_id: string
+          source_file_name: string
+          verified_at: string | null
+          verified_label_box_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          part_no: string
+          qty: number
+          row_no: number
+          session_id: string
+          source_file_name: string
+          verified_at?: string | null
+          verified_label_box_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          part_no?: string
+          qty?: number
+          row_no?: number
+          session_id?: string
+          source_file_name?: string
+          verified_at?: string | null
+          verified_label_box_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_schedule_rows_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_verification_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_schedule_rows_verified_label_box_id_fkey"
+            columns: ["verified_label_box_id"]
+            isOneToOne: false
+            referencedRelation: "label_boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_verification_sessions: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string
+          id: string
+          session_no: number
+          status: Database["public"]["Enums"]["delivery_verification_status"]
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          session_no?: number
+          status?: Database["public"]["Enums"]["delivery_verification_status"]
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          session_no?: number
+          status?: Database["public"]["Enums"]["delivery_verification_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_verification_sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1092,6 +1181,17 @@ export type Database = {
           total_expected_qty: number
         }[]
       }
+      add_delivery_schedule_rows: {
+        Args: { p_rows: Json; p_session_id: string; p_source_file_name: string }
+        Returns: {
+          created_at: string
+          id: string
+          part_no: string
+          qty: number
+          row_no: number
+          source_file_name: string
+        }[]
+      }
       claim_print_job: {
         Args: { p_print_job_id: string; p_zpl_payload: string }
         Returns: {
@@ -1162,6 +1262,15 @@ export type Database = {
           status: Database["public"]["Enums"]["delivery_status"]
           supplier_id: string
           updated_at: string
+        }[]
+      }
+      create_delivery_verification_session: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          session_no: number
+          status: Database["public"]["Enums"]["delivery_verification_status"]
         }[]
       }
       create_label_box_batch: {
@@ -1313,6 +1422,10 @@ export type Database = {
         }[]
       }
       delete_box_layer: { Args: { p_box_layer_id: string }; Returns: undefined }
+      delete_delivery_schedule_row: {
+        Args: { p_row_id: string }
+        Returns: undefined
+      }
       delete_label_box_batch: {
         Args: { p_batch_id: string }
         Returns: {
@@ -1497,6 +1610,7 @@ export type Database = {
     }
     Enums: {
       delivery_status: "draft" | "active" | "closed" | "cancelled"
+      delivery_verification_status: "open" | "done"
       label_box_status: "generated" | "verified"
       packing_session_status:
         | "draft"
@@ -1641,6 +1755,7 @@ export const Constants = {
   public: {
     Enums: {
       delivery_status: ["draft", "active", "closed", "cancelled"],
+      delivery_verification_status: ["open", "done"],
       label_box_status: ["generated", "verified"],
       packing_session_status: [
         "draft",

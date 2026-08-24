@@ -14,6 +14,13 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * dan supaya tetap muat di tinggi label yang tetap, seluruh baris menyempit
  * dari 40 ke 33 dot dan setiap font ikut mengecil sebanding.
  *
+ * v13 mengubah asal angka baris Qty/Delivery: Packing Qty kiriman
+ * (label_box_batches.qty_delivery_display), bukan lagi Qty Delivery. Qty
+ * Delivery tinggal menentukan berapa set label dibuat dan tidak tercetak di
+ * mana pun. Angka yang sama juga pindah ke field ketiga QR, menggantikan
+ * Qty/Box yang selalu sama untuk tiap kiriman Master Item itu. Tata letaknya
+ * tidak bergeser — yang berubah asal nilainya.
+ *
  * v12 mengisi baris Part Name dengan Nama Part Master Item, menggantikan teks
  * tetap "Tube" yang dipasang di v8. Waktu itu seluruh Master Item bertipe tube
  * sehingga nilai tetap selalu benar; begitu ada Master Item bernama lain, tiap
@@ -56,7 +63,7 @@ import type { FormattedLabelFields } from "@/lib/label/formatter"
  * mengapit tiga baris pertama. Media berubah dari potret 55x75 menjadi
  * mendatar 75x55, jadi seluruh geometrinya dihitung ulang.
  */
-export const TEMPLATE_VERSION = "v12"
+export const TEMPLATE_VERSION = "v13"
 
 const DOTS_PER_MM = 8
 export const LABEL_WIDTH_DOTS = 75 * DOTS_PER_MM // 600

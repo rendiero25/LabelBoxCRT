@@ -44,7 +44,10 @@ export type LabelBoxBatchRow = {
   packingDate: string
   partNo: string
   printed: boolean
+  /** Penentu jumlah set label; tidak tercetak di label. */
   qtyDelivery: number
+  /** Packing Qty: tercetak di baris Qty/Delivery dan dibawa field ketiga QR. */
+  packingQtyPrinted: number
   supplierCode: string
   supplierId: string
 }
@@ -97,6 +100,7 @@ export function LabelBoxBatchTable({
                 <TableHead>Supplier</TableHead>
                 <TableHead>Master Item</TableHead>
                 <TableHead className="text-right">Qty Delivery</TableHead>
+                <TableHead className="text-right">Packing Qty</TableHead>
                 <TableHead>Lot No</TableHead>
                 <TableHead className="text-right">Label</TableHead>
                 <TableHead>Status</TableHead>
@@ -115,6 +119,9 @@ export function LabelBoxBatchTable({
                     <TableCell>{batch.partNo}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {batch.qtyDelivery}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {batch.packingQtyPrinted}
                     </TableCell>
                     <TableCell>{batch.lotNo}</TableCell>
                     <TableCell className="text-right">
@@ -175,7 +182,7 @@ export function LabelBoxBatchTable({
                   </TableRow>
                   {expandedId === batch.id ? (
                     <TableRow>
-                      <TableCell colSpan={9}>
+                      <TableCell colSpan={10}>
                         <div className="flex flex-wrap gap-2">
                           {batch.boxNumbers.map((boxNumber) => (
                             <span

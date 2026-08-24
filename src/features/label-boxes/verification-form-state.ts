@@ -42,9 +42,11 @@ export type LabelBoxPrintJob = {
   /** Qty/Box milik Master Item, dicetak di baris Qty/Box. */
   qty: number
   /**
-   * Qty Delivery batch: penentu jumlah set label sekaligus angka yang dicetak
-   * di baris Qty/Delivery. Dulu baris itu memakai kolom terpisah
-   * (qty_delivery_display) yang diisi lewat field "Packing Qty" di formulir.
+   * Packing Qty batch (kolom `qty_delivery_display`): angka kiriman yang
+   * dicetak di baris Qty/Delivery label sekaligus dibawa field ketiga QR.
+   *
+   * Bukan `qty_delivery`. Yang itu penentu jumlah set label — ia dibagi Qty/Box
+   * Master Item — dan tidak ikut tercetak di label mana pun.
    */
   qtyDelivery: number
   status: string

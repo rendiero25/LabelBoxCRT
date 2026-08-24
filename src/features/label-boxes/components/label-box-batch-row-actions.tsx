@@ -65,7 +65,10 @@ export type LabelBoxBatchEditable = {
   operatorName: string
   packingDate: string
   partNo: string
+  /** Penentu jumlah set label; tidak tercetak di label. */
   qtyDelivery: number
+  /** Packing Qty: tercetak di baris Qty/Delivery dan dibawa field ketiga QR. */
+  packingQtyPrinted: number
   supplierId: string
 }
 
@@ -295,8 +298,25 @@ export function EditLabelBoxBatchDialog({
                   />
                   <FieldDescription>
                     {selectedMasterItem
-                      ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label, dan angkanya tercetak di baris Qty/Delivery.`
-                      : "Harus kelipatan Qty/Box Master Item; angkanya tercetak di baris Qty/Delivery."}
+                      ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label.`
+                      : "Harus kelipatan Qty/Box Master Item. Menentukan jumlah set label."}
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor={`edit-packing-qty-${batch.id}`}>
+                    Packing Qty
+                  </FieldLabel>
+                  <Input
+                    defaultValue={batch.packingQtyPrinted}
+                    id={`edit-packing-qty-${batch.id}`}
+                    inputMode="numeric"
+                    name="qtyDeliveryDisplay"
+                    required
+                  />
+                  <FieldDescription>
+                    Tercetak di baris Qty/Delivery label dan dibawa QR-nya.
+                    Mengubahnya merakit ulang QR seluruh label batch ini.
                   </FieldDescription>
                 </Field>
               </>

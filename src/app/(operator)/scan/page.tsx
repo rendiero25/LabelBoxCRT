@@ -30,7 +30,7 @@ export default async function ScanPage({
     supabase
       .from("label_box_batches")
       .select(
-        "id, supplier_id, master_item_id, packing_qty, qty_delivery, lot_no, operator_name, label_count, qr_generated_at, created_at, closed_at, supplier_code_snapshot, part_no_snapshot, delivery_number_snapshot, delivery_date_snapshot, packing_date, label_boxes(box_number, set_no, box_no, packing_session_id)",
+        "id, supplier_id, master_item_id, packing_qty, qty_delivery, qty_delivery_display, lot_no, operator_name, label_count, qr_generated_at, created_at, closed_at, supplier_code_snapshot, part_no_snapshot, delivery_number_snapshot, delivery_date_snapshot, packing_date, label_boxes(box_number, set_no, box_no, packing_session_id)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -131,6 +131,7 @@ type LabelBoxBatchQuery = {
   master_item_id: string
   packing_qty: number
   qty_delivery: number
+  qty_delivery_display: number | null
   lot_no: string
   operator_name: string
   label_count: number
@@ -176,10 +177,13 @@ function toLabelBoxBatchRow(
         labelBox.packing_session_id !== null &&
         printedSessionIds.has(labelBox.packing_session_id),
     ),
-    // Satu-satunya angka jumlah milik batch: ia yang dibagi Qty/Box Master Item
-    // jadi jumlah set label, dan ia juga yang tercetak di baris Qty/Delivery.
-    // Kolom packing_qty adalah Qty/Box milik Master Item, bukan isian formulir.
+    // Dua angka jumlah milik batch. qty_delivery dibagi Qty/Box Master Item
+    // jadi jumlah set label dan berhenti di situ; qty_delivery_display adalah
+    // Packing Qty yang tercetak di baris Qty/Delivery sekaligus dibawa field
+    // ketiga QR. Kolom packing_qty sendiri adalah Qty/Box milik Master Item,
+    // bukan isian formulir -- namanya menyesatkan, isinya bukan Packing Qty.
     qtyDelivery: batch.qty_delivery,
+    packingQtyPrinted: batch.qty_delivery_display ?? batch.qty_delivery,
     supplierCode: batch.supplier_code_snapshot,
     supplierId: batch.supplier_id,
   }

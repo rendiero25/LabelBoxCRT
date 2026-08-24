@@ -172,8 +172,8 @@ export function LabelBoxBatchDialog({
         <DialogHeader>
           <DialogTitle>Tambah label box</DialogTitle>
           <DialogDescription>
-            Nomor box dan QR dibuat otomatis dari Qty Delivery dibagi Packing
-            Qty Master Item.
+            Nomor box dan QR dibuat otomatis dari Qty Delivery dibagi Qty/Box
+            Master Item.
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-5" noValidate>
@@ -287,11 +287,9 @@ export function LabelBoxBatchDialog({
               </Select>
             </Field>
 
-            {/* Satu angka jumlah saja. Ia yang dibagi Qty/Box Master Item jadi
-                jumlah set label, dan ia juga yang tercetak di baris
-                Qty/Delivery. Dulu ada field "Packing Qty" kedua khusus untuk
-                yang tercetak; keduanya nyaris selalu diisi angka yang sama dan
-                tertukar tanpa ketahuan. */}
+            {/* Dua angka jumlah yang menjawab pertanyaan berbeda. Yang ini
+                menentukan berapa banyak label dibuat; ia tidak tercetak di
+                label mana pun. */}
             <Field>
               <FieldLabel htmlFor="label-box-qty-delivery">
                 Qty Delivery
@@ -305,8 +303,27 @@ export function LabelBoxBatchDialog({
               />
               <FieldDescription>
                 {selectedMasterItem
-                  ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label, dan angkanya tercetak di baris Qty/Delivery.`
-                  : "Harus kelipatan Qty/Box Master Item; angkanya tercetak di baris Qty/Delivery."}
+                  ? `Kelipatan ${selectedMasterItem.packingQty}. Tiap ${selectedMasterItem.packingQty} menghasilkan satu set label.`
+                  : "Harus kelipatan Qty/Box Master Item. Menentukan jumlah set label."}
+              </FieldDescription>
+            </Field>
+
+            {/* Angka kiriman yang dibaca orang dan mesin: tercetak di baris
+                Qty/Delivery label sekaligus dibawa field ketiga QR. Bebas dari
+                Qty/Box, jadi tidak perlu kelipatan apa pun. */}
+            <Field>
+              <FieldLabel htmlFor="label-box-packing-qty">
+                Packing Qty
+              </FieldLabel>
+              <Input
+                id="label-box-packing-qty"
+                inputMode="numeric"
+                name="qtyDeliveryDisplay"
+                placeholder="5000"
+                required
+              />
+              <FieldDescription>
+                Tercetak di baris Qty/Delivery label dan dibawa QR-nya.
               </FieldDescription>
             </Field>
 
