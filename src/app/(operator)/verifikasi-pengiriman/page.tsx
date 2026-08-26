@@ -12,7 +12,7 @@ type ScheduleRowRecord = {
   qty: number
   source_file_name: string
   verified_at: string | null
-  resolved_part_no: string | null
+  matching_batch_exists: boolean
 }
 
 type SessionRecord = {
@@ -39,7 +39,7 @@ export default async function VerifikasiPengirimanPage() {
     supabase
       .from("delivery_schedule_rows_resolved")
       .select(
-        "id, session_id, row_no, product_size, qty, source_file_name, verified_at, resolved_part_no",
+        "id, session_id, row_no, product_size, qty, source_file_name, verified_at, matching_batch_exists",
       )
       .order("row_no"),
   ])
@@ -60,9 +60,9 @@ export default async function VerifikasiPengirimanPage() {
     id: session.id,
     rows: (rowsBySession.get(session.id) ?? []).map((row) => ({
       id: row.id,
+      matchingBatchExists: row.matching_batch_exists,
       productSize: row.product_size,
       qty: row.qty,
-      resolvedPartNo: row.resolved_part_no,
       rowNo: row.row_no,
       sourceFileName: row.source_file_name,
       verifiedAt: row.verified_at,

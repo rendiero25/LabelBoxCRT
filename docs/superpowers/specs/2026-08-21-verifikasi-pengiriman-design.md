@@ -26,13 +26,13 @@ berapa kali discan.
 
 ## Bagian 1 — Schedule Delivery
 
-Tabel dua kolom: **Ukuran Produk** dan **Qty per Box**. Nilainya datang dari
-upload Excel atau PDF.
+Tabel dua kolom: **Part No** dan **Qty per Box**. Nilainya datang dari upload
+Excel atau PDF.
 
-Kolom pertama semula dikira Part No Master Item. Ternyata ukuran produk —
-`VS-B T0.3XW100 L=120MM` — jadi label kolomnya dan nama kolom databasenya
-(`product_size`) mengikuti arti itu. Header di file tetap bertulis "Part no";
-parser mengenalinya dari nama, bukan dari artinya.
+Kolom pertama adalah Part No label sheet, yang isinya memang ukuran —
+`VS-B T0.3XW100 L=120MM`. Nama kolom databasenya `product_size`, peninggalan
+tahap ketika ia dikira penunjuk ke produk; isinya Part No, dan yang berlaku
+adalah cara ia dipakai.
 
 Kolom kedua tersimpan sebagai `qty` dan dicocokkan dengan
 `qty_delivery_display` milik batch. "Qty per Box" adalah nama yang dipakai
@@ -66,29 +66,33 @@ diikat ke tata letak dokumen yang sebenarnya.
 
 ## Bagian 2 — Verifikasi Label
 
-Scan QR label box. Baris jadwal menyebut ukuran produk sedangkan label
-menyebut Master Item, jadi ada satu langkah terjemahan di antaranya:
+Scan QR label box sheet. Perbandingannya **langsung**, tanpa terjemahan:
 
-**ukuran produk → produk → Master Item**, lewat `master_item_products`.
+| Jadwal | Label |
+|---|---|
+| Part No (kolom pertama file) | `part_no_snapshot` |
+| Qty per Box | `qty_delivery_display` |
 
-Ukuran diurai dengan satu aturan untuk semua bentuk penulisan: tiga angka
-pertama diambil berurutan, dan nama part dicocokkan sebagai awalan teksnya.
+Baris PASS kalau kedua-duanya cocok.
 
-```
-'VO-B D6X7 Pt.L=525'      ->  VO-B  +  6 x 7 x 525      (tabung)
-'VS-B T0.3XW100 L=120MM'  ->  VS-B  +  0.3 x 100 x 120  (pelat)
-```
+Isi file jadwal berdiri sendiri — tidak perlu didaftarkan sebagai produk
+maupun master data lebih dulu. Rancangan sebelumnya menerjemahkan ukuran lewat
+`products` dan `master_item_products`; itu dibuang beserta kedua fungsi
+pembantunya, sebab kolom pertama file ternyata Part No label sheet itu sendiri,
+bukan penunjuk ke produk lain.
 
-Angka dibandingkan sebagai angka, bukan teks, supaya `0.3` dan `0.30` sama —
-dokumen jadwal diketik tangan.
+Kedua sisi dirapikan dengan cara yang sama sebelum dibandingkan — huruf besar,
+spasi beruntun jadi satu, ujung dipangkas. Dokumen jadwal diketik tangan dan
+Part No di master data tidak selalu ditulis dengan spasi yang sama.
 
-Baris PASS kalau Master Item hasil terjemahan sama dengan Master Item label
-yang discan **dan** Qty per Box jadwal sama dengan `qty_delivery_display` milik
-batch — angka yang di label tercetak di baris QTY/DELIVERY.
+Karena Part No sheet memuat `=` (`VS-B T0.3XW100 L=120MM`), aturan Part No
+Master Item dilonggarkan menerima karakter itu (migrasi `20260826071627`).
+Tanpa itu Master Item untuk sheet tidak bisa didaftarkan sama sekali, dan
+labelnya tidak pernah ada.
 
-Ukuran yang tidak menunjuk produk mana pun tetap boleh diunggah; barisnya
-ditandai "Ukuran tidak dikenal" di layar sejak upload, jauh sebelum truknya
-diperiksa.
+Baris yang belum punya label — belum ada batch mana pun membawa Part No dan Qty
+per Box itu — ditandai "Belum ada" di kolom Label sejak upload. Itu keadaan
+sekarang, bukan vonis: labelnya masih bisa dicetak menyusul lalu PASS.
 
 **Isi string QR tidak dipercaya.** Tiga generasi QR beredar, dan dua di
 antaranya berbentuk sama persis (lima field) tetapi field ketiganya berbeda
@@ -148,11 +152,12 @@ aktif, sama seperti tabel label box.
 
 ## Pengujian
 
-pgTAP: `030` (session + jadwal, termasuk ukuran kembar dengan Qty berbeda),
-`031` (terjemahan ukuran dua bentuk penulisan, `0.30` = `0.3`, PASS,
-`duplicate_label`, `unknown_label`, dan bahwa yang dibandingkan Packing Qty
-5000 — bukan Qty/Box 100 maupun Qty Delivery 200), `032` (hapus session,
-cascade, ringkasan audit).
+pgTAP: `030` (session + jadwal, termasuk Part No kembar dengan Qty berbeda),
+`031` (Part No ber-`=` diterima sedangkan karakter di luar daftar tetap
+ditolak; PASS; ejaan berspasi ganda dan huruf kecil di jadwal tetap cocok;
+`duplicate_label`; `unknown_label`; Qty sama dengan Part No berbeda tidak
+cukup untuk PASS; dan bahwa yang dibandingkan Qty per Box 5000 — bukan Qty/Box
+100 maupun Qty Delivery 200), `032` (hapus session, cascade, ringkasan audit).
 
 Ketiganya mengembalikan `delivery_verification_session_seq` di akhir file:
 `nextval()` tidak ikut rollback, dan tanpa pengembalian itu nomor session nyata
@@ -167,11 +172,9 @@ terakhirnya menutup session; kegagalan tak terduga tetap memunculkan toast).
 Bagian 1 dan Bagian 2 sudah jalan. Yang belum:
 
 - **Upload PDF** — menunggu contoh dokumen asli.
-- **Produk belum terdaftar** — dua belas ukuran di dokumen jadwal yang ada
-  (`VS-B T0.3XW…`) tidak menunjuk satu pun baris `products`, jadi barisnya
-  muncul sebagai "Ukuran tidak dikenal" dan tidak akan pernah PASS sampai
-  produk-produk itu didaftarkan dan dipetakan ke Master Item.
-- **Part No ber-`=` ditolak Master Item** — `create_master_item` memakai
-  `^[A-Z0-9][A-Z0-9 _./-]{1,127}$`, yang tidak mengizinkan `=`. Kalau ukuran
-  seperti `L=120MM` perlu jadi Part No Master Item, aturan itu harus dilonggarkan
-  lewat migrasi tersendiri.
+- **Master Item sheet belum didaftarkan** — dua belas Part No di dokumen jadwal
+  yang ada (`VS-B T0.3XW…`) belum punya Master Item, jadi belum ada labelnya dan
+  barisnya muncul sebagai "Belum ada" di kolom Label. Setelah Master Item dan
+  boxnya dibuat lalu batch labelnya dicetak, barisnya PASS tanpa perubahan kode
+  — dibuktikan ujung ke ujung terhadap jadwal yang benar-benar diunggah, di
+  transaksi yang di-rollback.

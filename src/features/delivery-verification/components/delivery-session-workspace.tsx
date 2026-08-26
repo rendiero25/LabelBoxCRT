@@ -217,7 +217,7 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
       <Empty className="border-none">
         <EmptyTitle>Belum ada jadwal</EmptyTitle>
         <EmptyDescription>
-          Unggah file Excel berisi kolom ukuran produk dan Qty. File berikutnya
+          Unggah file Excel berisi kolom Part No dan Qty. File berikutnya
           menambah baris di bawahnya.
         </EmptyDescription>
       </Empty>
@@ -230,13 +230,13 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-12">#</TableHead>
-            <TableHead>Ukuran Produk</TableHead>
+            <TableHead>Part No</TableHead>
             {/* "Qty per Box" adalah nama yang dipakai operator untuk angka
                 yang tercetak di baris Qty/Delivery label -- field ketiga QR
                 sejak 20260821083835. Bukan Qty/Box milik Master Item, yang
                 nilainya sama untuk setiap kiriman dan tidak pernah berubah. */}
             <TableHead className="text-right">Qty per Box</TableHead>
-            <TableHead>Master Item</TableHead>
+            <TableHead>Label</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
             <TableHead className="w-12" />
@@ -251,16 +251,18 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
                 {row.qty}
               </TableCell>
               <TableCell>
-                {/* Ukuran yang tidak menunjuk produk mana pun ditandai di sini,
-                    bukan didiamkan sampai scan. Baris seperti ini tidak akan
-                    pernah PASS, dan operator harus tahu sebelum truknya
-                    diperiksa satu per satu. */}
-                {row.resolvedPartNo ? (
-                  <span className="text-sm">{row.resolvedPartNo}</span>
+                {/* Baris yang labelnya belum pernah dibuat ditandai sejak
+                    upload, bukan didiamkan sampai scan. Ia masih bisa PASS
+                    nanti kalau labelnya dicetak menyusul -- yang ditandai di
+                    sini keadaan sekarang, bukan vonis. */}
+                {row.matchingBatchExists ? (
+                  <span className="text-muted-foreground text-xs">
+                    Tersedia
+                  </span>
                 ) : (
                   <span className="text-warning flex items-center gap-1.5 text-xs">
                     <TriangleAlertIcon className="size-3.5 shrink-0" />
-                    Ukuran tidak dikenal
+                    Belum ada
                   </span>
                 )}
               </TableCell>
@@ -516,8 +518,8 @@ export function DeliverySessionWorkspace({
       ) : (
         sessions.map((session) => {
           const verified = session.rows.filter((row) => row.verifiedAt).length
-          const unresolved = session.rows.filter(
-            (row) => !row.resolvedPartNo,
+          const withoutLabel = session.rows.filter(
+            (row) => !row.matchingBatchExists,
           ).length
           const defaultExpanded =
             defaultExpandedById.get(session.id) ?? session.status === "open"
@@ -573,9 +575,9 @@ export function DeliverySessionWorkspace({
                       {verified}/{session.rows.length} terverifikasi
                     </span>
                   ) : null}
-                  {unresolved > 0 ? (
+                  {withoutLabel > 0 ? (
                     <span className="text-warning text-xs">
-                      {unresolved} ukuran tidak dikenal
+                      {withoutLabel} belum ada labelnya
                     </span>
                   ) : null}
                 </div>
