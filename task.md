@@ -820,6 +820,58 @@ Kode + pgTAP selesai; gate fisik menunggu certificate setup dan drill hardware u
 
 ---
 
+# Verifikasi Pengiriman
+
+Diminta setelah tiga belas phase di atas disusun, jadi ia berdiri sendiri dan
+bukan bagian dari salah satunya. Spec:
+`docs/superpowers/specs/2026-08-21-verifikasi-pengiriman-design.md`.
+
+Memeriksa muatan truk terhadap jadwal kiriman: satu session per kiriman, jadwal
+diisi dari file, tiap label box discan dan dicocokkan.
+
+## Bagian 1 — Schedule Delivery
+
+- [x] Tabel `delivery_verification_sessions` dan `delivery_schedule_rows`, RLS
+      baca saja, tulis lewat RPC `security definer`.
+- [x] `create_delivery_verification_session`, `add_delivery_schedule_rows`,
+      `delete_delivery_schedule_row`.
+- [x] Halaman `/verifikasi-pengiriman` dengan tombol Tambah Session.
+- [x] Parser Excel (`exceljs`) — cari header, toleran variasi ejaan dan
+      penulisan Qty, dicocokkan ke dokumen asli.
+- [x] Upload menambah baris, tidak menimpa; nomor baris berlanjut lintas file.
+- [ ] Upload PDF — menunggu contoh dokumen asli.
+
+## Bagian 2 — Verifikasi Label
+
+- [x] Terjemahan ukuran produk ke Master Item lewat `master_item_products`
+      (`private.product_size_dimensions`, `private.master_item_for_product_size`).
+- [x] View `delivery_schedule_rows_resolved` supaya ukuran tak dikenal terlihat
+      sejak upload.
+- [x] `verify_delivery_label` — cocokkan Master Item dan Qty per Box, catat tiap
+      scan termasuk yang gagal, tutup session saat baris terakhir PASS.
+- [x] Scan lewat pendengar keyboard-wedge, toast PASS/NOT PASS/DELIVERY OK.
+- [x] Indikasi scan aktif: cincin kartu, titik berdenyut, hasil terakhir
+      bertahan di layar.
+
+## Session
+
+- [x] Lipat/buka kartu session; melipat mematikan pendengar scan.
+- [x] Hapus session, ringkasannya ditulis ke `audit_logs` lebih dulu.
+
+## Terbuka
+
+- [ ] Produk `VS-B T0.3XW…` di dokumen jadwal belum terdaftar di `products`,
+      jadi belum ada baris yang bisa PASS.
+- [ ] Aturan Part No Master Item menolak `=`, sehingga ukuran seperti
+      `L=120MM` belum bisa jadi Part No.
+- [ ] QA browser dengan scanner sungguhan.
+- [ ] Migrasi belum jalan di production.
+
+**Gate Verifikasi Pengiriman:** satu kiriman nyata diperiksa dari upload jadwal
+sampai DELIVERY OK, memakai label yang benar-benar tercetak.
+
+---
+
 # Post-Launch
 
 - [ ] Review invalid scan reasons.
