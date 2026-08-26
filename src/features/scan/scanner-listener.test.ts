@@ -117,6 +117,48 @@ describe("scanner listener", () => {
     expect(onScan).toHaveBeenCalledWith("Q")
   })
 
+  /**
+   * Spasi pada tombol yang sedang terfokus menekan tombol itu. Payload QR label
+   * box memuat spasi (`10015|TB 3210A-K1Z-NF01-DL|...`), jadi tanpa
+   * preventDefault, scan yang ditembak sesaat setelah operator menekan sebuah
+   * tombol akan menekan tombol itu lagi di tengah payload -- dan kalau tombol
+   * itu yang menyalakan scan, scannya mati sendiri sebelum Enter datang.
+   */
+  it("suppresses the default action of buffered keys so a focused button is not activated", () => {
+    const target = new FakeKeyboardTarget()
+    const onScan = vi.fn(async () => ({ status: "success" as const }))
+    createScannerListener({ onScan, target })
+
+    const focusedButton = {
+      closest: () => null,
+      isContentEditable: false,
+      tagName: "BUTTON",
+    } as unknown as EventTarget
+
+    const space = target.key(" ", focusedButton)
+    expect(space.preventDefault).toHaveBeenCalled()
+
+    const letter = target.key("Q", focusedButton)
+    expect(letter.preventDefault).toHaveBeenCalled()
+  })
+
+  // Ketikan di kolom teks bukan urusan scanner, jadi ia tidak boleh ikut
+  // ditahan -- menahannya berarti kolomnya tidak bisa diketik sama sekali.
+  it("leaves typing in an editable control untouched", () => {
+    const target = new FakeKeyboardTarget()
+    const onScan = vi.fn(async () => ({ status: "success" as const }))
+    createScannerListener({ onScan, target })
+
+    const input = {
+      closest: () => null,
+      isContentEditable: false,
+      tagName: "INPUT",
+    } as unknown as EventTarget
+
+    const typed = target.key("Q", input)
+    expect(typed.preventDefault).not.toHaveBeenCalled()
+  })
+
   // Kotak scan di halaman verifikasi mengirim lewat jalur yang sama dengan
   // ketikan langsung, supaya bunyi, banner, dan riwayat scan tetap satu sumber.
   it("submits a payload handed to it without any keystrokes", async () => {

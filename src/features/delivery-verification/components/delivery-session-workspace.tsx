@@ -353,7 +353,7 @@ function VerificationPanel({
     [router, session.id, session.sessionNo],
   )
 
-  const { lastScan, pending } = useScannerListener({
+  const { lastRawPayload, lastScan, pending } = useScannerListener({
     enabled: active,
     onScan: handleScan,
   })
@@ -383,7 +383,15 @@ function VerificationPanel({
           </span>
         ) : null}
         <Button
-          onClick={onToggle}
+          onClick={(event) => {
+            // Fokus dilepas dari tombolnya. Scanner mengetik ke elemen yang
+            // sedang terfokus, dan tombol yang terfokus bereaksi terhadap spasi
+            // maupun Enter di tengah payload. Pendengarnya sudah menahan
+            // keduanya, tapi membiarkan fokus di sini berarti bertumpu pada
+            // penahanan itu saja -- padahal cukup dilepaskan.
+            event.currentTarget.blur()
+            onToggle()
+          }}
           size="sm"
           type="button"
           variant={active ? "default" : "outline"}
@@ -392,6 +400,15 @@ function VerificationPanel({
           {active ? "Scan aktif" : "Mulai scan"}
         </Button>
       </div>
+      {/* Payload mentah terakhir. Ia menjawab pertanyaan yang tidak bisa
+          dijawab pesan hasil: apakah ketikan scanner sampai ke halaman ini
+          sama sekali. Kosong setelah ditembak berarti masalahnya di scanner
+          atau fokus jendela, bukan di pencocokan. */}
+      {active ? (
+        <p className="text-muted-foreground max-w-64 text-right font-mono text-[0.65rem] break-all">
+          {lastRawPayload ?? "Belum ada QR terbaca"}
+        </p>
+      ) : null}
       {/* Hasil scan terakhir bertahan di layar, bukan cuma lewat lewat sebagai
           toast: toast bisa terlewat waktu operator sedang menempel label,
           sementara baris ini tetap terbaca begitu ia menoleh ke layar lagi. */}

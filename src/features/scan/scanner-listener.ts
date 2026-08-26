@@ -190,6 +190,17 @@ export class ScannerListener {
     }
 
     if (isPrintableScannerKey(keyboardEvent)) {
+      // Yang dibuffer tidak boleh sekaligus menekan apa pun di halaman. Spasi
+      // pada tombol yang terfokus menekan tombol itu, dan payload label box
+      // memuat spasi ("10015|TB 3210A-K1Z-NF01-DL|..."), jadi scan yang
+      // ditembak sesaat setelah operator menekan sebuah tombol akan menekan
+      // tombol itu lagi di tengah payload. Kalau tombol itu yang menyalakan
+      // scan, scannya mati sendiri sebelum Enter datang -- payloadnya hilang
+      // separuh dan tidak ada satu pun pesan yang keluar.
+      //
+      // Aman ditahan tanpa syarat: ketikan di kolom teks sudah keluar lebih
+      // dulu lewat isScannerEditableTarget di atas.
+      keyboardEvent.preventDefault()
       this.updateState({ buffer: `${this.state.buffer}${keyboardEvent.key}` })
     }
   }
