@@ -1,0 +1,28 @@
+# Seluruh isi repo ini LF, di index maupun di working tree.
+#
+# Tanpa berkas ini aturannya datang dari core.autocrlf tiap workstation. Di
+# workstation Windows produksi nilainya `true`, jadi git terus-menerus ingin
+# menulis ulang setiap berkas jadi CRLF: `git status` menandai ratusan berkas
+# sebagai berubah sementara `git diff` kosong, dan perubahan yang sebenarnya
+# tenggelam di antaranya. Prettier juga menulis LF, jadi dua pihak saling
+# membatalkan setiap kali salah satu menyentuh berkas.
+#
+# eol=lf, bukan cuma text=auto: yang kedua menormalkan isi repo tetapi tetap
+# menyerahkan bentuk working tree ke core.autocrlf, yaitu persis bagian yang
+# bermasalah.
+* text=auto eol=lf
+
+# Berkas biner tidak boleh disentuh sama sekali. text=auto sudah mengenalinya
+# sendiri, tetapi menyebutnya di sini membuat font dan gambar tidak bergantung
+# pada tebakan itu.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.xlsx binary
+*.xls binary
