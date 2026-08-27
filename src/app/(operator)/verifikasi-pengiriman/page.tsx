@@ -12,7 +12,6 @@ type ScheduleRowRecord = {
   qty: number
   source_file_name: string
   verified_at: string | null
-  matching_batch_exists: boolean
 }
 
 type SessionRecord = {
@@ -27,19 +26,18 @@ export default async function VerifikasiPengirimanPage() {
 
   const supabase = await createClient()
 
-  // Barisnya diambil dari view, bukan dari tabelnya: view itu yang menyertakan
-  // Master Item hasil terjemahan ukuran, dan layar memerlukannya sebelum satu
-  // pun scan terjadi. Dua query, bukan satu embed, karena PostgREST tidak
-  // menyimpulkan hubungan antara tabel session dan sebuah view.
+  // Dua query, bukan satu embed dengan baris tersarang: urutan baris jadwal
+  // ditentukan row_no-nya sendiri, dan PostgREST mengurutkan relasi tersarang
+  // per induk, bukan lintas keseluruhan.
   const [{ data: sessionRows }, { data: scheduleRows }] = await Promise.all([
     supabase
       .from("delivery_verification_sessions")
       .select("id, session_no, status, created_at")
       .order("created_at", { ascending: false }),
     supabase
-      .from("delivery_schedule_rows_resolved")
+      .from("delivery_schedule_rows")
       .select(
-        "id, session_id, row_no, product_size, qty, source_file_name, verified_at, matching_batch_exists",
+        "id, session_id, row_no, product_size, qty, source_file_name, verified_at",
       )
       .order("row_no"),
   ])
@@ -60,7 +58,6 @@ export default async function VerifikasiPengirimanPage() {
     id: session.id,
     rows: (rowsBySession.get(session.id) ?? []).map((row) => ({
       id: row.id,
-      matchingBatchExists: row.matching_batch_exists,
       productSize: row.product_size,
       qty: row.qty,
       rowNo: row.row_no,

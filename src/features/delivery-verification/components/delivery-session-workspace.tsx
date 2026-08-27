@@ -16,7 +16,6 @@ import {
   PlusIcon,
   ScanLineIcon,
   Trash2Icon,
-  TriangleAlertIcon,
   UploadIcon,
   XCircleIcon,
 } from "lucide-react"
@@ -236,7 +235,6 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
                 sejak 20260821083835. Bukan Qty/Box milik Master Item, yang
                 nilainya sama untuk setiap kiriman dan tidak pernah berubah. */}
             <TableHead className="text-right">Qty per Box</TableHead>
-            <TableHead>Label</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
             <TableHead className="w-12" />
@@ -249,22 +247,6 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
               <TableCell className="font-medium">{row.productSize}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {row.qty}
-              </TableCell>
-              <TableCell>
-                {/* Baris yang labelnya belum pernah dibuat ditandai sejak
-                    upload, bukan didiamkan sampai scan. Ia masih bisa PASS
-                    nanti kalau labelnya dicetak menyusul -- yang ditandai di
-                    sini keadaan sekarang, bukan vonis. */}
-                {row.matchingBatchExists ? (
-                  <span className="text-muted-foreground text-xs">
-                    Tersedia
-                  </span>
-                ) : (
-                  <span className="text-warning flex items-center gap-1.5 text-xs">
-                    <TriangleAlertIcon className="size-3.5 shrink-0" />
-                    Belum ada
-                  </span>
-                )}
               </TableCell>
               <TableCell className="text-muted-foreground text-xs">
                 {row.sourceFileName}
@@ -345,11 +327,7 @@ function VerificationPanel({
       return {
         message: result.message,
         status:
-          result.outcome === "pass"
-            ? ("success" as const)
-            : result.outcome === "duplicate_label"
-              ? ("duplicate" as const)
-              : ("error" as const),
+          result.outcome === "pass" ? ("success" as const) : ("error" as const),
       }
     },
     [router, session.id, session.sessionNo],
@@ -518,9 +496,6 @@ export function DeliverySessionWorkspace({
       ) : (
         sessions.map((session) => {
           const verified = session.rows.filter((row) => row.verifiedAt).length
-          const withoutLabel = session.rows.filter(
-            (row) => !row.matchingBatchExists,
-          ).length
           const defaultExpanded =
             defaultExpandedById.get(session.id) ?? session.status === "open"
           const expanded = toggled.has(session.id)
@@ -573,11 +548,6 @@ export function DeliverySessionWorkspace({
                   {session.rows.length > 0 ? (
                     <span className="text-muted-foreground text-xs tabular-nums">
                       {verified}/{session.rows.length} terverifikasi
-                    </span>
-                  ) : null}
-                  {withoutLabel > 0 ? (
-                    <span className="text-warning text-xs">
-                      {withoutLabel} belum ada labelnya
                     </span>
                   ) : null}
                 </div>

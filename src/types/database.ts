@@ -329,13 +329,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "delivery_verification_scans_matched_row_id_fkey"
-            columns: ["matched_row_id"]
-            isOneToOne: false
-            referencedRelation: "delivery_schedule_rows_resolved"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "delivery_verification_scans_scanned_by_fkey"
             columns: ["scanned_by"]
             isOneToOne: false
@@ -1199,60 +1192,6 @@ export type Database = {
       }
     }
     Views: {
-      delivery_schedule_rows_resolved: {
-        Row: {
-          created_at: string | null
-          id: string | null
-          matching_batch_exists: boolean | null
-          product_size: string | null
-          qty: number | null
-          row_no: number | null
-          session_id: string | null
-          source_file_name: string | null
-          verified_at: string | null
-          verified_label_box_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string | null
-          matching_batch_exists?: never
-          product_size?: string | null
-          qty?: number | null
-          row_no?: number | null
-          session_id?: string | null
-          source_file_name?: string | null
-          verified_at?: string | null
-          verified_label_box_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string | null
-          matching_batch_exists?: never
-          product_size?: string | null
-          qty?: number | null
-          row_no?: number | null
-          session_id?: string | null
-          source_file_name?: string | null
-          verified_at?: string | null
-          verified_label_box_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "delivery_schedule_rows_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "delivery_verification_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "delivery_schedule_rows_verified_label_box_id_fkey"
-            columns: ["verified_label_box_id"]
-            isOneToOne: false
-            referencedRelation: "label_boxes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       master_item_row_numbers: {
         Row: {
           master_item_id: string | null

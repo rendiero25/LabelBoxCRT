@@ -29,15 +29,13 @@ berapa kali discan.
 Tabel dua kolom: **Part No** dan **Qty per Box**. Nilainya datang dari upload
 Excel atau PDF.
 
-Kolom pertama adalah Part No label sheet, yang isinya memang ukuran —
-`VS-B T0.3XW100 L=120MM`. Nama kolom databasenya `product_size`, peninggalan
-tahap ketika ia dikira penunjuk ke produk; isinya Part No, dan yang berlaku
-adalah cara ia dipakai.
+Kolom pertama adalah ukuran produk seperti tertulis di label —
+`VS-B T0.3XW100 L=120MM`. Nama kolom databasenya `product_size`.
 
-Kolom kedua tersimpan sebagai `qty` dan dicocokkan dengan
-`qty_delivery_display` milik batch. "Qty per Box" adalah nama yang dipakai
-operator untuk angka itu — baris QTY/DELIVERY pada label fisik, bukan baris
-Qty/Box yang nilainya sama untuk setiap kiriman Master Item itu.
+Kolom kedua tersimpan sebagai `qty` dan dicocokkan dengan Qty delivery yang
+tercetak di label. "Qty per Box" adalah nama yang dipakai operator untuk angka
+itu — baris QTY/DELIVERY pada label fisik, bukan baris Qty/Box yang nilainya
+sama untuk setiap kiriman Master Item itu.
 
 Satu file boleh memuat satu baris maupun banyak; parser membaca semua yang ada
 lalu menambahkannya ke bawah tabel. Upload berikutnya menambah lagi, tidak
@@ -66,56 +64,68 @@ diikat ke tata letak dokumen yang sebenarnya.
 
 ## Bagian 2 — Verifikasi Label
 
-Scan QR label box sheet. Perbandingannya **langsung**, tanpa terjemahan:
+Scan QR label box sheet. Yang dibandingkan diambil dari **string QR-nya
+sendiri**, dipecah pada `|`:
 
-| Jadwal | Label |
-|---|---|
-| Part No (kolom pertama file) | `part_no_snapshot` |
-| Qty per Box | `qty_delivery_display` |
+```
+10015|VS-B T0.3XW100 L=120MM|2000|DBT-512 NI-2445-240826-B001|24-AUG-2026
+       ^ field 2: ukuran produk        ^ field 3: Qty delivery
+```
 
-Baris PASS kalau kedua-duanya cocok.
+| Jadwal      | Payload |
+| ----------- | ------- |
+| Part No     | field 2 |
+| Qty per Box | field 3 |
 
-Isi file jadwal berdiri sendiri — tidak perlu didaftarkan sebagai produk
-maupun master data lebih dulu. Rancangan sebelumnya menerjemahkan ukuran lewat
-`products` dan `master_item_products`; itu dibuang beserta kedua fungsi
-pembantunya, sebab kolom pertama file ternyata Part No label sheet itu sendiri,
-bukan penunjuk ke produk lain.
+Baris PASS kalau kedua-duanya cocok. Field lain — kode supplier, lot, tanggal —
+tidak dibaca sama sekali: tidak ada yang meminta keduanya diperiksa, dan setiap
+field tambahan yang dibaca adalah satu cara baru sebuah scan gagal.
 
-Kedua sisi dirapikan dengan cara yang sama sebelum dibandingkan — huruf besar,
-spasi beruntun jadi satu, ujung dipangkas. Dokumen jadwal diketik tangan dan
-Part No di master data tidak selalu ditulis dengan spasi yang sama.
+Label sheet **tidak dibuat aplikasi ini** dan tidak perlu dibuat. Rancangan
+sebelumnya mencari `qr_payload` di `label_boxes` lalu naik ke batch-nya; itu
+dibuang (migrasi `20260827094500`). Label sheet sudah tercetak di lantai
+produksi, jadi payload-nya tidak pernah ada di tabel itu dan setiap scan
+berakhir `unknown_label` — tidak satu pun baris jadwal bisa PASS sebelum Master
+Item sheet didaftarkan dan batch-nya dicetak, padahal yang diperiksa cuma dua
+angka yang sudah tercetak di dalam QR-nya.
 
-Karena Part No sheet memuat `=` (`VS-B T0.3XW100 L=120MM`), aturan Part No
-Master Item dilonggarkan menerima karakter itu (migrasi `20260826071627`).
-Tanpa itu Master Item untuk sheet tidak bisa didaftarkan sama sekali, dan
-labelnya tidak pernah ada.
+Isi file jadwal karena itu berdiri sendiri di kedua sisi: tidak ada produk,
+Master Item, maupun batch yang perlu ada lebih dulu.
 
-Baris yang belum punya label — belum ada batch mana pun membawa Part No dan Qty
-per Box itu — ditandai "Belum ada" di kolom Label sejak upload. Itu keadaan
-sekarang, bukan vonis: labelnya masih bisa dicetak menyusul lalu PASS.
+**Spasi diabaikan sepenuhnya** di kedua sisi, dan huruf disamakan jadi besar
+(migrasi `20260827103000`). Dokumen jadwal diketik tangan: pada jadwal yang
+benar-benar diunggah, sebelas baris menulis `L=180MM` rapat sementara satu baris
+menulis `L=110 MM` berspasi. Aturan sebelumnya hanya memampatkan spasi beruntun
+jadi satu, jadi baris itu tidak akan pernah PASS — dan gagalnya baru ketahuan
+setelah seluruh truk diperiksa.
 
-**Isi string QR tidak dipercaya.** Tiga generasi QR beredar, dan dua di
-antaranya berbentuk sama persis (lima field) tetapi field ketiganya berbeda
-arti: label sebelum migrasi `20260821083835` membawa Qty/Box, sesudahnya
-membawa Packing Qty. Dari bentuknya saja keduanya tidak bisa dibedakan, jadi
-parser string apa pun akan salah pada sebagian label.
+Harga yang dibayar: dua ukuran yang hanya dibedakan letak spasinya terbaca sama.
+Untuk kode ukuran seperti ini spasi adalah pemisah baca, bukan pembawa makna,
+sementara kegagalan yang dicegah nyata dan sudah terjadi.
 
-Karena itu RPC mencari `qr_payload` di `label_boxes`, naik ke batch-nya, lalu
-memakai `part_no_snapshot` dan `qty_delivery_display` dari database. String QR
-cuma kunci pencarian, bukan sumber angka. Satu jalur ini benar untuk ketiga
-generasi label sekaligus.
+Yang tersimpan dan yang tampil di layar tidak ikut berubah: baris jadwal tetap
+memakai ejaan dokumennya sendiri, supaya isi tabel masih bisa ditelusuri kembali
+ke file asalnya. Yang dilonggarkan hanya perbandingannya.
 
-| Keadaan | `result` | Toast | Tabel |
-|---|---|---|---|
-| Cocok baris yang belum PASS | `pass` | **PASS** | centang hijau di baris itu |
-| Label ada, tidak ada baris cocok | `not_pass` | **NOT PASS** | tidak berubah |
-| Label sudah dipakai baris lain di session ini | `duplicate_label` | **NOT PASS** — sudah dipakai | tidak berubah |
-| Payload tidak ada di `label_boxes` | `unknown_label` | **NOT PASS** — label tidak dikenal | tidak berubah |
-| Baris terakhir baru saja PASS | `pass` | **DELIVERY OK** menyusul PASS-nya | session jadi `done` |
+| Keadaan                                                    | `result`        | Toast                             | Tabel                      |
+| ---------------------------------------------------------- | --------------- | --------------------------------- | -------------------------- |
+| Cocok baris yang belum PASS                                | `pass`          | **PASS**                          | centang hijau di baris itu |
+| QR terbaca, tidak ada baris cocok                          | `not_pass`      | **NOT PASS**                      | tidak berubah              |
+| Kurang dari 3 field, atau Qty bukan bilangan bulat positif | `unknown_label` | **NOT PASS** — QR tidak terbaca   | tidak berubah              |
+| Baris terakhir baru saja PASS                              | `pass`          | **DELIVERY OK** menyusul PASS-nya | session jadi `done`        |
 
-Satu label fisik hanya boleh memenuhi satu baris jadwal, jadi scan dobel jatuh
-ke `duplicate_label` — bukan dicocokkan lagi ke baris berikutnya yang kebetulan
-sama.
+`unknown_label` dibedakan dari `not_pass` karena keduanya menuntut tindakan
+berbeda: yang satu berarti QR-nya tidak terbaca, yang lain berarti QR terbaca
+tetapi barangnya bukan yang dijadwalkan.
+
+**Scan dobel tidak dicek.** `duplicate_label` bertumpu pada identitas label
+fisik di `label_boxes`, dan identitas itu sudah tidak ada; field keempat payload
+memang berbeda antar label, tetapi memakainya berarti memutuskan diam-diam
+bahwa penulisannya konsisten, dan itu belum diperiksa. Konsekuensinya diterima
+sadar: satu box yang discan dua kali melunasi dua baris berukuran sama, dan
+session bisa tutup dengan satu box kurang di truk. `delivery_verification_scans`
+tetap mencatat tiap scan beserta payload mentahnya, jadi kejadian itu masih bisa
+ditelusuri sesudahnya.
 
 DELIVERY OK berdiri sendiri sesudah toast PASS-nya, bukan menggantikannya:
 label terakhir tetap perlu terlihat diterima.
@@ -137,12 +147,17 @@ delivery_verification_sessions
 
 delivery_schedule_rows
   id, session_id, row_no, product_size, qty, source_file_name, created_at,
-  verified_at, verified_label_box_id        -- null selama belum PASS
+  verified_at, verified_label_box_id        -- selalu null; label_boxes tak dipakai
 
 delivery_verification_scans
   id, session_id, scanned_at, scanned_by, qr_payload, label_box_id,
   result (pass|not_pass|unknown_label|duplicate_label), matched_row_id
 ```
+
+`verified_label_box_id` dan `label_box_id` tinggal sebagai kolom kosong, dan
+`duplicate_label` sebagai nilai enum yang tidak pernah dihasilkan lagi.
+Keduanya dibiarkan: membuangnya tidak menambah apa pun, sementara catatan scan
+lama masih menunjuk ke label yang pernah ada.
 
 Tabel scan membuat NOT PASS bisa ditelusuri. Tanpanya, scan yang gagal hilang
 tanpa jejak dan tidak ada yang tahu label mana yang salah masuk truk.
@@ -153,11 +168,17 @@ aktif, sama seperti tabel label box.
 ## Pengujian
 
 pgTAP: `030` (session + jadwal, termasuk Part No kembar dengan Qty berbeda),
-`031` (Part No ber-`=` diterima sedangkan karakter di luar daftar tetap
-ditolak; PASS; ejaan berspasi ganda dan huruf kecil di jadwal tetap cocok;
-`duplicate_label`; `unknown_label`; Qty sama dengan Part No berbeda tidak
-cukup untuk PASS; dan bahwa yang dibandingkan Qty per Box 5000 — bukan Qty/Box
-100 maupun Qty Delivery 200), `032` (hapus session, cascade, ringkasan audit).
+`031` (PASS tanpa satu pun label di database; ukuran dan Qty diambil dari field
+kedua dan ketiga payload; ejaan berspasi ganda dan huruf kecil di jadwal tetap
+cocok; jadwal berspasi (`L=55 MM`) cocok dengan label yang menulisnya rapat
+(`L=55MM`); payload yang sama melunasi baris kembar berikutnya; Qty sama dengan
+ukuran berbeda tidak cukup untuk PASS; payload kurang dari tiga field maupun
+Qty bukan bilangan bulat jatuh ke `unknown_label`; DELIVERY OK menutup session),
+`032` (hapus session, cascade, ringkasan audit).
+
+`031` sengaja tidak menyentuh `master_items`, `boxes`, `label_box_batches`,
+maupun `label_boxes` — kalau salah satunya diperlukan lagi, tesnya yang gagal
+lebih dulu.
 
 Ketiganya mengembalikan `delivery_verification_session_seq` di akhir file:
 `nextval()` tidak ikut rollback, dan tanpa pengembalian itu nomor session nyata
@@ -172,9 +193,6 @@ terakhirnya menutup session; kegagalan tak terduga tetap memunculkan toast).
 Bagian 1 dan Bagian 2 sudah jalan. Yang belum:
 
 - **Upload PDF** — menunggu contoh dokumen asli.
-- **Master Item sheet belum didaftarkan** — dua belas Part No di dokumen jadwal
-  yang ada (`VS-B T0.3XW…`) belum punya Master Item, jadi belum ada labelnya dan
-  barisnya muncul sebagai "Belum ada" di kolom Label. Setelah Master Item dan
-  boxnya dibuat lalu batch labelnya dicetak, barisnya PASS tanpa perubahan kode
-  — dibuktikan ujung ke ujung terhadap jadwal yang benar-benar diunggah, di
-  transaksi yang di-rollback.
+- **Belum diuji dengan scanner fisik** — kontrak payload di sini berasal dari
+  satu contoh string yang diberikan operator, bukan dari label yang benar-benar
+  ditembak DS2208 di halaman ini.

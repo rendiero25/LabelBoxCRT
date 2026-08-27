@@ -138,13 +138,11 @@ export async function uploadScheduleFileAction(
 }
 
 /**
- * Mencocokkan satu label box hasil scan dengan jadwal session.
+ * Mencocokkan satu hasil scan dengan jadwal session.
  *
- * Payload dikirim apa adanya ke RPC dan tidak diurai di sini. Tiga generasi QR
- * beredar dan dua di antaranya berbentuk sama persis sementara field ketiganya
- * berbeda arti, jadi angka apa pun yang dibaca dari string akan benar untuk
- * sebagian label dan salah untuk sisanya. RPC-nya mencari payload itu di
- * label_boxes dan mengambil angkanya dari batch.
+ * Payload dikirim apa adanya ke RPC dan tidak diurai di sini. Yang mengurai
+ * satu pihak saja -- RPC-nya -- supaya aturan "field kedua ukuran, field ketiga
+ * Qty" tidak berdiri di dua tempat yang bisa berbeda pendapat.
  */
 export async function verifyDeliveryLabelAction(input: {
   qrPayload: string
@@ -178,18 +176,16 @@ export async function verifyDeliveryLabelAction(input: {
 
   // Pesannya menyebut kenapa, bukan cuma PASS atau NOT PASS. Operator yang
   // hanya diberi "NOT PASS" akan mengulang scan label yang sama alih-alih
-  // mencari label yang benar.
+  // mencari box yang benar.
   //
   // "Qty per Box" adalah nama yang dipakai operator untuk angka ini -- baris
   // Qty/Delivery pada label, bukan baris Qty/Box milik Master Item.
   const message =
     outcome === "pass"
-      ? `PASS — ${row.product_size}, Qty per Box ${row.qty} cocok dengan ${row.part_no}.`
-      : outcome === "duplicate_label"
-        ? "NOT PASS — label ini sudah dipakai untuk baris lain di session ini."
-        : outcome === "unknown_label"
-          ? "NOT PASS — QR ini bukan label box yang dikenal sistem."
-          : `NOT PASS — tidak ada baris jadwal yang cocok dengan ${row.part_no} (Qty per Box ${row.packing_qty}).`
+      ? `PASS — ${row.product_size}, Qty per Box ${row.qty} cocok.`
+      : outcome === "unknown_label"
+        ? "NOT PASS — QR tidak terbaca: ukuran atau Qty tidak ditemukan di dalamnya."
+        : `NOT PASS — tidak ada baris jadwal yang cocok dengan ${row.part_no} (Qty per Box ${row.packing_qty}).`
 
   revalidatePath("/verifikasi-pengiriman")
   return {

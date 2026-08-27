@@ -42,7 +42,6 @@ function sessionFixture(
         id: "8e2b0000-0000-0000-0000-000000000001",
         productSize: "VDX T0.3XW100 L=120MM",
         qty: 5000,
-        matchingBatchExists: true,
         rowNo: 1,
         sourceFileName: "jadwal.xlsx",
         verifiedAt: null,
