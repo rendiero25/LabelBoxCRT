@@ -3,9 +3,6 @@
 import { useActionState, useMemo, useState } from "react"
 import Link from "next/link"
 import {
-  ArrowDownIcon,
-  ArrowUpDownIcon,
-  ArrowUpIcon,
   BanIcon,
   BoxIcon,
   CheckIcon,
@@ -45,7 +42,6 @@ import { PaginationControls } from "@/components/shared/pagination-controls"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -121,9 +117,6 @@ export type SupplierOption = {
   supplier_name: string
 }
 
-type SortColumn = "row_no" | "part_no" | "is_active"
-type SortDirection = "asc" | "desc"
-
 const PAGE_SIZE = 20
 
 export function MasterItemDirectory({
@@ -139,19 +132,7 @@ export function MasterItemDirectory({
 }) {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all")
-  const [sortColumn, setSortColumn] = useState<SortColumn>("row_no")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [page, setPage] = useState(1)
-
-  function toggleSort(column: SortColumn) {
-    if (column === sortColumn) {
-      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
-      return
-    }
-    setSortColumn(column)
-    setSortDirection("asc")
-    setPage(1)
-  }
 
   const filteredMasterItems = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("id-ID")
@@ -175,22 +156,12 @@ export function MasterItemDirectory({
       return matchesQuery && matchesStatus
     })
 
-    const direction = sortDirection === "asc" ? 1 : -1
-    return [...filtered].sort((a, b) => {
-      if (sortColumn === "is_active") {
-        return (Number(a.is_active) - Number(b.is_active)) * direction
-      }
-      if (sortColumn === "row_no") {
-        return ((a.row_no ?? 0) - (b.row_no ?? 0)) * direction
-      }
-      return (
-        a[sortColumn]
-          .toLocaleLowerCase("id-ID")
-          .localeCompare(b[sortColumn].toLocaleLowerCase("id-ID"), "id-ID") *
-        direction
-      )
-    })
-  }, [masterItems, query, status, sortColumn, sortDirection])
+    // Nomor urut naik, tetap. Menu Urutkan dibuang, jadi tidak ada lagi cara
+    // mengubahnya dari layar -- dan nomor urut itulah urutan yang dipakai
+    // orang untuk menyebut Master Item, jadi tabel yang mengikutinya bisa
+    // ditelusuri dengan jari tanpa membaca kolom lain.
+    return [...filtered].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0))
+  }, [masterItems, query, status])
 
   const pageCount = Math.max(
     1,
@@ -201,12 +172,6 @@ export function MasterItemDirectory({
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   )
-
-  const sortLabels: Record<SortColumn, string> = {
-    row_no: "Nomor urut",
-    part_no: "Part No",
-    is_active: "Status",
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -256,36 +221,6 @@ export function MasterItemDirectory({
                   Nonaktif
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <ArrowUpDownIcon data-icon="inline-start" />
-                Urutkan
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuLabel>Urutkan menurut</DropdownMenuLabel>
-              {(Object.keys(sortLabels) as SortColumn[]).map((column) => {
-                const isActive = column === sortColumn
-                const Icon =
-                  sortDirection === "asc" ? ArrowUpIcon : ArrowDownIcon
-                return (
-                  // Menu tetap terbuka: menekan kolom yang sama membalik arah
-                  // urutan, jadi menutupnya memaksa operator membuka lagi.
-                  <DropdownMenuItem
-                    key={column}
-                    onSelect={(event) => {
-                      event.preventDefault()
-                      toggleSort(column)
-                    }}
-                  >
-                    {sortLabels[column]}
-                    {isActive ? <Icon className="ml-auto size-3.5" /> : null}
-                  </DropdownMenuItem>
-                )
-              })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
