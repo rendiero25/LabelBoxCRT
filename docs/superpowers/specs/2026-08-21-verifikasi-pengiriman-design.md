@@ -127,6 +127,30 @@ session bisa tutup dengan satu box kurang di truk. `delivery_verification_scans`
 tetap mencatat tiap scan beserta payload mentahnya, jadi kejadian itu masih bisa
 ditelusuri sesudahnya.
 
+## Bagaimana scan sampai ke halaman
+
+Dua jalur sekaligus: **kotak scan** yang terfokus sendiri begitu mode scan
+menyala, dan pendengar global untuk ketikan yang mendarat di badan halaman.
+Pendengar global mengabaikan input, jadi satu tembakan tidak pernah terkirim
+dua kali.
+
+Kotak scan mengirim **setelah ketikan diam 180 ms**, bukan menunggu Enter. Itu
+bukan kenyamanan melainkan syarat: DS2208 di lantai produksi tidak dipasangi
+sufiks apa pun — bukan Enter, bukan Tab. Diperiksa dengan menembak ke sebuah
+textarea, payloadnya datang utuh 73 karakter tanpa `\n`, dan fokus tidak
+berpindah.
+
+Sebelum kotak scan ada, halaman ini hanya mengirim saat Enter. Dengan scanner
+tanpa sufiks itu berarti buffernya menumpuk selamanya: tidak ada payload
+tampil, tidak ada server action terpanggil, tidak ada satu pun pesan. Diam
+total — jenis kegagalan paling mahal, karena tidak meninggalkan apa pun untuk
+dibaca. Halaman verifikasi packing sudah memakai pola yang sama sejak lama,
+dan itulah sebabnya ia tetap jalan sementara halaman ini mati.
+
+Ditambah pula penanda **"Halaman tidak fokus"**: scanner mengetik ke jendela
+yang sedang fokus, jadi keadaan itu harus terlihat, bukan disimpulkan dari
+kesunyian.
+
 DELIVERY OK berdiri sendiri sesudah toast PASS-nya, bukan menggantikannya:
 label terakhir tetap perlu terlihat diterima.
 
@@ -186,13 +210,15 @@ berikutnya melompat.
 
 Vitest: parser Excel (bentuk dokumen asli, variasi ejaan header, variasi
 penulisan Qty) dan komponen workspace (kartu tidak melipat diri saat scan
-terakhirnya menutup session; kegagalan tak terduga tetap memunculkan toast).
+terakhirnya menutup session; kegagalan tak terduga tetap memunculkan toast;
+payload tanpa terminator terkirim sendiri setelah ketikan berhenti).
 
 ## Keadaan
 
 Bagian 1 dan Bagian 2 sudah jalan. Yang belum:
 
 - **Upload PDF** — menunggu contoh dokumen asli.
-- **Belum diuji dengan scanner fisik** — kontrak payload di sini berasal dari
-  satu contoh string yang diberikan operator, bukan dari label yang benar-benar
-  ditembak DS2208 di halaman ini.
+- **Belum ada satu pun baris PASS lewat scan sungguhan** — payloadnya sudah
+  ditangkap dari DS2208 dan cocok dengan baris 1 jadwal, dan kotak scan sudah
+  terpasang, tetapi tembakan yang benar-benar melunasi sebuah baris belum
+  dilakukan.

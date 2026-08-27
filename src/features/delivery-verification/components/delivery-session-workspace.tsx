@@ -1,8 +1,9 @@
-"use client"
+﻿"use client"
 
 import {
   useActionState,
   useCallback,
+  useEffect,
   useRef,
   useState,
   useTransition,
@@ -16,6 +17,7 @@ import {
   PlusIcon,
   ScanLineIcon,
   Trash2Icon,
+  TriangleAlertIcon,
   UploadIcon,
   XCircleIcon,
 } from "lucide-react"
@@ -35,6 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Table,
@@ -57,6 +60,9 @@ import {
   initialUploadScheduleState,
 } from "@/features/delivery-verification/form-state"
 import { useScannerListener } from "@/features/scan/use-scanner-listener"
+
+/** Jarak antar tombol scanner beberapa milidetik; 180 ms sudah jauh di atasnya. */
+const AUTO_SUBMIT_IDLE_MS = 180
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("id-ID", {
@@ -270,8 +276,11 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
 }
 
 /**
- * Bagian 2. Scanner adalah keyboard wedge, jadi tidak ada field yang diketik:
- * pendengarnya menangkap ketikan di halaman dan mengirim satu baris per Enter.
+ * Bagian 2. Scanner adalah keyboard wedge: ia mengetik ke elemen yang sedang
+ * terfokus, dan halaman ini menangkapnya lewat dua jalur sekaligus -- kotak
+ * scan yang terfokus sendiri, dan pendengar global untuk ketikan yang mendarat
+ * di badan halaman. Pendengar global mengabaikan input, jadi satu tembakan
+ * tidak pernah terkirim dua kali.
  *
  * Hanya satu session yang boleh mendengarkan sekaligus. Dua session terbuka
  * yang sama-sama menerima scan akan membuat satu label masuk ke jadwal yang
@@ -287,6 +296,24 @@ function VerificationPanel({
   session: DeliverySession
 }) {
   const router = useRouter()
+  const [manualPayload, setManualPayload] = useState("")
+  // Scanner mengetik ke jendela yang sedang fokus. Kalau fokusnya di jendela
+  // lain, scan hilang tanpa jejak, jadi keadaan itu harus terlihat.
+  const [pageFocused, setPageFocused] = useState(true)
+  const scanInputRef = useRef<HTMLInputElement | null>(null)
+  const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const sync = () => setPageFocused(document.hasFocus())
+    sync()
+    window.addEventListener("blur", sync)
+    window.addEventListener("focus", sync)
+
+    return () => {
+      window.removeEventListener("blur", sync)
+      window.removeEventListener("focus", sync)
+    }
+  }, [])
 
   const handleScan = useCallback(
     async (rawPayload: string) => {
@@ -316,7 +343,7 @@ function VerificationPanel({
         // DELIVERY OK berdiri sendiri sesudah PASS-nya, bukan menggantikannya:
         // yang terakhir tetap perlu tahu labelnya diterima.
         if (result.deliveryOk) {
-          toast.success(`DELIVERY OK — Session ${session.sessionNo} selesai.`)
+          toast.success(`DELIVERY OK â€” Session ${session.sessionNo} selesai.`)
         }
       } else {
         toast.error(result.message)
@@ -333,14 +360,72 @@ function VerificationPanel({
     [router, session.id, session.sessionNo],
   )
 
-  const { lastRawPayload, lastScan, pending } = useScannerListener({
+  const { lastRawPayload, lastScan, pending, submit } = useScannerListener({
     enabled: active,
     onScan: handleScan,
   })
 
+  const submitPayload = useCallback(
+    async (rawPayload: string) => {
+      const payload = rawPayload.trim()
+      if (!payload) return
+
+      if (autoSubmitTimer.current) clearTimeout(autoSubmitTimer.current)
+      setManualPayload("")
+      scanInputRef.current?.focus()
+      await submit(payload)
+    },
+    [submit],
+  )
+
+  /**
+   * Scanner mengetik seluruh payload dalam puluhan milidetik. Diam sebentar
+   * setelah ketikan terakhir berarti tembakan sudah selesai, jadi scan dikirim
+   * sendiri dan operator tidak perlu menekan apa pun.
+   *
+   * Ini bukan kenyamanan melainkan syarat: DS2208 di lantai produksi tidak
+   * dipasangi sufiks apa pun -- tidak Enter, tidak Tab -- jadi menunggu Enter
+   * berarti buffernya menumpuk selamanya dan halaman ini membisu total, jenis
+   * kegagalan yang paling mahal karena tidak meninggalkan satu pun pesan.
+   * Enter dari scanner tetap mengirim seketika kalau suatu saat dipasang, dan
+   * pengetikan manual masih sempat selesai karena jedanya lebih panjang dari
+   * jarak antar tombol scanner.
+   */
+  const onScanInputChange = useCallback(
+    (value: string) => {
+      setManualPayload(value)
+      if (autoSubmitTimer.current) clearTimeout(autoSubmitTimer.current)
+      if (!value.trim()) return
+
+      autoSubmitTimer.current = setTimeout(() => {
+        void submitPayload(value)
+      }, AUTO_SUBMIT_IDLE_MS)
+    },
+    [submitPayload],
+  )
+
+  useEffect(
+    () => () => {
+      if (autoSubmitTimer.current) clearTimeout(autoSubmitTimer.current)
+    },
+    [],
+  )
+
+  // Kotak scan mengambil fokus begitu mode scan menyala. Tanpa ini operator
+  // harus mengkliknya lebih dulu, dan tembakan pertama -- yang justru paling
+  // mungkin ditembak sambil menunduk -- hilang ke badan halaman.
+  useEffect(() => {
+    if (active) scanInputRef.current?.focus()
+  }, [active])
+
   return (
-    <div className="flex flex-col items-end gap-1.5">
-      <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        "flex flex-col gap-1.5",
+        active ? "w-full items-stretch" : "items-end",
+      )}
+    >
+      <div className="flex items-center gap-2 self-end">
         {/* Titik berdenyut adalah satu-satunya penanda yang masih terlihat
             sambil operator menunduk memegang scanner, bukan menatap layar:
             warna tombolnya sendiri baru terbaca kalau matanya sudah di sana. */}
@@ -380,14 +465,51 @@ function VerificationPanel({
           {active ? "Scan aktif" : "Mulai scan"}
         </Button>
       </div>
-      {/* Payload mentah terakhir. Ia menjawab pertanyaan yang tidak bisa
-          dijawab pesan hasil: apakah ketikan scanner sampai ke halaman ini
-          sama sekali. Kosong setelah ditembak berarti masalahnya di scanner
-          atau fokus jendela, bukan di pencocokan. */}
+      {/* Kotak scan menangkap ketikan scanner langsung, tanpa bergantung pada
+          fokus yang kebetulan mendarat di badan halaman. Isinya terlihat
+          sehingga operator tahu tombolnya sampai atau tidak. */}
       {active ? (
-        <p className="text-muted-foreground max-w-64 text-right font-mono text-[0.65rem] break-all">
-          {lastRawPayload ?? "Belum ada QR terbaca"}
-        </p>
+        <div className="mt-1 flex flex-col gap-1.5 rounded-lg border p-3">
+          <label
+            className="text-sm font-medium"
+            htmlFor={`scan-input-${session.id}`}
+          >
+            Kotak scan
+          </label>
+          <Input
+            autoComplete="off"
+            className="font-mono"
+            id={`scan-input-${session.id}`}
+            onChange={(event) => onScanInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return
+              event.preventDefault()
+              void submitPayload(manualPayload)
+            }}
+            placeholder="Arahkan scanner ke sini lalu tembak QR"
+            ref={scanInputRef}
+            value={manualPayload}
+          />
+          {pageFocused ? (
+            <p className="text-muted-foreground text-xs">
+              Kotak ini terfokus sendiri dan mengirim otomatis. Kalau ditembak
+              dan tetap kosong, tombol scanner tidak sampai ke jendela ini.
+            </p>
+          ) : (
+            <p className="text-destructive flex items-center gap-1.5 text-xs">
+              <TriangleAlertIcon className="size-3.5 shrink-0" />
+              Halaman tidak fokus â€” scanner mengetik ke jendela yang sedang
+              fokus. Klik halaman ini dulu.
+            </p>
+          )}
+          {/* Payload mentah terakhir. Ia menjawab pertanyaan yang tidak bisa
+              dijawab pesan hasil: apakah ketikan scanner sampai ke halaman ini
+              sama sekali. Kosong setelah ditembak berarti masalahnya di
+              scanner atau fokus jendela, bukan di pencocokan. */}
+          <p className="text-muted-foreground font-mono text-[0.65rem] break-all">
+            {lastRawPayload ?? "Belum ada QR terbaca"}
+          </p>
+        </div>
       ) : null}
       {/* Hasil scan terakhir bertahan di layar, bukan cuma lewat lewat sebagai
           toast: toast bisa terlewat waktu operator sedang menempel label,
@@ -395,7 +517,7 @@ function VerificationPanel({
       {active && lastScan ? (
         <p
           className={cn(
-            "flex max-w-64 items-center gap-1.5 text-right text-xs",
+            "flex items-center gap-1.5 text-xs",
             lastScan.status === "success" ? "text-success" : "text-destructive",
           )}
         >

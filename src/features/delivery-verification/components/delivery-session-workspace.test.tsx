@@ -60,7 +60,11 @@ beforeEach(() => {
   ;(
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true
-  vi.clearAllMocks()
+  // reset, bukan clear: clearAllMocks membuang catatan panggilan tetapi
+  // membiarkan antrean mockResolvedValueOnce yang belum terpakai. Satu tes yang
+  // gagal sebelum sempat memakainya akan mewariskannya ke tes berikutnya, dan
+  // tes berikutnya gagal karena sebab yang bukan miliknya.
+  vi.resetAllMocks()
   container = document.createElement("div")
   document.body.appendChild(container)
   root = createRoot(container)
@@ -81,6 +85,11 @@ function render(sessions: DeliverySession[]) {
 // "Schedule Delivery" sendiri tidak dipakai karena kalimat pembuka halaman
 // juga menyebutnya, membuat pengecekan substring itu selalu lolos.
 const ROW_MARKER = "VDX T0.3XW100 L=120MM"
+
+// Bentuk payload label sheet yang sebenarnya, ditangkap dari DS2208 lewat
+// sebuah textarea: lima field, dan tanpa terminator di ujungnya.
+const PAYLOAD =
+  "10015|VDX T0.3XW100 L=120MM|5000|DBT-512 NI-2445-240826-B001|24-Aug-2026"
 
 /**
  * verify_delivery_label menutup session (status -> 'done') di RPC yang sama
@@ -123,6 +132,61 @@ describe("DeliverySessionWorkspace", () => {
     ])
 
     expect(container.textContent).not.toContain(ROW_MARKER)
+  })
+
+  /**
+   * DS2208 di lantai produksi tidak dipasangi sufiks apa pun -- tidak Enter,
+   * tidak Tab. Sebelum kotak scan ada, halaman ini hanya mengirim saat Enter,
+   * jadi ia membisu total: buffer menumpuk, tidak ada server action terpanggil,
+   * dan operator tidak punya satu pun pesan untuk dibaca. Yang dikunci di sini
+   * bahwa payload terkirim tanpa Enter, semata karena ketikannya berhenti.
+   */
+  it("submits a scan with no terminator once typing goes quiet", async () => {
+    mocks.verifyDeliveryLabelAction.mockResolvedValueOnce({
+      deliveryOk: false,
+      message: "PASS",
+      outcome: "pass",
+      totalCount: 1,
+      verifiedCount: 1,
+    })
+
+    render([sessionFixture()])
+
+    const startButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent?.includes("Mulai scan"),
+    )
+    await act(async () => {
+      startButton?.click()
+    })
+
+    const input = container.querySelector<HTMLInputElement>(
+      'input[placeholder^="Arahkan scanner"]',
+    )
+    expect(input).not.toBeNull()
+
+    // React memasang setter-nya sendiri pada input terkendali, jadi menulis
+    // .value langsung tidak memicu onChange. Setter asli prototipe-nya yang
+    // dipakai, persis seperti ketikan sungguhan.
+    const payload = PAYLOAD
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set
+      setter?.call(input, payload)
+      input?.dispatchEvent(new Event("input", { bubbles: true }))
+    })
+
+    expect(mocks.verifyDeliveryLabelAction).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+
+    expect(mocks.verifyDeliveryLabelAction).toHaveBeenCalledWith({
+      qrPayload: payload,
+      sessionId: sessionFixture().id,
+    })
   })
 
   /**
