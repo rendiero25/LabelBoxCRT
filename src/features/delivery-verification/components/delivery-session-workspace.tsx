@@ -618,6 +618,11 @@ export function DeliverySessionWorkspace({
       ) : (
         sessions.map((session) => {
           const verified = session.rows.filter((row) => row.verifiedAt).length
+          // Jadwal kosong bukan kiriman yang lunas. Tanpa syarat panjangnya,
+          // session yang belum diisi file apa pun akan mengaku DELIVERY OK
+          // sebelum satu pun kiriman diperiksa.
+          const deliveryOk =
+            session.rows.length > 0 && verified === session.rows.length
           const defaultExpanded =
             defaultExpandedById.get(session.id) ?? session.status === "open"
           const expanded = toggled.has(session.id)
@@ -664,12 +669,32 @@ export function DeliverySessionWorkspace({
                   >
                     {session.status === "done" ? "Selesai" : "Berjalan"}
                   </Badge>
-                  <span className="text-muted-foreground text-xs">
+                  {/* Tanggal dan hitungan terverifikasi dibaca dari jarak
+                      pandang lantai produksi, bukan dari depan meja: keduanya
+                      memakai warna teks penuh, bukan abu-abu peredup. */}
+                  <span className="text-foreground text-xs">
                     {formatDateTime(session.createdAt)}
                   </span>
                   {session.rows.length > 0 ? (
-                    <span className="text-muted-foreground text-xs tabular-nums">
+                    <span className="text-foreground text-xs tabular-nums">
                       {verified}/{session.rows.length} terverifikasi
+                    </span>
+                  ) : null}
+                  {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai
+                      toast pada scan terakhir. Toast itu hilang dalam hitungan
+                      detik dan hanya terlihat oleh yang sedang memegang
+                      scanner; pertanyaan "kiriman ini sudah lunas belum?"
+                      datang lagi nanti, dari orang lain, di depan daftar
+                      session yang seluruhnya terlipat.
+
+                      Diturunkan dari barisnya sendiri, bukan dari status:
+                      status berubah di RPC dan baru sampai ke layar setelah
+                      refresh, sedangkan yang ditanya operator adalah apa yang
+                      ia lihat di tabel. */}
+                  {deliveryOk ? (
+                    <span className="text-success flex items-center gap-1.5 text-xs font-semibold">
+                      <CheckCircle2Icon className="size-4 shrink-0" />
+                      DELIVERY OK
                     </span>
                   ) : null}
                 </div>

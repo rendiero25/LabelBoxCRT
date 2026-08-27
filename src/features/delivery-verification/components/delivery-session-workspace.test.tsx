@@ -135,6 +135,37 @@ describe("DeliverySessionWorkspace", () => {
   })
 
   /**
+   * Penanda lunas harus bertahan di kartu. Toast DELIVERY OK hilang dalam
+   * hitungan detik dan hanya terlihat oleh yang memegang scanner, sementara
+   * pertanyaannya datang lagi nanti dari orang lain -- di depan daftar session
+   * yang seluruhnya terlipat.
+   */
+  it("marks a session DELIVERY OK once every row has passed", () => {
+    render([sessionFixture()])
+    expect(container.textContent).not.toContain("DELIVERY OK")
+
+    render([
+      sessionFixture({
+        rows: [
+          {
+            ...sessionFixture().rows[0],
+            verifiedAt: "2026-08-24T10:05:00.000Z",
+          },
+        ],
+        status: "done",
+      }),
+    ])
+
+    expect(container.textContent).toContain("DELIVERY OK")
+  })
+
+  it("leaves a session with no schedule rows unmarked", () => {
+    render([sessionFixture({ rows: [] })])
+
+    expect(container.textContent).not.toContain("DELIVERY OK")
+  })
+
+  /**
    * DS2208 di lantai produksi tidak dipasangi sufiks apa pun -- tidak Enter,
    * tidak Tab. Sebelum kotak scan ada, halaman ini hanya mengirim saat Enter,
    * jadi ia membisu total: buffer menumpuk, tidak ada server action terpanggil,
