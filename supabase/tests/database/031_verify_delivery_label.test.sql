@@ -15,7 +15,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(29);
+select plan(30);
 
 create temporary table verify_seq_before as
 select last_value, is_called from public.delivery_verification_session_seq;
@@ -34,10 +34,14 @@ insert into public.profiles (id, display_name, role, is_active) values (
 -- MPQ dari ukuran uji. Ukuran ketiga ditulis berspasi di sini dan rapat di
 -- labelnya nanti, meniru selisih ejaan yang benar-benar ada antara dokumen MPQ
 -- dan label cetak.
-insert into public.mpq_sheet_rows (row_no, product_size, mpq_qty, unit) values
-  (9001, 'UJI-A T1XW1 L=10MM', 2000, 'PCS/BOX'),
-  (9002, 'UJI-B T1XW1 L=20MM', 1500, 'PCS/BOX'),
-  (9003, 'UJI-C T1XW1 L=30 MM', 500, 'PCS/BOX');
+insert into public.mpq_sheet_rows (row_no, product_size, mpq_qty, unit, is_active)
+values
+  (9001, 'UJI-A T1XW1 L=10MM', 2000, 'PCS/BOX', true),
+  (9002, 'UJI-B T1XW1 L=20MM', 1500, 'PCS/BOX', true),
+  (9003, 'UJI-C T1XW1 L=30 MM', 500, 'PCS/BOX', true),
+  -- Nonaktif: jadwal baru harus memperlakukannya seperti belum punya MPQ sama
+  -- sekali. Tanpa itu menonaktifkan cuma mengubah warna badge.
+  (9004, 'UJI-D T1XW1 L=40MM', 400, 'PCS/BOX', false);
 
 set local role authenticated;
 select set_config(
@@ -327,7 +331,8 @@ select public.add_delivery_schedule_rows(
   (select id from vd_session2),
   'jadwal-asing.xlsx',
   '[{"productSize": "UJI-A T1XW1 L=10MM", "qty": "2000"},
-    {"productSize": "TANPA-MPQ T9XW9 L=99MM", "qty": "100"}]'::jsonb
+    {"productSize": "TANPA-MPQ T9XW9 L=99MM", "qty": "100"},
+    {"productSize": "UJI-D T1XW1 L=40MM", "qty": "800"}]'::jsonb
 );
 
 select is(
@@ -335,8 +340,17 @@ select is(
     select count(*)::integer from public.delivery_schedule_rows
     where session_id = (select id from vd_session2)
   ),
-  2,
+  3,
   'ukuran tanpa MPQ tetap masuk jadwal, tidak menggagalkan filenya'
+);
+
+select is(
+  (
+    select mpq_qty from public.delivery_schedule_rows
+    where session_id = (select id from vd_session2) and row_no = 3
+  ),
+  null::integer,
+  'MPQ yang dinonaktifkan tidak dipakai jadwal baru'
 );
 
 select is(

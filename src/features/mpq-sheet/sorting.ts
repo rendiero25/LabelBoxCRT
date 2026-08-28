@@ -12,12 +12,15 @@ export type MpqSortKey =
   | "mpq-terkecil"
   | "satuan-az"
   | "satuan-za"
+  | "status-aktif"
+  | "status-nonaktif"
   | "ukuran-az"
   | "ukuran-za"
   | "urutan-dokumen"
 
 /** Yang dibutuhkan pengurutan; baris tabel boleh membawa kolom lain. */
 export type SortableMpqRow = {
+  is_active: boolean
   mpq_qty: number
   product_size: string
   row_no: number
@@ -57,6 +60,18 @@ export const MPQ_SORT_OPTIONS: MpqSortOption[] = [
   },
   { direction: "asc", group: "Satuan", key: "satuan-az", label: "Satuan A–Z" },
   { direction: "desc", group: "Satuan", key: "satuan-za", label: "Satuan Z–A" },
+  {
+    direction: "desc",
+    group: "Status",
+    key: "status-aktif",
+    label: "Aktif dulu",
+  },
+  {
+    direction: "asc",
+    group: "Status",
+    key: "status-nonaktif",
+    label: "Nonaktif dulu",
+  },
 ]
 
 function bySize(left: SortableMpqRow, right: SortableMpqRow): number {
@@ -87,6 +102,10 @@ const COMPARATORS: Record<
     left.mpq_qty - right.mpq_qty || byRowNo(left, right),
   "satuan-az": (left, right) => byUnit(left, right) || byRowNo(left, right),
   "satuan-za": (left, right) => -byUnit(left, right) || byRowNo(left, right),
+  "status-aktif": (left, right) =>
+    Number(right.is_active) - Number(left.is_active) || byRowNo(left, right),
+  "status-nonaktif": (left, right) =>
+    Number(left.is_active) - Number(right.is_active) || byRowNo(left, right),
   "ukuran-az": (left, right) => bySize(left, right) || byRowNo(left, right),
   "ukuran-za": (left, right) => -bySize(left, right) || byRowNo(left, right),
   "urutan-dokumen": byRowNo,
@@ -108,6 +127,7 @@ export function sortMpqRows<T extends SortableMpqRow>(
 export const MPQ_HEADER_SORTS = {
   mpq: ["mpq-terkecil", "mpq-terbesar"],
   satuan: ["satuan-az", "satuan-za"],
+  status: ["status-aktif", "status-nonaktif"],
   ukuran: ["ukuran-az", "ukuran-za"],
 } as const satisfies Record<string, readonly [MpqSortKey, MpqSortKey]>
 

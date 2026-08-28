@@ -10,7 +10,7 @@ export default async function MpqSheetPage() {
   const supabase = await createClient()
   const { data: rows, error } = await supabase
     .from("mpq_sheet_rows")
-    .select("id, row_no, product_size, mpq_qty, unit")
+    .select("id, row_no, product_size, mpq_qty, unit, is_active")
     .order("row_no")
 
   return (
@@ -20,6 +20,14 @@ export default async function MpqSheetPage() {
         <p className="text-muted-foreground text-sm">
           Jumlah sheet maksimum dalam satu box per ukuran, sumber data per
           tanggal 27 September 2021.
+        </p>
+        {/* Yang paling mudah salah dimengerti dari halaman ini: menyunting MPQ
+            tidak menyentuh session yang sedang berjalan, sebab jadwal menyalin
+            angkanya saat diunggah. */}
+        <p className="text-muted-foreground text-sm">
+          Perubahan di sini berlaku untuk jadwal yang diunggah setelahnya;
+          jadwal yang sedang diverifikasi memakai MPQ yang tersalin saat
+          diunggah.
         </p>
       </div>
 

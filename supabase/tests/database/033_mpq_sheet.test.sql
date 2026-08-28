@@ -1,17 +1,18 @@
--- MPQ Sheet: daftar rujukan, bukan data yang tumbuh di aplikasi.
+-- MPQ Sheet: daftar rujukan yang boleh disunting admin.
 --
--- Yang dijaga file ini dua hal. Pertama, tabelnya benar-benar hanya bisa
--- dibaca: kalau suatu saat ada yang memberi grant tulis atau menambah policy
--- insert, tes ini yang gagal lebih dulu. Kedua, isinya utuh 93 baris seperti
--- dokumen "MPQ SHEET CRT 2021" setelah baris kembarnya dibuang -- dan hanya
--- ukuran sheet, tanpa selang yang sempat ikut terbawa daftar CRT lengkap.
+-- Yang dijaga file ini tiga hal. Pertama, tulisnya hanya lewat RPC: PostgREST
+-- tidak pernah diberi grant tulis, dan kalau suatu saat ada yang memberinya --
+-- atau menambah policy insert -- tes ini yang gagal lebih dulu. Kedua, isi
+-- dokumen "MPQ SHEET CRT 2021" masuk utuh 93 baris, hanya ukuran sheet, tanpa
+-- selang yang sempat ikut terbawa daftar CRT lengkap. Ketiga, keempat RPC-nya
+-- khusus admin dan menolak ukuran kembar.
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(16);
+select plan(29);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -19,11 +20,16 @@ insert into auth.users (
   ('93300000-0000-0000-0000-000000000001', 'authenticated', 'authenticated',
    'mpq-active@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
   ('93300000-0000-0000-0000-000000000002', 'authenticated', 'authenticated',
-   'mpq-inactive@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
+   'mpq-inactive@example.test', '{}'::jsonb, '{}'::jsonb, now(), now()),
+  ('93300000-0000-0000-0000-000000000003', 'authenticated', 'authenticated',
+   'mpq-operator@example.test', '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.profiles (id, display_name, role, is_active) values
   ('93300000-0000-0000-0000-000000000001', 'MPQ Active', 'admin', true),
-  ('93300000-0000-0000-0000-000000000002', 'MPQ Inactive', 'user', false);
+  ('93300000-0000-0000-0000-000000000002', 'MPQ Inactive', 'user', false),
+  -- Aktif tetapi bukan admin: yang membedakan "boleh membaca" dari "boleh
+  -- menyunting" harus diuji oleh seseorang yang punya yang pertama saja.
+  ('93300000-0000-0000-0000-000000000003', 'MPQ Operator', 'user', true);
 
 select has_table('public', 'mpq_sheet_rows', 'tabel mpq_sheet_rows ada');
 
@@ -178,6 +184,117 @@ select throws_ok(
   null,
   'ukuran yang sama dengan spasi berbeda ditolak sebagai duplikat'
 );
+
+-- Menyunting daftar: khusus admin, lewat RPC.
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub', '93300000-0000-0000-0000-000000000003', true
+);
+
+select throws_ok(
+  $$ select public.create_mpq_sheet_row('UJI-CRUD T1XW1 L=1MM', 500, 'PCS/BOX') $$,
+  'P0001', 'MPQ_ADMIN_REQUIRED',
+  'pengguna aktif yang bukan admin tidak boleh menambah ukuran'
+);
+
+select throws_ok(
+  $$ select public.delete_mpq_sheet_row(
+       (select id from public.mpq_sheet_rows where row_no = 1)
+     ) $$,
+  'P0001', 'MPQ_ADMIN_REQUIRED',
+  'pengguna aktif yang bukan admin tidak boleh menghapus ukuran'
+);
+
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub', '93300000-0000-0000-0000-000000000001', true
+);
+
+create temporary table mpq_new as
+select * from public.create_mpq_sheet_row('  uji-crud   t1xw1 L=1MM ', 500, 'pcs/box');
+grant select on mpq_new to public;
+
+select is(
+  (select product_size from mpq_new),
+  'UJI-CRUD T1XW1 L=1MM',
+  'ukuran disimpan huruf besar dengan spasi dirapikan'
+);
+
+select is(
+  (select unit from mpq_new),
+  'PCS/BOX',
+  'satuan ikut dibakukan huruf besar'
+);
+
+select is(
+  (select row_no from mpq_new),
+  94,
+  'nomor urut melanjutkan baris terakhir dokumen'
+);
+
+select is(
+  (select is_active from mpq_new),
+  true,
+  'ukuran baru langsung aktif'
+);
+
+-- Ejaan berspasi berbeda tetap satu ukuran, dan pesannya harus terbaca operator
+-- sebagai duplikat, bukan sebagai galat Postgres mentah.
+select throws_ok(
+  $$ select public.create_mpq_sheet_row('UJI-CRUD T1XW1 L=1 MM', 700, 'PCS/BOX') $$,
+  'P0001', 'MPQ_SIZE_EXISTS',
+  'ukuran kembar ditolak dengan sebab yang bisa dibaca'
+);
+
+select throws_ok(
+  $$ select public.create_mpq_sheet_row('UJI-NOL T1XW1 L=1MM', 0, 'PCS/BOX') $$,
+  'P0001', 'MPQ_INPUT_INVALID',
+  'MPQ nol ditolak'
+);
+
+select is(
+  (
+    select mpq_qty from public.update_mpq_sheet_row(
+      (select id from mpq_new), 'UJI-CRUD T1XW1 L=1MM', 750, 'PCS/BOX'
+    )
+  ),
+  750,
+  'MPQ bisa diperbaiki tanpa membuat baris baru'
+);
+
+select is(
+  (
+    select row_no from public.mpq_sheet_rows
+    where id = (select id from mpq_new)
+  ),
+  94,
+  'menyunting tidak memindahkan barisnya di daftar'
+);
+
+select is(
+  (
+    select is_active from public.set_mpq_sheet_row_active(
+      (select id from mpq_new), false
+    )
+  ),
+  false,
+  'ukuran bisa dinonaktifkan tanpa dihapus'
+);
+
+select lives_ok(
+  $$ select public.delete_mpq_sheet_row((select id from mpq_new)) $$,
+  'ukuran bisa dibuang seluruhnya'
+);
+
+select is(
+  (select count(*)::integer from public.mpq_sheet_rows),
+  93,
+  'daftarnya kembali seperti semula sesudah baris ujinya dibuang'
+);
+
+reset role;
 
 select * from finish();
 

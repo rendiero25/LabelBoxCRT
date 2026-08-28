@@ -12,6 +12,7 @@ function row(
   overrides: Partial<SortableMpqRow> = {},
 ): SortableMpqRow {
   return {
+    is_active: true,
     mpq_qty: 2000,
     product_size,
     row_no: 1,
@@ -55,6 +56,27 @@ describe("sortMpqRows", () => {
       "Terkecil",
       "Sedang",
       "Terbesar",
+    ])
+  })
+
+  /**
+   * Ukuran nonaktif tidak dipakai jadwal baru, jadi ia dan yang aktif menjawab
+   * pertanyaan berbeda. Mengelompokkannya membuat daftar yang sedang berlaku
+   * terbaca sekaligus.
+   */
+  it("separates active sizes from deactivated ones", () => {
+    const rows = [
+      row("Nonaktif", { is_active: false, row_no: 2 }),
+      row("Aktif", { row_no: 1 }),
+    ]
+
+    expect(sizes(sortMpqRows(rows, "status-aktif"))).toEqual([
+      "Aktif",
+      "Nonaktif",
+    ])
+    expect(sizes(sortMpqRows(rows, "status-nonaktif"))).toEqual([
+      "Nonaktif",
+      "Aktif",
     ])
   })
 

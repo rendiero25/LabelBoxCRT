@@ -104,6 +104,9 @@ ada satu pun jadwal yang bisa diunggah sampai daftarnya dikejar.
 Barisnya karena itu terlihat di tabel bertanda **"MPQ belum ada"**, scan-nya
 ditolak dengan sebab itu, dan ia tidak pernah lunas — jadi session-nya tidak
 bisa DELIVERY OK sebelum MPQ-nya ditambahkan. Kurangnya terlihat, bukan hilang.
+Menambahkannya dikerjakan admin dari `/admin/mpq-sheet`, bukan lewat migrasi
+(`20260828063230`); ukuran yang dinonaktifkan di sana diperlakukan jadwal baru
+sama seperti yang belum ada MPQ-nya.
 Kepala kartu menyebut jumlahnya tersendiri ("8 ukuran belum ada MPQ-nya") sebab
 baris tanpa MPQ tidak menyumbang box ke hitungan sama sekali: tanpa penyebutan
 itu, "6/6 box" akan terbaca lunas padahal masih ada kiriman yang belum
@@ -323,7 +326,8 @@ menulisnya rapat; Customer tersimpan per baris; ukuran tanpa MPQ tetap masuk
 dengan `mpq_qty` dan `expected_boxes` null, ditolak saat scan lewat
 `mpq_missing`, dan menahan session tetap terbuka; `unknown_label`; DELIVERY OK
 menutup session), `032` (hapus session, cascade, ringkasan audit), `033` (MPQ
-Sheet hanya bisa dibaca dan isinya utuh).
+Sheet: tulisnya hanya lewat RPC khusus admin, isinya utuh, ukuran kembar
+ditolak, dan keempat RPC-nya — tambah, edit, nonaktifkan, hapus).
 
 `031` sengaja tidak menyentuh `master_items`, `boxes`, `label_box_batches`,
 maupun `label_boxes` — kalau salah satunya diperlukan lagi, tesnya yang gagal

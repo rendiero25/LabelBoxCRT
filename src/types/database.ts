@@ -695,6 +695,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_active: boolean
           mpq_qty: number
           product_size: string
           product_size_key: string
@@ -705,6 +706,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_active?: boolean
           mpq_qty: number
           product_size: string
           product_size_key?: string
@@ -715,6 +717,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_active?: boolean
           mpq_qty?: number
           product_size?: string
           product_size_key?: string
@@ -1501,6 +1504,19 @@ export type Database = {
         Args: { p_master_item_id: string; p_product_id: string }
         Returns: undefined
       }
+      create_mpq_sheet_row: {
+        Args: { p_mpq_qty: number; p_product_size: string; p_unit: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          mpq_qty: number
+          product_size: string
+          row_no: number
+          unit: string
+          updated_at: string
+        }[]
+      }
       create_product: {
         Args: {
           p_inner_diameter: number
@@ -1557,6 +1573,7 @@ export type Database = {
         Returns: undefined
       }
       delete_master_item_box: { Args: { p_box_id: string }; Returns: undefined }
+      delete_mpq_sheet_row: { Args: { p_row_id: string }; Returns: undefined }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
       import_csv_master_data: {
         Args: { p_correlation_id: string; p_rows: Json; p_template: string }
@@ -1610,6 +1627,19 @@ export type Database = {
       set_master_item_product_active: {
         Args: { p_is_active: boolean; p_mapping_id: string }
         Returns: undefined
+      }
+      set_mpq_sheet_row_active: {
+        Args: { p_is_active: boolean; p_row_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          mpq_qty: number
+          product_size: string
+          row_no: number
+          unit: string
+          updated_at: string
+        }[]
       }
       set_product_active: {
         Args: { p_is_active: boolean; p_product_id: string }
@@ -1681,6 +1711,24 @@ export type Database = {
           part_name: string
           part_no: string
           supplier_id: string
+          unit: string
+          updated_at: string
+        }[]
+      }
+      update_mpq_sheet_row: {
+        Args: {
+          p_mpq_qty: number
+          p_product_size: string
+          p_row_id: string
+          p_unit: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          mpq_qty: number
+          product_size: string
+          row_no: number
           unit: string
           updated_at: string
         }[]

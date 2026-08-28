@@ -853,6 +853,9 @@ diisi dari file, tiap label box discan dan dicocokkan.
       Qty tiap box harus tepat MPQ atau tepat sisanya (`20260828025319`).
 - [x] Ukuran tanpa MPQ tetap masuk jadwal, bertanda "MPQ belum ada", tidak bisa
       discan, dan menahan session tetap terbuka (`20260828035015`).
+- [x] MPQ Sheet bisa disunting admin dari `/admin/mpq-sheet` — tambah, edit,
+      nonaktifkan, hapus — lewat RPC teraudit; ukuran nonaktif diperlakukan
+      jadwal baru seperti belum ada MPQ (`20260828063230`).
 - [x] Scan lewat kotak scan yang mengirim sendiri setelah ketikan diam 180 ms —
       DS2208 tidak memakai sufiks apa pun (`af9e479`).
 - [x] Toast PASS/NOT PASS/DELIVERY OK menyebut sisa box dan Qty yang seharusnya.
@@ -871,7 +874,8 @@ diisi dari file, tiap label box discan dan dicocokkan.
 - [ ] Delapan ukuran sheet pada DO Report 21 Agustus 2026 belum ada di MPQ
       Sheet: empat VS-B milik CIPTA MANDIRI (`L=230MM`, `L=195MM`, `L=250MM`,
       `L=255MM`) dan empat VS-A milik INDOPRIMA. Selama itu jadwal yang
-      memuatnya tidak bisa DELIVERY OK.
+      memuatnya tidak bisa DELIVERY OK. Ditambahkan admin dari
+      `/admin/mpq-sheet`; yang ditunggu angka MPQ-nya, bukan kodenya.
 - [ ] Belum ada jadwal berbox-banyak yang diverifikasi di lantai produksi;
       aturan banyak box baru terbukti di pgTAP.
 - [ ] MPQ belum dipakai membatasi Qty per Box saat packing.
