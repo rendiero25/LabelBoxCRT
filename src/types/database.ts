@@ -234,9 +234,10 @@ export type Database = {
       delivery_schedule_rows: {
         Row: {
           created_at: string
+          customer: string | null
           expected_boxes: number | null
           id: string
-          mpq_qty: number
+          mpq_qty: number | null
           product_size: string
           qty_delivery: number
           row_no: number
@@ -249,9 +250,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer?: string | null
           expected_boxes?: number | null
           id?: string
-          mpq_qty: number
+          mpq_qty?: number | null
           product_size: string
           qty_delivery: number
           row_no: number
@@ -264,9 +266,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer?: string | null
           expected_boxes?: number | null
           id?: string
-          mpq_qty?: number
+          mpq_qty?: number | null
           product_size?: string
           qty_delivery?: number
           row_no?: number
@@ -1292,6 +1295,7 @@ export type Database = {
         Args: { p_rows: Json; p_session_id: string; p_source_file_name: string }
         Returns: {
           created_at: string
+          customer: string
           expected_boxes: number
           id: string
           mpq_qty: number
@@ -1729,6 +1733,7 @@ export type Database = {
           last_box_qty: number
           matched_row_id: string
           matched_row_no: number
+          mpq_missing: boolean
           mpq_qty: number
           packing_qty: number
           part_no: string

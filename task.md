@@ -838,6 +838,8 @@ diisi dari file, tiap label box discan dan dicocokkan.
 - [x] Halaman `/verifikasi-pengiriman` dengan tombol Tambah Session.
 - [x] Parser Excel (`exceljs`) — cari header, toleran variasi ejaan dan
       penulisan Qty, dicocokkan ke dokumen asli.
+- [x] Bentuk DO Report: baca kolom Customer, Item No, dan Qty; hanya baris
+      berdivisi sheet; baris ber-Qty nol dilewati (`20260828035015`).
 - [x] Upload menambah baris, tidak menimpa; nomor baris berlanjut lintas file.
 - [ ] Upload PDF — menunggu contoh dokumen asli.
 
@@ -849,7 +851,8 @@ diisi dari file, tiap label box discan dan dicocokkan.
 - [x] Pencocokan ukuran mengabaikan spasi di kedua sisi (`20260827103000`).
 - [x] Jumlah box per baris diturunkan dari MPQ Sheet: `ceil(Qty Delivery / MPQ)`,
       Qty tiap box harus tepat MPQ atau tepat sisanya (`20260828025319`).
-- [x] Jadwal menolak ukuran yang belum ada di MPQ Sheet, dan menyebut ukurannya.
+- [x] Ukuran tanpa MPQ tetap masuk jadwal, bertanda "MPQ belum ada", tidak bisa
+      discan, dan menahan session tetap terbuka (`20260828035015`).
 - [x] Scan lewat kotak scan yang mengirim sendiri setelah ketikan diam 180 ms —
       DS2208 tidak memakai sufiks apa pun (`af9e479`).
 - [x] Toast PASS/NOT PASS/DELIVERY OK menyebut sisa box dan Qty yang seharusnya.
@@ -865,9 +868,12 @@ diisi dari file, tiap label box discan dan dicocokkan.
 ## Terbuka
 
 - [ ] Upload PDF — menunggu contoh dokumen asli.
-- [ ] Belum ada jadwal berbox-banyak yang diverifikasi di lantai produksi.
-      Seluruh baris yang ada sekarang dari sebelum `20260828025319`, jadi
-      semuanya satu box; aturan banyak box baru terbukti di pgTAP.
+- [ ] Delapan ukuran sheet pada DO Report 21 Agustus 2026 belum ada di MPQ
+      Sheet: empat VS-B milik CIPTA MANDIRI (`L=230MM`, `L=195MM`, `L=250MM`,
+      `L=255MM`) dan empat VS-A milik INDOPRIMA. Selama itu jadwal yang
+      memuatnya tidak bisa DELIVERY OK.
+- [ ] Belum ada jadwal berbox-banyak yang diverifikasi di lantai produksi;
+      aturan banyak box baru terbukti di pgTAP.
 - [ ] MPQ belum dipakai membatasi Qty per Box saat packing.
 - [ ] Migrasi belum jalan di production.
 

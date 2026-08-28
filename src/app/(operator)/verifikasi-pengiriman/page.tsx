@@ -8,11 +8,12 @@ export const dynamic = "force-dynamic"
 type ScheduleRowRecord = {
   id: string
   row_no: number
+  customer: string | null
   product_size: string
   qty_delivery: number
-  mpq_qty: number
-  // Kolom turunan di database; PostgREST menyebutnya nullable meski isinya
-  // selalu ada, jadi keduanya dibaca sebagai nullable lalu diberi nilai bawaan.
+  // Null berarti ukurannya belum ada di MPQ Sheet; jumlah box-nya karena itu
+  // ikut tidak diketahui, dan itu ditulis null pula -- bukan 0 maupun 1.
+  mpq_qty: number | null
   expected_boxes: number | null
   verified_boxes: number | null
   source_file_name: string
@@ -42,7 +43,7 @@ export default async function VerifikasiPengirimanPage() {
     supabase
       .from("delivery_schedule_rows")
       .select(
-        "id, session_id, row_no, product_size, qty_delivery, mpq_qty, expected_boxes, verified_boxes, source_file_name, verified_at",
+        "id, session_id, row_no, customer, product_size, qty_delivery, mpq_qty, expected_boxes, verified_boxes, source_file_name, verified_at",
       )
       .order("row_no"),
   ])
@@ -62,7 +63,8 @@ export default async function VerifikasiPengirimanPage() {
     createdAt: session.created_at,
     id: session.id,
     rows: (rowsBySession.get(session.id) ?? []).map((row) => ({
-      expectedBoxes: row.expected_boxes ?? 1,
+      customer: row.customer,
+      expectedBoxes: row.expected_boxes,
       id: row.id,
       mpqQty: row.mpq_qty,
       productSize: row.product_size,
@@ -70,7 +72,7 @@ export default async function VerifikasiPengirimanPage() {
       rowNo: row.row_no,
       sourceFileName: row.source_file_name,
       verifiedAt: row.verified_at,
-      verifiedBoxes: row.verified_boxes ?? 0,
+      verifiedBoxes: row.verified_boxes,
     })),
     sessionNo: session.session_no,
     status: session.status,

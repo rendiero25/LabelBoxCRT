@@ -15,7 +15,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(24);
+select plan(29);
 
 create temporary table verify_seq_before as
 select last_value, is_called from public.delivery_verification_session_seq;
@@ -56,9 +56,21 @@ grant select on vd_session to public;
 select public.add_delivery_schedule_rows(
   (select id from vd_session),
   'jadwal-vd.xlsx',
-  '[{"productSize": "UJI-A T1XW1 L=10MM", "qty": "8000"},
-    {"productSize": "UJI-B T1XW1 L=20MM", "qty": "7000"},
-    {"productSize": "  uji-c   T1XW1 L=30MM ", "qty": "500"}]'::jsonb
+  '[{"customer": "PT. UJI SEJAHTERA",
+     "productSize": "UJI-A T1XW1 L=10MM", "qty": "8000"},
+    {"customer": "PT. UJI SEJAHTERA",
+     "productSize": "UJI-B T1XW1 L=20MM", "qty": "7000"},
+    {"customer": "PT. UJI LAINNYA",
+     "productSize": "  uji-c   T1XW1 L=30MM ", "qty": "500"}]'::jsonb
+);
+
+select is(
+  (
+    select customer from public.delivery_schedule_rows
+    where session_id = (select id from vd_session) and row_no = 3
+  ),
+  'PT. UJI LAINNYA',
+  'Customer disimpan per baris: satu file memuat beberapa customer sekaligus'
 );
 
 select is(
@@ -302,23 +314,20 @@ select is(
   'session ikut selesai pada box terakhir'
 );
 
--- Jadwal yang memuat ukuran tanpa MPQ ditolak seluruhnya, dan nama ukurannya
--- disebut. Diterima diam-diam, kiriman sebesar apa pun akan lunas oleh satu
--- label; ditolak nanti saat scan, kegagalannya pindah ke saat truk sudah
--- datang.
+-- Ukuran sheet yang belum ada di MPQ Sheet tetap masuk jadwal. Menolak seluruh
+-- file berarti tidak ada jadwal yang bisa diunggah sampai daftar MPQ dikejar --
+-- pada DO Report nyata, delapan dari tiga belas baris sheet belum punya MPQ.
+-- Yang dijaga di sini: barisnya terlihat, tidak bisa discan, dan menahan
+-- session tetap terbuka. Kurangnya terlihat, bukan hilang.
 create temporary table vd_session2 as
 select * from public.create_delivery_verification_session();
 grant select on vd_session2 to public;
 
-select throws_ok(
-  $$ select public.add_delivery_schedule_rows(
-       (select id from vd_session2), 'jadwal-asing.xlsx',
-       '[{"productSize": "UJI-A T1XW1 L=10MM", "qty": "2000"},
-         {"productSize": "TANPA-MPQ T9XW9 L=99MM", "qty": "100"}]'::jsonb
-     ) $$,
-  'P0001',
-  'DELIVERY_MPQ_NOT_FOUND',
-  'ukuran tanpa MPQ menggagalkan seluruh file'
+select public.add_delivery_schedule_rows(
+  (select id from vd_session2),
+  'jadwal-asing.xlsx',
+  '[{"productSize": "UJI-A T1XW1 L=10MM", "qty": "2000"},
+    {"productSize": "TANPA-MPQ T9XW9 L=99MM", "qty": "100"}]'::jsonb
 );
 
 select is(
@@ -326,8 +335,59 @@ select is(
     select count(*)::integer from public.delivery_schedule_rows
     where session_id = (select id from vd_session2)
   ),
-  0,
-  'tidak ada baris yang tertinggal dari file yang ditolak'
+  2,
+  'ukuran tanpa MPQ tetap masuk jadwal, tidak menggagalkan filenya'
+);
+
+select is(
+  (
+    select mpq_qty from public.delivery_schedule_rows
+    where session_id = (select id from vd_session2) and row_no = 2
+  ),
+  null::integer,
+  'MPQ-nya kosong, bukan ditebak'
+);
+
+select is(
+  (
+    select expected_boxes from public.delivery_schedule_rows
+    where session_id = (select id from vd_session2) and row_no = 2
+  ),
+  null::integer,
+  'jumlah box tak diketahui ditulis null, bukan 1 -- 100 keping tidak lunas oleh satu label'
+);
+
+create temporary table vd_no_mpq as
+select * from public.verify_delivery_label(
+  (select id from vd_session2),
+  '10015|TANPA-MPQ T9XW9 L=99MM|100|DBT-512|24-AUG-2026'
+);
+grant select on vd_no_mpq to public;
+
+select is(
+  (select result from vd_no_mpq)::text,
+  'not_pass',
+  'baris tanpa MPQ tidak bisa dicocokkan: tidak ada Qty yang bisa disebut sah'
+);
+
+select is(
+  (select mpq_missing from vd_no_mpq),
+  true,
+  'penolakannya menyebut bahwa yang kurang data master, bukan labelnya'
+);
+
+-- Baris pertama lunas oleh satu box, tetapi baris kedua menahan session.
+create temporary table vd_session2_done as
+select * from public.verify_delivery_label(
+  (select id from vd_session2),
+  '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
+);
+grant select on vd_session2_done to public;
+
+select is(
+  (select delivery_ok from vd_session2_done),
+  false,
+  'session tidak bisa DELIVERY OK selama masih ada ukuran tanpa MPQ'
 );
 
 reset role;

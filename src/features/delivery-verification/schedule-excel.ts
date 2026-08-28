@@ -7,6 +7,8 @@ import ExcelJS from "exceljs"
  * seperti 5000.4 yang seharusnya ditolak.
  */
 export type ScheduleRowDraft = {
+  /** Null kalau dokumennya tidak berkolom Customer. */
+  customer: string | null
   productSize: string
   qty: string
 }
@@ -15,6 +17,7 @@ export type ScheduleParseErrorCode =
   | "SCHEDULE_FILE_UNREADABLE"
   | "SCHEDULE_HEADER_NOT_FOUND"
   | "SCHEDULE_NO_ROWS"
+  | "SCHEDULE_NO_SHEET_ROWS"
   | "SCHEDULE_QTY_INVALID"
 
 export type ScheduleParseResult =
@@ -37,14 +40,33 @@ function headerKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
+/**
+ * DO Report menamai kolom ukurannya "Item No"; dokumen jadwal lama memakai
+ * "Part No". Keduanya menunjuk hal yang sama.
+ */
 function isProductSizeHeader(key: string): boolean {
-  return key.includes("part") && (key.includes("no") || key.includes("number"))
+  const isPart = key.includes("part")
+  const isItem = key.includes("item")
+  return (isPart || isItem) && (key.includes("no") || key.includes("number"))
 }
 
 function isQtyHeader(key: string): boolean {
   return (
     key.includes("qty") || key.includes("quantity") || key.includes("jumlah")
   )
+}
+
+/**
+ * Dicocokkan persis, bukan lewat `includes`. DO Report memuat "Customer PONo"
+ * dan "Customer No" sebelum kolom "Customer" yang sebenarnya, dan pencocokan
+ * longgar akan mengambil nomor PO sebagai nama customer.
+ */
+function isCustomerHeader(key: string): boolean {
+  return key === "customer" || key === "customername" || key === "pelanggan"
+}
+
+function isDivisionHeader(key: string): boolean {
+  return key.startsWith("divisi") || key.startsWith("division")
 }
 
 /**
@@ -83,6 +105,10 @@ function cellText(value: ExcelJS.CellValue): string {
  * ("5000"), berpemisah ribuan ("5.000" atau "5,000"), dan kadang bersatuan
  * ("5000 pcs"). Semuanya menunjuk angka yang sama, jadi yang dibaca digitnya.
  *
+ * Nol dikembalikan sebagai "0", bukan null: bedanya penting. Qty nol berarti
+ * baris itu tidak jadi dikirim -- lazim di DO Report -- dan tidak ada yang
+ * perlu diverifikasi. Qty yang tidak terbaca berarti dokumennya bermasalah.
+ *
  * Yang tidak diterima: pecahan. Qty setengah keping tidak punya arti di
  * lapangan, dan membulatkannya diam-diam mengubah isi dokumen.
  */
@@ -94,10 +120,12 @@ function qtyDigits(raw: string): string | null {
   if (!/^\d+$/.test(withoutSeparators)) return null
 
   const trimmed = withoutSeparators.replace(/^0+/, "")
-  return trimmed === "" ? null : trimmed
+  return trimmed === "" ? "0" : trimmed
 }
 
 type HeaderPosition = {
+  customerColumn: number
+  divisionColumn: number
   headerRow: number
   productSizeColumn: number
   qtyColumn: number
@@ -108,6 +136,8 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
 
   for (let rowNumber = 1; rowNumber <= lastRow; rowNumber += 1) {
     const row = sheet.getRow(rowNumber)
+    let customerColumn = 0
+    let divisionColumn = 0
     let productSizeColumn = 0
     let qtyColumn = 0
 
@@ -117,10 +147,20 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
       if (productSizeColumn === 0 && isProductSizeHeader(key))
         productSizeColumn = columnNumber
       if (qtyColumn === 0 && isQtyHeader(key)) qtyColumn = columnNumber
+      if (customerColumn === 0 && isCustomerHeader(key))
+        customerColumn = columnNumber
+      if (divisionColumn === 0 && isDivisionHeader(key))
+        divisionColumn = columnNumber
     })
 
     if (productSizeColumn > 0 && qtyColumn > 0) {
-      return { headerRow: rowNumber, productSizeColumn, qtyColumn }
+      return {
+        customerColumn,
+        divisionColumn,
+        headerRow: rowNumber,
+        productSizeColumn,
+        qtyColumn,
+      }
     }
   }
 
@@ -130,11 +170,18 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
 /**
  * Membaca Schedule Delivery dari satu workbook Excel.
  *
- * Baris tanpa Part No dilewati diam-diam: dokumen jadwal kerap menyisakan baris
- * kosong pemisah, baris subtotal, dan catatan kaki di bawah tabelnya, dan tidak
- * satu pun dari itu kiriman.
+ * Dokumen yang dipakai seterusnya adalah DO Report: satu file memuat seluruh
+ * divisi dan seluruh customer untuk rentang tanggalnya. Kalau ada kolom Divisi,
+ * **hanya baris divisi sheet yang diambil** -- tube dan kabel bukan urusan
+ * halaman ini dan tidak akan pernah punya MPQ, jadi membiarkannya masuk berarti
+ * tiap session macet dengan baris yang tidak mungkin discan. Dokumen tanpa
+ * kolom Divisi dibaca seluruhnya, seperti dulu.
  *
- * Sebaliknya, baris yang punya Part No tetapi Qty-nya tidak terbaca
+ * Baris tanpa ukuran dilewati diam-diam: dokumen jadwal kerap menyisakan baris
+ * kosong pemisah, baris subtotal, dan catatan kaki, dan tidak satu pun dari itu
+ * kiriman. Baris ber-Qty nol juga dilewati -- barangnya tidak jadi dikirim.
+ *
+ * Sebaliknya, baris yang punya ukuran tetapi Qty-nya tidak terbaca
  * menggagalkan seluruh file. Melewatinya berarti kiriman hilang dari jadwal
  * tanpa ada yang tahu, dan itu baru ketahuan saat labelnya tidak punya baris
  * untuk dicocokkan.
@@ -157,6 +204,7 @@ export async function parseScheduleWorkbook(
   if (!header) return { ok: false, code: "SCHEDULE_HEADER_NOT_FOUND" }
 
   const rows: ScheduleRowDraft[] = []
+  let sawOtherDivision = false
 
   for (
     let rowNumber = header.headerRow + 1;
@@ -169,6 +217,16 @@ export async function parseScheduleWorkbook(
       .trim()
     if (productSize === "") continue
 
+    // Divisi disaring lebih dulu, sebelum Qty dibaca: baris tube yang Qty-nya
+    // kosong tidak boleh menggagalkan file jadwal sheet.
+    if (header.divisionColumn > 0) {
+      const division = cellText(row.getCell(header.divisionColumn).value)
+      if (!division.toLowerCase().includes("sheet")) {
+        sawOtherDivision = true
+        continue
+      }
+    }
+
     const qty = qtyDigits(cellText(row.getCell(header.qtyColumn).value))
     if (qty === null) {
       return {
@@ -178,10 +236,27 @@ export async function parseScheduleWorkbook(
       }
     }
 
-    rows.push({ productSize, qty })
+    if (qty === "0") continue
+
+    const customer =
+      header.customerColumn > 0
+        ? cellText(row.getCell(header.customerColumn).value)
+            .replace(/\s+/g, " ")
+            .trim()
+        : ""
+
+    rows.push({ customer: customer === "" ? null : customer, productSize, qty })
   }
 
-  if (rows.length === 0) return { ok: false, code: "SCHEDULE_NO_ROWS" }
+  if (rows.length === 0) {
+    // Dibedakan dari file yang memang kosong: file penuh baris tube saja bukan
+    // dokumen rusak, cuma bukan jadwal sheet -- dan pesannya harus mengatakan
+    // itu, bukan menyuruh operator memeriksa judul kolomnya.
+    return {
+      ok: false,
+      code: sawOtherDivision ? "SCHEDULE_NO_SHEET_ROWS" : "SCHEDULE_NO_ROWS",
+    }
+  }
 
   return { ok: true, rows }
 }

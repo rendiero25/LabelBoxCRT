@@ -18,6 +18,11 @@ async function workbookBuffer(
   return buffer as ArrayBuffer
 }
 
+/** Dokumen tanpa kolom Customer menghasilkan baris tanpa customer. */
+function row(productSize: string, qty: string, customer: string | null = null) {
+  return { customer, productSize, qty }
+}
+
 describe("parseScheduleWorkbook", () => {
   it("reads Part No and Qty from a plain two-column sheet", async () => {
     const result = await parseScheduleWorkbook(
@@ -31,8 +36,8 @@ describe("parseScheduleWorkbook", () => {
     expect(result).toEqual({
       ok: true,
       rows: [
-        { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
-        { productSize: "3210A-K1Z-NA01-DL", qty: "300" },
+        row("TB 3210A-K1Z-NF01-DL", "5000"),
+        row("3210A-K1Z-NA01-DL", "300"),
       ],
     })
   })
@@ -63,7 +68,7 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+      row("TB 3210A-K1Z-NF01-DL", "5000"),
     ])
   })
 
@@ -73,6 +78,7 @@ describe("parseScheduleWorkbook", () => {
     ["Part Number", "Quantity"],
     ["part-no", "Qty Delivery"],
     ["No Part", "Jumlah"],
+    ["Item No", "Qty"],
   ])("accepts the header spelled %s / %s", async (partHeader, qtyHeader) => {
     const result = await parseScheduleWorkbook(
       await workbookBuffer([
@@ -82,16 +88,204 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+      row("TB 3210A-K1Z-NF01-DL", "5000"),
     ])
   })
 
   /**
-   * Bentuk dokumen jadwal yang sebenarnya dipakai: kolom nomor urut di depan,
-   * header "Part no", dan Part No yang kerap berspasi ekor karena diketik
-   * tangan. Datanya diganti; yang dikunci di sini susunannya.
+   * Bentuk DO Report yang dipakai seterusnya: satu file memuat seluruh divisi
+   * dan seluruh customer untuk rentang tanggalnya. Yang diambil kolom Customer,
+   * Item No, dan Qty; yang lain lewat.
    */
-  it("reads the shape of the real delivery schedule", async () => {
+  describe("DO Report", () => {
+    const HEADER = [
+      "DO Date",
+      "DONo",
+      "Customer PONo",
+      "Customer No",
+      "Customer",
+      "DNNo",
+      "Item No",
+      "Description",
+      "Qty",
+      "Unit Price",
+      "Divisi",
+    ]
+
+    function doRow(
+      customer: string,
+      itemNo: string,
+      qty: number,
+      divisi: string,
+    ) {
+      return [
+        "2026-08-21",
+        "CRT-DOS26-00327",
+        "PO-1",
+        "CUST-00018",
+        customer,
+        null,
+        itemNo,
+        "VINYL SHEET",
+        qty,
+        1173,
+        divisi,
+      ]
+    }
+
+    it("takes Customer, Item No and Qty from the fixed layout", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          doRow(
+            "PT. CIPTA MANDIRI WIRASAKTI",
+            "VS-B T0.3XW100 L=185MM",
+            3000,
+            "DEVISI SHEET",
+          ),
+        ]),
+      )
+
+      expect(result.ok && result.rows).toEqual([
+        row("VS-B T0.3XW100 L=185MM", "3000", "PT. CIPTA MANDIRI WIRASAKTI"),
+      ])
+    })
+
+    /**
+     * "Customer PONo" dan "Customer No" berdiri sebelum kolom "Customer" yang
+     * sebenarnya. Pencocokan longgar akan mengambil nomor PO sebagai nama
+     * customer, dan salahnya tidak kelihatan sampai ada yang membaca tabelnya.
+     */
+    it("does not mistake Customer PONo or Customer No for the customer", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          doRow(
+            "PT. INDOPRIMA GEMILANG",
+            "VS-A-0,4X70X600MM",
+            400,
+            "DEVISI SHEET",
+          ),
+        ]),
+      )
+
+      expect(result.ok && result.rows[0].customer).toBe(
+        "PT. INDOPRIMA GEMILANG",
+      )
+    })
+
+    /**
+     * Tube dan kabel tidak diverifikasi di halaman ini dan tidak akan pernah
+     * punya MPQ. Membiarkannya masuk berarti tiap session macet dengan baris
+     * yang tidak mungkin discan.
+     */
+    it("keeps only the sheet division", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          doRow("PT. HI-LEX INDONESIA", "AP1G724P0", 13800, "DEVISI TUBE"),
+          doRow(
+            "PT. CIPTA MANDIRI WIRASAKTI",
+            "VS-B T0.3XW60 L=255MM",
+            7500,
+            "DEVISI SHEET",
+          ),
+          doRow(
+            "PT. CASUARINA HARNESSINDO",
+            "RBR-INS-ANTENNA FG",
+            1110,
+            "DEVISI KABEL",
+          ),
+        ]),
+      )
+
+      expect(result.ok && result.rows).toEqual([
+        row("VS-B T0.3XW60 L=255MM", "7500", "PT. CIPTA MANDIRI WIRASAKTI"),
+      ])
+    })
+
+    /**
+     * Baris tube kerap ber-Qty kosong atau nol. Divisi disaring lebih dulu,
+     * jadi baris semacam itu tidak boleh menggagalkan file jadwal sheet.
+     */
+    it("does not fail on an unreadable Qty in a division it skips", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          [
+            "2026-08-21",
+            "CRT-DOT26-01359",
+            "PO-1",
+            "CUST-00068",
+            "PT. HI-LEX INDONESIA",
+            null,
+            "AP10608P0",
+            "PROTECTOR",
+            "",
+            1007,
+            "DEVISI TUBE",
+          ],
+          doRow(
+            "PT. CIPTA MANDIRI WIRASAKTI",
+            "VS-B T0.3XW80 L=245MM",
+            1500,
+            "DEVISI SHEET",
+          ),
+        ]),
+      )
+
+      expect(result.ok && result.rows).toHaveLength(1)
+    })
+
+    // Qty nol berarti barisnya tidak jadi dikirim; tidak ada yang perlu
+    // diverifikasi, dan barisnya bukan dokumen rusak.
+    it("skips a sheet row that ships nothing", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          doRow(
+            "PT. CIPTA MANDIRI WIRASAKTI",
+            "VS-B T0.3XW80 L=230MM",
+            0,
+            "DEVISI SHEET",
+          ),
+          doRow(
+            "PT. CIPTA MANDIRI WIRASAKTI",
+            "VS-B T0.3XW80 L=245MM",
+            1500,
+            "DEVISI SHEET",
+          ),
+        ]),
+      )
+
+      expect(result.ok && result.rows).toEqual([
+        row("VS-B T0.3XW80 L=245MM", "1500", "PT. CIPTA MANDIRI WIRASAKTI"),
+      ])
+    })
+
+    /**
+     * File yang hanya berisi tube bukan dokumen rusak, cuma bukan jadwal sheet.
+     * Pesannya harus mengatakan itu, bukan menyuruh operator memeriksa judul
+     * kolomnya.
+     */
+    it("separates a tube-only file from a broken one", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          doRow("PT. HI-LEX INDONESIA", "AP1G724P0", 13800, "DEVISI TUBE"),
+        ]),
+      )
+
+      expect(!result.ok && result.code).toBe("SCHEDULE_NO_SHEET_ROWS")
+    })
+  })
+
+  /**
+   * Bentuk dokumen jadwal lama: kolom nomor urut di depan, header "Part no",
+   * dan Part No yang kerap berspasi ekor karena diketik tangan. Tanpa kolom
+   * Divisi, seluruh barisnya dibaca seperti dulu.
+   */
+  it("reads the older delivery schedule with no division column", async () => {
     const result = await parseScheduleWorkbook(
       await workbookBuffer([
         ["No", "Part no", "Qty"],
@@ -102,11 +296,11 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { productSize: "VS-X T0.3XW100 L=120MM", qty: "2000" },
-      { productSize: "VS-X T0.3XW100 L=185MM", qty: "3000" },
+      row("VS-X T0.3XW100 L=120MM", "2000"),
+      row("VS-X T0.3XW100 L=185MM", "3000"),
       // Spasi di dalam nama dipertahankan apa adanya; hanya yang di ujung
       // dibuang dan yang berderet dirapatkan jadi satu.
-      { productSize: "VS-X T0.3XW60 L=110 MM", qty: "6000" },
+      row("VS-X T0.3XW60 L=110 MM", "6000"),
     ])
   })
 
@@ -119,7 +313,7 @@ describe("parseScheduleWorkbook", () => {
     )
 
     expect(result.ok && result.rows).toEqual([
-      { productSize: "TB 3210A-K1Z-NF01-DL", qty: "5000" },
+      row("TB 3210A-K1Z-NF01-DL", "5000"),
     ])
   })
 

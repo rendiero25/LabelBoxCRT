@@ -222,8 +222,8 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
       <Empty className="border-none">
         <EmptyTitle>Belum ada jadwal</EmptyTitle>
         <EmptyDescription>
-          Unggah file Excel berisi kolom Part No dan Qty. Tiap ukuran harus
-          sudah ada di MPQ Sheet — dari situ jumlah box-nya dihitung. File
+          Unggah DO Report — yang dibaca kolom Customer, Item No, dan Qty.
+          Hanya baris berdivisi sheet yang masuk; tube dan kabel dilewati. File
           berikutnya menambah baris di bawahnya.
         </EmptyDescription>
       </Empty>
@@ -236,6 +236,9 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-12">#</TableHead>
+            {/* Satu DO Report memuat beberapa customer sekaligus, jadi kolom
+                ini yang menjawab kiriman siapa yang sedang diperiksa. */}
+            <TableHead>Customer</TableHead>
             <TableHead>Part No</TableHead>
             {/* Qty Delivery adalah seluruh kiriman untuk ukuran ini, bukan isi
                 satu box. Sebelum 20260828025319 kolom ini bernama "Qty per
@@ -257,15 +260,24 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
           {session.rows.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="tabular-nums">{row.rowNo}</TableCell>
+              <TableCell className="text-muted-foreground text-xs">
+                {row.customer ?? "—"}
+              </TableCell>
               <TableCell className="font-medium">{row.productSize}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {row.qtyDelivery}
               </TableCell>
+              {/* Ukuran yang belum ada di MPQ Sheet dikatakan apa adanya, bukan
+                  dibiarkan bergaris kosong: barisnya tidak bisa discan sampai
+                  admin menambahkan MPQ-nya, dan itu satu-satunya penjelasan
+                  kenapa session ini tidak kunjung DELIVERY OK. */}
               <TableCell className="text-muted-foreground text-right tabular-nums">
-                {row.mpqQty}
+                {row.mpqQty ?? <Badge variant="outline">MPQ belum ada</Badge>}
               </TableCell>
               <TableCell className="text-center tabular-nums">
-                {row.verifiedBoxes}/{row.expectedBoxes}
+                {row.expectedBoxes === null
+                  ? "—"
+                  : `${row.verifiedBoxes ?? 0}/${row.expectedBoxes}`}
               </TableCell>
               <TableCell className="text-muted-foreground text-xs">
                 {row.sourceFileName}
@@ -634,13 +646,19 @@ export function DeliverySessionWorkspace({
           // dengan MPQ 2000 adalah empat box, dan "1/3 baris" tidak menjawab
           // pertanyaan operator soal berapa box lagi yang harus ditembak.
           const verifiedBoxes = session.rows.reduce(
-            (total, row) => total + row.verifiedBoxes,
+            (total, row) => total + (row.verifiedBoxes ?? 0),
             0,
           )
           const expectedBoxes = session.rows.reduce(
-            (total, row) => total + row.expectedBoxes,
+            (total, row) => total + (row.expectedBoxes ?? 0),
             0,
           )
+          // Baris tanpa MPQ tidak punya jumlah box, jadi ia tidak muncul di
+          // hitungan itu sama sekali. Tanpa penyebutan tersendiri, "8/8 box"
+          // akan terbaca lunas padahal masih ada kiriman yang belum diperiksa.
+          const rowsWithoutMpq = session.rows.filter(
+            (row) => row.mpqQty === null,
+          ).length
           // Jadwal kosong bukan kiriman yang lunas. Tanpa syarat panjangnya,
           // session yang belum diisi file apa pun akan mengaku DELIVERY OK
           // sebelum satu pun kiriman diperiksa.
@@ -702,6 +720,12 @@ export function DeliverySessionWorkspace({
                   {session.rows.length > 0 ? (
                     <span className="text-foreground text-xs tabular-nums">
                       {verifiedBoxes}/{expectedBoxes} box terverifikasi
+                    </span>
+                  ) : null}
+                  {rowsWithoutMpq > 0 ? (
+                    <span className="text-destructive flex items-center gap-1.5 text-xs font-medium">
+                      <TriangleAlertIcon className="size-3.5 shrink-0" />
+                      {rowsWithoutMpq} ukuran belum ada MPQ-nya
                     </span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai

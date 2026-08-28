@@ -11,6 +11,7 @@ function row(overrides: Partial<ScanMessageRow> = {}): ScanMessageRow {
     expected_boxes: 5,
     full_box_qty: null,
     last_box_qty: null,
+    mpq_missing: false,
     packing_qty: 1500,
     part_no: "VS-B T0.3XW60 L=110MM",
     product_size: "VS-B T0.3XW60 L=110MM",
@@ -84,6 +85,26 @@ describe("scanMessage", () => {
   it("separates an already-complete size from a wrong Qty", () => {
     expect(scanMessage(row({ result: "not_pass", size_complete: true }))).toBe(
       "NOT PASS — VS-B T0.3XW60 L=110MM sudah lengkap 5 box.",
+    )
+  })
+
+  /**
+   * Ukuran tanpa MPQ tidak bisa ditolong dengan menembak ulang: yang kurang
+   * data master, dan yang harus dikerjakan ada di halaman MPQ Sheet. Pesannya
+   * karena itu menyebut tindakan, bukan sekadar sebab.
+   */
+  it("points at MPQ Sheet when the size has no MPQ yet", () => {
+    expect(
+      scanMessage(
+        row({
+          expected_boxes: null,
+          mpq_missing: true,
+          packing_qty: 1500,
+          result: "not_pass",
+        }),
+      ),
+    ).toBe(
+      "NOT PASS — VS-B T0.3XW60 L=110MM belum ada di MPQ Sheet, jumlah box-nya tidak bisa dihitung. Tambahkan MPQ-nya dulu.",
     )
   })
 

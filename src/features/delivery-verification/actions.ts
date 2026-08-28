@@ -27,11 +27,6 @@ const safeRpcMessages: Record<string, string> = {
     "Ada baris yang Part No atau Qty-nya tidak terbaca. Periksa isinya lalu unggah lagi.",
   DELIVERY_ROW_NOT_FOUND: "Baris jadwal tidak ditemukan.",
   DELIVERY_SCAN_EMPTY: "Hasil scan kosong.",
-  // Jumlah box diturunkan dari MPQ, jadi ukuran tanpa MPQ tidak bisa
-  // diverifikasi sama sekali. Ukurannya disebut supaya admin tahu apa yang
-  // harus ditambahkan, bukan disuruh menebak baris mana yang salah.
-  DELIVERY_MPQ_NOT_FOUND:
-    "Ada ukuran yang belum terdaftar di MPQ Sheet, jadi jumlah box-nya tidak bisa dihitung.",
   DELIVERY_SESSION_CLOSED:
     "Session ini sudah selesai, isinya tidak bisa diubah.",
   DELIVERY_SESSION_NOT_FOUND: "Session tidak ditemukan.",
@@ -49,6 +44,8 @@ const scheduleParseMessages: Record<ScheduleParseErrorCode, string> = {
   SCHEDULE_HEADER_NOT_FOUND:
     "Kolom Part No dan Qty tidak ditemukan di file ini. Pastikan tabelnya berjudul kolom.",
   SCHEDULE_NO_ROWS: "Tidak ada baris berisi Part No di bawah judul kolomnya.",
+  SCHEDULE_NO_SHEET_ROWS:
+    "File ini tidak memuat satu pun baris berdivisi sheet. Tube dan kabel tidak diverifikasi di halaman ini.",
   SCHEDULE_QTY_INVALID:
     "Ada Part No yang Qty-nya tidak terbaca sebagai bilangan bulat.",
 }

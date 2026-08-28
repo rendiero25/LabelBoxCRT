@@ -39,6 +39,7 @@ function sessionFixture(
     id: "8e2a0000-0000-0000-0000-000000000001",
     rows: [
       {
+        customer: "PT. CIPTA MANDIRI WIRASAKTI",
         expectedBoxes: 2,
         id: "8e2b0000-0000-0000-0000-000000000001",
         mpqQty: 3000,
