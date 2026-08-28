@@ -107,6 +107,19 @@ bisa DELIVERY OK sebelum MPQ-nya ditambahkan. Kurangnya terlihat, bukan hilang.
 Menambahkannya dikerjakan admin dari `/admin/mpq-sheet`, bukan lewat migrasi
 (`20260828063230`); ukuran yang dinonaktifkan di sana diperlakukan jadwal baru
 sama seperti yang belum ada MPQ-nya.
+
+Menambahkan MPQ **tidak** mengisi jadwal yang sudah diunggah — jadwal menyalin
+angkanya saat diunggah, dan itu tetap benar. Tetapi aturan itu menjebak baris
+yang MPQ-nya belum ada saat diunggah: satu angka yang terlambat berarti seluruh
+file harus diunggah ulang ke session baru. Tombol **Ambil MPQ** pada kartu
+session (`refresh_delivery_schedule_mpq`, `20260828070519`) mengisi ulang
+**hanya** baris ber-`mpq_qty` null. Baris semacam itu tidak pernah bisa
+diverifikasi — tidak ada Qty yang sah untuknya, jadi `verified_qty`-nya pasti
+nol — sehingga mengisinya belakangan tidak bisa merusak pemeriksaan yang sedang
+berjalan. Baris yang sudah punya MPQ tidak pernah ditimpa, bahkan kalau angkanya
+di MPQ Sheet sudah berubah. Tombolnya hanya muncul selama masih ada baris yang
+kosong, dan mengembalikan berapa baris yang terisi — nol dikatakan apa adanya,
+supaya operator tidak menekannya berulang kali.
 Kepala kartu menyebut jumlahnya tersendiri ("8 ukuran belum ada MPQ-nya") sebab
 baris tanpa MPQ tidak menyumbang box ke hitungan sama sekali: tanpa penyebutan
 itu, "6/6 box" akan terbaca lunas padahal masih ada kiriman yang belum

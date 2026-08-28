@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   CircleDashedIcon,
   PlusIcon,
+  RefreshCwIcon,
   ScanLineIcon,
   Trash2Icon,
   TriangleAlertIcon,
@@ -51,6 +52,7 @@ import {
   createDeliverySessionAction,
   deleteDeliverySessionAction,
   deleteScheduleRowAction,
+  refreshScheduleMpqAction,
   uploadScheduleFileAction,
   verifyDeliveryLabelAction,
 } from "@/features/delivery-verification/actions"
@@ -130,6 +132,35 @@ function ScheduleUpload({ sessionId }: { sessionId: string }) {
         </label>
       </Button>
     </form>
+  )
+}
+
+/**
+ * Muncul hanya kalau ada baris yang MPQ-nya kosong. Jadwal menyalin MPQ saat
+ * diunggah, jadi ukuran yang baru ditambahkan ke MPQ Sheet sesudahnya tidak
+ * ikut terisi sendiri — dan tanpa tombol ini satu angka yang terlambat berarti
+ * seluruh file harus diunggah ulang ke session baru.
+ */
+function RefreshMpqButton({ sessionId }: { sessionId: string }) {
+  const [isPending, startTransition] = useTransition()
+  const [state, setState] = useState(initialUploadScheduleState)
+  useActionStateToast(state)
+
+  return (
+    <Button
+      disabled={isPending}
+      onClick={() =>
+        startTransition(async () => {
+          setState(await refreshScheduleMpqAction(sessionId))
+        })
+      }
+      size="sm"
+      type="button"
+      variant="secondary"
+    >
+      {isPending ? <Spinner /> : <RefreshCwIcon data-icon="inline-start" />}
+      Ambil MPQ
+    </Button>
   )
 }
 
@@ -222,8 +253,8 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
       <Empty className="border-none">
         <EmptyTitle>Belum ada jadwal</EmptyTitle>
         <EmptyDescription>
-          Unggah DO Report — yang dibaca kolom Customer, Item No, dan Qty.
-          Hanya baris berdivisi sheet yang masuk; tube dan kabel dilewati. File
+          Unggah DO Report — yang dibaca kolom Customer, Item No, dan Qty. Hanya
+          baris berdivisi sheet yang masuk; tube dan kabel dilewati. File
           berikutnya menambah baris di bawahnya.
         </EmptyDescription>
       </Empty>
@@ -725,7 +756,8 @@ export function DeliverySessionWorkspace({
                   {rowsWithoutMpq > 0 ? (
                     <span className="text-destructive flex items-center gap-1.5 text-xs font-medium">
                       <TriangleAlertIcon className="size-3.5 shrink-0" />
-                      {rowsWithoutMpq} ukuran belum ada MPQ-nya
+                      {rowsWithoutMpq} ukuran belum ada MPQ-nya — tambahkan di
+                      MPQ Sheet, lalu tekan Ambil MPQ
                     </span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai
@@ -753,6 +785,9 @@ export function DeliverySessionWorkspace({
                   {expanded && session.status === "open" ? (
                     <>
                       <ScheduleUpload sessionId={session.id} />
+                      {rowsWithoutMpq > 0 ? (
+                        <RefreshMpqButton sessionId={session.id} />
+                      ) : null}
                       {session.rows.length > 0 ? (
                         <VerificationPanel
                           active={scanningSessionId === session.id}

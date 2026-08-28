@@ -856,6 +856,9 @@ diisi dari file, tiap label box discan dan dicocokkan.
 - [x] MPQ Sheet bisa disunting admin dari `/admin/mpq-sheet` — tambah, edit,
       nonaktifkan, hapus — lewat RPC teraudit; ukuran nonaktif diperlakukan
       jadwal baru seperti belum ada MPQ (`20260828063230`).
+- [x] Tombol "Ambil MPQ" mengisi baris jadwal yang MPQ-nya kosong tanpa
+      mengunggah ulang filenya; yang sudah punya MPQ tidak ditimpa
+      (`20260828070519`).
 - [x] Scan lewat kotak scan yang mengirim sendiri setelah ketikan diam 180 ms —
       DS2208 tidak memakai sufiks apa pun (`af9e479`).
 - [x] Toast PASS/NOT PASS/DELIVERY OK menyebut sisa box dan Qty yang seharusnya.

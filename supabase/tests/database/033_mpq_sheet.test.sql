@@ -2,17 +2,20 @@
 --
 -- Yang dijaga file ini tiga hal. Pertama, tulisnya hanya lewat RPC: PostgREST
 -- tidak pernah diberi grant tulis, dan kalau suatu saat ada yang memberinya --
--- atau menambah policy insert -- tes ini yang gagal lebih dulu. Kedua, isi
--- dokumen "MPQ SHEET CRT 2021" masuk utuh 93 baris, hanya ukuran sheet, tanpa
--- selang yang sempat ikut terbawa daftar CRT lengkap. Ketiga, keempat RPC-nya
--- khusus admin dan menolak ukuran kembar.
+-- atau menambah policy insert -- tes ini yang gagal lebih dulu. Kedua, aturan
+-- bentuknya: ukuran kembar ditolak walau ejaan spasinya beda, dan tidak ada MPQ
+-- nol. Ketiga, keempat RPC-nya khusus admin.
+--
+-- Isi daftarnya tidak dipatok. Ke-93 baris dokumen "MPQ SHEET CRT 2021" harus
+-- masih ada, tetapi admin boleh menambah di atasnya, jadi jumlah, satuan, dan
+-- awalan ukurannya bukan lagi hal yang tetap.
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(29);
+select plan(26);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -103,43 +106,23 @@ select set_config(
   'request.jwt.claim.sub', '93300000-0000-0000-0000-000000000001', true
 );
 
+-- Isi daftarnya sengaja tidak dipatok angka lagi. Sampai 20260828063230 tabel
+-- ini hanya-baca, jadi "93 baris, semuanya VS-B, semuanya PCS/BOX" adalah
+-- pernyataan yang benar dan berguna. Sejak admin boleh menambah, ketiganya
+-- berubah setiap kali seseorang mengerjakan pekerjaannya -- dan tes yang gagal
+-- karena itu mengajari orang mengabaikan tes. Yang dijaga sekarang bentuk dan
+-- aturannya, ditambah baris seed yang benar-benar disandari fitur lain.
+select cmp_ok(
+  (select count(*)::integer from public.mpq_sheet_rows),
+  '>=',
+  93,
+  'ke-93 baris dokumen masih ada; tambahan admin boleh menambah, bukan mengganti'
+);
+
 select is(
   (select count(*)::integer from public.mpq_sheet_rows),
-  93,
-  'dokumen MPQ Sheet masuk utuh: 111 baris excel, 93 ukuran unik'
-);
-
-select is(
-  (select max(row_no)::integer from public.mpq_sheet_rows),
-  93,
-  'nomor urut berhenti tepat di baris terakhir'
-);
-
-select is(
   (select count(distinct row_no)::integer from public.mpq_sheet_rows),
-  93,
-  'nomor urut tidak ada yang kembar, jadi 1..93 tanpa bolong'
-);
-
--- Daftar CRT lengkap yang sempat termuat juga berisi selang CVO/VO/EL067 dan
--- satuan PCS/LAKBAN. MPQ Sheet hanya soal lembaran, jadi keduanya harus habis;
--- baris selang yang tertinggal berarti daftar lama tidak benar-benar terhapus.
-select is(
-  (
-    select array_agg(distinct unit order by unit)
-    from public.mpq_sheet_rows
-  ),
-  array['PCS/BOX'],
-  'hanya satuan sheet yang tersisa, PCS/LAKBAN sudah tidak ada'
-);
-
-select is(
-  (
-    select count(*)::integer from public.mpq_sheet_rows
-    where product_size not like 'VS-B %'
-  ),
-  0,
-  'tidak ada ukuran selain sheet VS-B'
+  'nomor urut tidak ada yang kembar'
 );
 
 -- Ukuran yang dipakai halaman Verifikasi Pengiriman. MPQ-nya 2000, angka yang
@@ -212,6 +195,13 @@ select set_config(
   'request.jwt.claim.sub', '93300000-0000-0000-0000-000000000001', true
 );
 
+create temporary table mpq_before as
+select
+  count(*)::integer as total,
+  max(row_no)::integer as last_row_no
+from public.mpq_sheet_rows;
+grant select on mpq_before to public;
+
 create temporary table mpq_new as
 select * from public.create_mpq_sheet_row('  uji-crud   t1xw1 L=1MM ', 500, 'pcs/box');
 grant select on mpq_new to public;
@@ -230,8 +220,8 @@ select is(
 
 select is(
   (select row_no from mpq_new),
-  94,
-  'nomor urut melanjutkan baris terakhir dokumen'
+  (select last_row_no + 1 from mpq_before),
+  'nomor urut melanjutkan baris terakhir, bukan mengisi lubang bekas hapus'
 );
 
 select is(
@@ -269,7 +259,7 @@ select is(
     select row_no from public.mpq_sheet_rows
     where id = (select id from mpq_new)
   ),
-  94,
+  (select last_row_no + 1 from mpq_before),
   'menyunting tidak memindahkan barisnya di daftar'
 );
 
@@ -290,7 +280,7 @@ select lives_ok(
 
 select is(
   (select count(*)::integer from public.mpq_sheet_rows),
-  93,
+  (select total from mpq_before),
   'daftarnya kembali seperti semula sesudah baris ujinya dibuang'
 );
 

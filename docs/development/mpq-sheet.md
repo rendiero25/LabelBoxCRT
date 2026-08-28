@@ -10,6 +10,8 @@ Yang tidak berubah: tulisnya tetap lewat RPC `security definer` dan tetap khusus
 
 **Nonaktifkan** bukan sekadar label: `add_delivery_schedule_rows` hanya membaca MPQ yang aktif, jadi ukuran nonaktif diperlakukan jadwal baru seperti belum punya MPQ sama sekali. Menyunting maupun menghapus tidak menyentuh jadwal yang sedang berjalan — jadwal menyalin MPQ ke barisnya sendiri saat diunggah, supaya truk yang sedang diperiksa tidak berubah jumlah box-nya di tengah jalan.
 
+Konsekuensinya, menambahkan MPQ di sini tidak mengisi jadwal yang sudah terlanjur diunggah tanpanya. Untuk itu ada tombol **Ambil MPQ** di kartu session Verifikasi Pengiriman (`refresh_delivery_schedule_mpq`, `20260828070519`), yang mengisi ulang hanya baris ber-MPQ kosong.
+
 Nomor urut baris baru melanjutkan yang terakhir, dan baris yang dihapus meninggalkan lubang. Nomor itu cuma jangkar urutan tampilan; menomori ulang seluruh tabel setiap kali satu baris dibuang akan memindahkan baris-baris yang tidak disentuh siapa pun.
 
 Ukuran disimpan dua kali. `product_size` adalah ejaan seperti di dokumen dan itulah yang dibaca admin; `product_size_key` adalah ejaan yang sama tanpa spasi, unik, dan hanya itu yang dipakai membandingkan. Alasannya sama dengan `20260827103000_match_schedule_ignoring_spaces`: dokumen kadang menulis `L=60 MM` sementara label menulis `L=60MM`. Kotak pencarian di halaman ikut membuang spasi, jadi admin yang mengetik salah satu ejaan tetap menemukan barisnya.

@@ -1616,6 +1616,10 @@ export type Database = {
           supplier_code: string
         }[]
       }
+      refresh_delivery_schedule_mpq: {
+        Args: { p_session_id: string }
+        Returns: number
+      }
       save_box_layer_requirements: {
         Args: { p_box_layer_id: string; p_requirements: Json }
         Returns: undefined

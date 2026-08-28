@@ -15,7 +15,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(30);
+select plan(34);
 
 create temporary table verify_seq_before as
 select last_value, is_called from public.delivery_verification_session_seq;
@@ -402,6 +402,58 @@ select is(
   (select delivery_ok from vd_session2_done),
   false,
   'session tidak bisa DELIVERY OK selama masih ada ukuran tanpa MPQ'
+);
+
+-- MPQ ditambahkan sesudah jadwalnya diunggah. Tanpa jalan mengisinya, satu
+-- angka yang terlambat berarti seluruh file harus diunggah ulang ke session
+-- baru.
+reset role;
+insert into public.mpq_sheet_rows (row_no, product_size, mpq_qty, unit)
+values (9005, 'TANPA-MPQ T9XW9 L=99MM', 50, 'PCS/BOX');
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '91310000-0000-0000-0000-000000000001',
+  true
+);
+
+-- Baris yang MPQ-nya dinonaktifkan tetap dilewati: nonaktif berarti tidak
+-- dipakai, bukan dipakai lewat pintu belakang.
+select is(
+  public.refresh_delivery_schedule_mpq((select id from vd_session2)),
+  1,
+  'satu baris terisi; yang MPQ-nya nonaktif tidak ikut'
+);
+
+select is(
+  (
+    select mpq_qty from public.delivery_schedule_rows
+    where session_id = (select id from vd_session2) and row_no = 2
+  ),
+  50,
+  'MPQ yang terlambat masuk terisi tanpa mengunggah ulang jadwalnya'
+);
+
+select is(
+  (
+    select expected_boxes from public.delivery_schedule_rows
+    where session_id = (select id from vd_session2) and row_no = 2
+  ),
+  2,
+  '100 keping dengan MPQ 50 langsung terbaca sebagai 2 box'
+);
+
+-- Baris pertama sudah lunas dengan MPQ 2000. Kalau angka di MPQ Sheet berubah,
+-- baris itu tidak boleh ikut berubah -- pemeriksaan yang sudah terjadi tidak
+-- boleh dihitung ulang dengan aturan baru.
+select is(
+  (
+    select mpq_qty from public.delivery_schedule_rows
+    where session_id = (select id from vd_session2) and row_no = 1
+  ),
+  2000,
+  'baris yang sudah punya MPQ tidak ditimpa'
 );
 
 reset role;

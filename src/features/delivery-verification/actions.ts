@@ -230,6 +230,49 @@ export async function deleteDeliverySessionAction(
   return { success: "Session dihapus." }
 }
 
+/**
+ * Mengisi MPQ yang kosong pada jadwal yang sudah diunggah.
+ *
+ * Jadwal menyalin MPQ saat diunggah, jadi ukuran yang MPQ-nya baru ditambahkan
+ * sesudahnya tetap kosong selamanya. Tanpa tombol ini jalan keluarnya
+ * mengunggah ulang seluruh file ke session baru, padahal yang kurang satu
+ * angka. Baris yang sudah punya MPQ tidak ikut disentuh.
+ */
+export async function refreshScheduleMpqAction(
+  sessionId: string,
+): Promise<UploadScheduleState> {
+  if (!uuidPattern.test(sessionId)) {
+    return { error: "Session tidak valid." }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("refresh_delivery_schedule_mpq", {
+    p_session_id: sessionId,
+  })
+
+  if (error) {
+    return {
+      error: rpcErrorMessage(
+        error.message,
+        "Gagal mengambil MPQ. Coba lagi atau hubungi admin.",
+      ),
+    }
+  }
+
+  revalidatePath("/verifikasi-pengiriman")
+
+  // Nol dikatakan apa adanya, bukan disamarkan jadi "berhasil": kalau tidak ada
+  // yang terisi, yang kurang ada di MPQ Sheet, dan operator perlu tahu itu
+  // supaya tidak menekan tombolnya berulang kali.
+  const filled = data ?? 0
+  return filled > 0
+    ? { success: `${filled} baris terisi MPQ-nya.` }
+    : {
+        error:
+          "Tidak ada yang terisi. Ukurannya belum ada di MPQ Sheet, atau MPQ-nya nonaktif.",
+      }
+}
+
 export async function deleteScheduleRowAction(
   rowId: string,
 ): Promise<UploadScheduleState> {
