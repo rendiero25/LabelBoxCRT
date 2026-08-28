@@ -18,9 +18,8 @@ export default async function MpqSheetPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">MPQ Sheet</h1>
         <p className="text-muted-foreground text-sm">
-          Jumlah sheet maksimum dalam satu box per ukuran, menyalin dokumen
-          &quot;List MPQ CRT&quot; (update 27 September 2021). Daftar rujukan;
-          revisinya masuk lewat migrasi, tidak disunting dari layar ini.
+          Jumlah sheet maksimum dalam satu box per ukuran, sumber data per
+          tanggal 27 September 2021.
         </p>
       </div>
 

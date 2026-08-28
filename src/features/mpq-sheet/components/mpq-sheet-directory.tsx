@@ -251,7 +251,7 @@ export function MpqSheetDirectory({ rows }: { rows: MpqSheetRow[] }) {
                   <TableCell className="font-medium break-words whitespace-normal">
                     {row.product_size}
                   </TableCell>
-                  {/* MPQ naik sampai 100.000; tanpa pemisah ribuan angka
+                  {/* MPQ naik sampai lima digit; tanpa pemisah ribuan angka
                       sebesar itu harus dihitung digitnya dulu sebelum
                       terbaca. */}
                   <TableCell className="tabular-nums">

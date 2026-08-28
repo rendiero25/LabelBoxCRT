@@ -2,15 +2,16 @@
 --
 -- Yang dijaga file ini dua hal. Pertama, tabelnya benar-benar hanya bisa
 -- dibaca: kalau suatu saat ada yang memberi grant tulis atau menambah policy
--- insert, tes ini yang gagal lebih dulu. Kedua, isinya utuh 633 baris seperti
--- dokumen "List MPQ CRT" setelah baris kembarnya dibuang.
+-- insert, tes ini yang gagal lebih dulu. Kedua, isinya utuh 93 baris seperti
+-- dokumen "MPQ SHEET CRT 2021" setelah baris kembarnya dibuang -- dan hanya
+-- ukuran sheet, tanpa selang yang sempat ikut terbawa daftar CRT lengkap.
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(15);
+select plan(16);
 
 insert into auth.users (
   id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -98,29 +99,41 @@ select set_config(
 
 select is(
   (select count(*)::integer from public.mpq_sheet_rows),
-  633,
-  'dokumen MPQ masuk utuh: 651 baris excel, 633 ukuran unik'
+  93,
+  'dokumen MPQ Sheet masuk utuh: 111 baris excel, 93 ukuran unik'
 );
 
 select is(
   (select max(row_no)::integer from public.mpq_sheet_rows),
-  633,
+  93,
   'nomor urut berhenti tepat di baris terakhir'
 );
 
 select is(
   (select count(distinct row_no)::integer from public.mpq_sheet_rows),
-  633,
-  'nomor urut tidak ada yang kembar, jadi 1..633 tanpa bolong'
+  93,
+  'nomor urut tidak ada yang kembar, jadi 1..93 tanpa bolong'
 );
 
+-- Daftar CRT lengkap yang sempat termuat juga berisi selang CVO/VO/EL067 dan
+-- satuan PCS/LAKBAN. MPQ Sheet hanya soal lembaran, jadi keduanya harus habis;
+-- baris selang yang tertinggal berarti daftar lama tidak benar-benar terhapus.
 select is(
   (
     select array_agg(distinct unit order by unit)
     from public.mpq_sheet_rows
   ),
-  array['PCS/BOX', 'PCS/LAKBAN'],
-  'dua satuan dari dokumen ikut tersimpan, bukan hanya PCS/BOX'
+  array['PCS/BOX'],
+  'hanya satuan sheet yang tersisa, PCS/LAKBAN sudah tidak ada'
+);
+
+select is(
+  (
+    select count(*)::integer from public.mpq_sheet_rows
+    where product_size not like 'VS-B %'
+  ),
+  0,
+  'tidak ada ukuran selain sheet VS-B'
 );
 
 -- Ukuran yang dipakai halaman Verifikasi Pengiriman. MPQ-nya 2000, angka yang
