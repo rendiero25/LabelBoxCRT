@@ -676,6 +676,39 @@ export type Database = {
           },
         ]
       }
+      mpq_sheet_rows: {
+        Row: {
+          created_at: string
+          id: string
+          mpq_qty: number
+          product_size: string
+          product_size_key: string
+          row_no: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mpq_qty: number
+          product_size: string
+          product_size_key?: string
+          row_no: number
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mpq_qty?: number
+          product_size?: string
+          product_size_key?: string
+          row_no?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       packing_session_scans: {
         Row: {
           box_layer_id: string | null

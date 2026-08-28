@@ -5,6 +5,7 @@ import {
   BoxesIcon,
   ClipboardCheckIcon,
   FileSpreadsheetIcon,
+  LayersIcon,
   LayoutDashboardIcon,
   Link2Icon,
   PackageSearchIcon,
@@ -74,6 +75,12 @@ export default async function AdminLayout({
                   <SidebarNavLink href="/admin/master-items">
                     <PackageSearchIcon />
                     <span>Master Item</span>
+                  </SidebarNavLink>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarNavLink href="/admin/mpq-sheet">
+                    <LayersIcon />
+                    <span>MPQ Sheet</span>
                   </SidebarNavLink>
                 </SidebarMenuItem>
               </SidebarMenu>
