@@ -244,9 +244,8 @@ export type Database = {
           session_id: string
           source_file_name: string
           verified_at: string | null
-          verified_boxes: number | null
+          verified_boxes: number
           verified_label_box_id: string | null
-          verified_qty: number
         }
         Insert: {
           created_at?: string
@@ -260,9 +259,8 @@ export type Database = {
           session_id: string
           source_file_name: string
           verified_at?: string | null
-          verified_boxes?: number | null
+          verified_boxes?: number
           verified_label_box_id?: string | null
-          verified_qty?: number
         }
         Update: {
           created_at?: string
@@ -276,9 +274,8 @@ export type Database = {
           session_id?: string
           source_file_name?: string
           verified_at?: string | null
-          verified_boxes?: number | null
+          verified_boxes?: number
           verified_label_box_id?: string | null
-          verified_qty?: number
         }
         Relationships: [
           {
@@ -1781,8 +1778,7 @@ export type Database = {
         Returns: {
           delivery_ok: boolean
           expected_boxes: number
-          full_box_qty: number
-          last_box_qty: number
+          expected_qty: number
           matched_row_id: string
           matched_row_no: number
           mpq_missing: boolean

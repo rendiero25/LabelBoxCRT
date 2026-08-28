@@ -849,8 +849,11 @@ diisi dari file, tiap label box discan dan dicocokkan.
       `master_items`/`label_boxes` tidak dipakai sama sekali (`20260827094500`).
       View `delivery_schedule_rows_resolved` ikut dibuang bersamanya.
 - [x] Pencocokan ukuran mengabaikan spasi di kedua sisi (`20260827103000`).
-- [x] Jumlah box per baris diturunkan dari MPQ Sheet: `ceil(Qty Delivery / MPQ)`,
-      Qty tiap box harus tepat MPQ atau tepat sisanya (`20260828025319`).
+- [x] Jumlah box per baris diturunkan dari MPQ Sheet: `ceil(Qty Delivery / MPQ)`
+      (`20260828025319`).
+- [x] Semua box satu baris berlabel sama; yang dicocokkan Qty Delivery, dan
+      label yang sama ditembak sebanyak jumlah box-nya (`20260828075811`).
+      Aturan sebelumnya menuntut Qty per box dan menolak label yang benar.
 - [x] Ukuran tanpa MPQ tetap masuk jadwal, bertanda "MPQ belum ada", tidak bisa
       discan, dan menahan session tetap terbuka (`20260828035015`).
 - [x] MPQ Sheet bisa disunting admin dari `/admin/mpq-sheet` — tambah, edit,
@@ -879,8 +882,10 @@ diisi dari file, tiap label box discan dan dicocokkan.
       `L=255MM`) dan empat VS-A milik INDOPRIMA. Selama itu jadwal yang
       memuatnya tidak bisa DELIVERY OK. Ditambahkan admin dari
       `/admin/mpq-sheet`; yang ditunggu angka MPQ-nya, bukan kodenya.
-- [ ] Belum ada jadwal berbox-banyak yang diverifikasi di lantai produksi;
-      aturan banyak box baru terbukti di pgTAP.
+- [ ] Dua box satu baris tidak bisa dibedakan lewat QR-nya — labelnya sama
+      persis — jadi satu box yang ditembak dua kali terhitung dua box. Yang
+      menjaganya tinggal ketelitian operator dan catatan di
+      `delivery_verification_scans`.
 - [ ] MPQ belum dipakai membatasi Qty per Box saat packing.
 - [ ] Migrasi belum jalan di production.
 

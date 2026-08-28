@@ -2,10 +2,15 @@
 -- dipecah ke beberapa box menurut MPQ ukurannya.
 -- Spec: docs/superpowers/specs/2026-08-21-verifikasi-pengiriman-design.md
 --
--- Dua contoh dari lantai produksi yang dijaga file ini: 8000 keping dengan MPQ
--- 2000 harus discan empat kali, dan 7000 keping dengan MPQ 1500 harus discan
--- lima kali karena box kelima memuat sisa 1000. Yang kedua ditembak dengan box
--- sisa lebih dulu, sebab urutan operator mengambil box dari palet tidak diatur.
+-- Semua box dari satu baris membawa label yang sama, dan angka di field ketiga
+-- QR adalah Qty Delivery -- seluruh jumlah untuk ukuran itu, bukan isi box.
+-- Jadi yang dicocokkan Qty Delivery, dan jumlah box menentukan berapa kali
+-- label yang sama itu ditembak.
+--
+-- Kasus yang dikunci di sini datang dari lantai produksi: Qty Delivery 2000
+-- dengan MPQ 1500 adalah 2 box, dan keduanya berlabel 2000. Aturan sebelumnya
+-- menuntut 1500 lalu 500 dan menolak label yang sebenarnya -- kekeliruan yang
+-- tidak terlihat selama tiap baris kebetulan berjumlah satu box.
 --
 -- File ini sengaja tidak menyentuh master_items, boxes, label_box_batches,
 -- maupun label_boxes: label sheet tidak dibuat aplikasi ini.
@@ -15,7 +20,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(34);
+select plan(33);
 
 create temporary table verify_seq_before as
 select last_value, is_called from public.delivery_verification_session_seq;
@@ -54,16 +59,16 @@ create temporary table vd_session as
 select * from public.create_delivery_verification_session();
 grant select on vd_session to public;
 
--- Baris A habis dibagi MPQ-nya, baris B menyisakan satu box, baris C hanya satu
--- box penuh. Ketiganya berdampingan supaya satu scan tidak bisa "menemukan"
--- baris lain yang kebetulan cocok.
+-- Baris A habis dibagi MPQ-nya (4 box), baris B menyisakan (2 box), baris C
+-- hanya satu box. Ketiganya berdampingan supaya satu scan tidak bisa
+-- "menemukan" baris lain yang kebetulan cocok.
 select public.add_delivery_schedule_rows(
   (select id from vd_session),
   'jadwal-vd.xlsx',
   '[{"customer": "PT. UJI SEJAHTERA",
      "productSize": "UJI-A T1XW1 L=10MM", "qty": "8000"},
     {"customer": "PT. UJI SEJAHTERA",
-     "productSize": "UJI-B T1XW1 L=20MM", "qty": "7000"},
+     "productSize": "UJI-B T1XW1 L=20MM", "qty": "2000"},
     {"customer": "PT. UJI LAINNYA",
      "productSize": "  uji-c   T1XW1 L=30MM ", "qty": "500"}]'::jsonb
 );
@@ -86,13 +91,15 @@ select is(
   '8000 keping dengan MPQ 2000 berarti 4 box'
 );
 
+-- Kasus dari lantai produksi. Sisa 500 tetap minta box sendiri, jadi 2 box,
+-- dan keduanya berlabel 2000.
 select is(
   (
     select expected_boxes from public.delivery_schedule_rows
     where session_id = (select id from vd_session) and row_no = 2
   ),
-  5,
-  '7000 keping dengan MPQ 1500 berarti 5 box: sisa 1000 minta box sendiri'
+  2,
+  '2000 keping dengan MPQ 1500 berarti 2 box'
 );
 
 select is(
@@ -104,18 +111,18 @@ select is(
   'MPQ disalin ke baris jadwal meski ejaan spasinya berbeda'
 );
 
--- Baris A: empat box penuh.
+-- Baris A: empat box, semuanya berlabel 8000.
 create temporary table vd_a1 as
 select * from public.verify_delivery_label(
   (select id from vd_session),
-  '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
+  '10015|UJI-A T1XW1 L=10MM|8000|DBT-512|24-AUG-2026'
 );
 grant select on vd_a1 to public;
 
 select is(
   (select result from vd_a1)::text,
   'pass',
-  'box penuh pertama diterima'
+  'label ber-Qty Delivery diterima sebagai box pertama'
 );
 
 select is(
@@ -130,49 +137,38 @@ select is(
   'baris belum lunas selama box-nya masih kurang'
 );
 
--- Box kedua ber-Qty setengah MPQ. Ditolak: menghitung banyaknya scan saja akan
--- meloloskan ini, dan kiriman 8000 keping berangkat dengan 5000.
-select is(
-  (
-    select result::text from public.verify_delivery_label(
-      (select id from vd_session),
-      '10015|UJI-A T1XW1 L=10MM|1000|DBT-512|24-AUG-2026'
-    )
-  ),
-  'not_pass',
-  'Qty yang bukan MPQ dan bukan sisa ditolak'
-);
-
+-- Qty yang bukan Qty Delivery baris mana pun ditolak. Itu yang memisahkan dua
+-- kiriman berukuran sama dengan jumlah berbeda.
 create temporary table vd_a_wrong as
 select * from public.verify_delivery_label(
   (select id from vd_session),
-  '10015|UJI-A T1XW1 L=10MM|999|DBT-512|24-AUG-2026'
+  '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
 );
 grant select on vd_a_wrong to public;
 
 select is(
-  (select full_box_qty from vd_a_wrong),
-  2000,
-  'penolakan menyebut Qty yang seharusnya, bukan NOT PASS belaka'
+  (select result from vd_a_wrong)::text,
+  'not_pass',
+  'Qty yang bukan Qty Delivery baris itu ditolak walau ukurannya cocok'
 );
 
 select is(
-  (select last_box_qty from vd_a_wrong),
-  null::integer,
-  'baris yang habis dibagi MPQ tidak punya box sisa'
+  (select expected_qty from vd_a_wrong),
+  8000,
+  'penolakan menyebut Qty yang seharusnya, bukan NOT PASS belaka'
 );
 
 select public.verify_delivery_label(
-  (select id from vd_session), '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
+  (select id from vd_session), '10015|UJI-A T1XW1 L=10MM|8000|DBT-512|24-AUG-2026'
 );
 select public.verify_delivery_label(
-  (select id from vd_session), '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
+  (select id from vd_session), '10015|UJI-A T1XW1 L=10MM|8000|DBT-512|24-AUG-2026'
 );
 
 create temporary table vd_a4 as
 select * from public.verify_delivery_label(
   (select id from vd_session),
-  '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
+  '10015|UJI-A T1XW1 L=10MM|8000|DBT-512|24-AUG-2026'
 );
 grant select on vd_a4 to public;
 
@@ -194,7 +190,7 @@ select is(
 create temporary table vd_a5 as
 select * from public.verify_delivery_label(
   (select id from vd_session),
-  '10015|UJI-A T1XW1 L=10MM|2000|DBT-512|24-AUG-2026'
+  '10015|UJI-A T1XW1 L=10MM|8000|DBT-512|24-AUG-2026'
 );
 grant select on vd_a5 to public;
 
@@ -210,68 +206,54 @@ select is(
   'penolakannya menyebut bahwa ukuran ini sudah lengkap'
 );
 
--- Baris B: box sisa ditembak lebih dulu.
-create temporary table vd_b_rest as
+-- Baris B: dua box dengan label yang sama persis. Inilah yang ditolak aturan
+-- lama karena ia menuntut 1500 lalu 500.
+create temporary table vd_b1 as
 select * from public.verify_delivery_label(
   (select id from vd_session),
-  '10015|UJI-B T1XW1 L=20MM|1000|DBT-512|24-AUG-2026'
+  '10015|UJI-B T1XW1 L=20MM|2000|DBT-512|24-AUG-2026'
 );
-grant select on vd_b_rest to public;
+grant select on vd_b1 to public;
 
 select is(
-  (select result from vd_b_rest)::text,
+  (select result from vd_b1)::text,
   'pass',
-  'box sisa boleh ditembak lebih dulu'
+  'baris 2 box menerima label ber-Qty Delivery, bukan Qty per box'
 );
 
--- Box sisa kedua. Ditolak: satu baris hanya punya satu sisa, dan menerimanya
--- dua kali berarti 7000 keping tidak akan pernah lunas dengan komposisi box
--- mana pun.
 select is(
-  (
-    select result::text from public.verify_delivery_label(
-      (select id from vd_session),
-      '10015|UJI-B T1XW1 L=20MM|1000|DBT-512|24-AUG-2026'
-    )
-  ),
-  'not_pass',
-  'box sisa kedua ditolak'
+  (select verified_boxes from vd_b1),
+  1,
+  'box pertama tercatat'
 );
 
-select public.verify_delivery_label(
-  (select id from vd_session), '10015|UJI-B T1XW1 L=20MM|1500|DBT-512|24-AUG-2026'
-);
-select public.verify_delivery_label(
-  (select id from vd_session), '10015|UJI-B T1XW1 L=20MM|1500|DBT-512|24-AUG-2026'
-);
-select public.verify_delivery_label(
-  (select id from vd_session), '10015|UJI-B T1XW1 L=20MM|1500|DBT-512|24-AUG-2026'
+select is(
+  (select row_done from vd_b1),
+  false,
+  'satu box belum melunasi baris yang butuh dua'
 );
 
-create temporary table vd_b_last as
+create temporary table vd_b2 as
 select * from public.verify_delivery_label(
   (select id from vd_session),
-  '10015|UJI-B T1XW1 L=20MM|1500|DBT-512|24-AUG-2026'
+  '10015|UJI-B T1XW1 L=20MM|2000|DBT-512|24-AUG-2026'
 );
-grant select on vd_b_last to public;
+grant select on vd_b2 to public;
 
 select is(
-  (select verified_boxes from vd_b_last),
-  5,
-  'empat box penuh dan satu box sisa menutup baris 7000 keping'
-);
-
-select is(
-  (
-    select verified_qty from public.delivery_schedule_rows
-    where session_id = (select id from vd_session) and row_no = 2
-  ),
-  7000,
-  'jumlah keping yang masuk sama persis dengan Qty Delivery'
+  (select row_done from vd_b2),
+  true,
+  'label yang sama ditembak kedua kalinya melunasi barisnya'
 );
 
 select is(
-  (select delivery_ok from vd_b_last),
+  (select verified_boxes from vd_b2),
+  2,
+  'kedua box tercatat'
+);
+
+select is(
+  (select delivery_ok from vd_b2),
   false,
   'baris ketiga belum discan, jadi belum DELIVERY OK'
 );
@@ -305,8 +287,8 @@ select is(
 
 select is(
   (select total_count from vd_c),
-  10,
-  'hitungannya box, bukan baris: 4 + 5 + 1'
+  7,
+  'hitungannya box, bukan baris: 4 + 2 + 1'
 );
 
 select is(
@@ -321,8 +303,6 @@ select is(
 -- Ukuran sheet yang belum ada di MPQ Sheet tetap masuk jadwal. Menolak seluruh
 -- file berarti tidak ada jadwal yang bisa diunggah sampai daftar MPQ dikejar --
 -- pada DO Report nyata, delapan dari tiga belas baris sheet belum punya MPQ.
--- Yang dijaga di sini: barisnya terlihat, tidak bisa discan, dan menahan
--- session tetap terbuka. Kurangnya terlihat, bukan hilang.
 create temporary table vd_session2 as
 select * from public.create_delivery_verification_session();
 grant select on vd_session2 to public;
@@ -355,15 +335,6 @@ select is(
 
 select is(
   (
-    select mpq_qty from public.delivery_schedule_rows
-    where session_id = (select id from vd_session2) and row_no = 2
-  ),
-  null::integer,
-  'MPQ-nya kosong, bukan ditebak'
-);
-
-select is(
-  (
     select expected_boxes from public.delivery_schedule_rows
     where session_id = (select id from vd_session2) and row_no = 2
   ),
@@ -381,7 +352,7 @@ grant select on vd_no_mpq to public;
 select is(
   (select result from vd_no_mpq)::text,
   'not_pass',
-  'baris tanpa MPQ tidak bisa dicocokkan: tidak ada Qty yang bisa disebut sah'
+  'baris tanpa MPQ tidak bisa dicocokkan: jumlah box-nya tidak diketahui'
 );
 
 select is(

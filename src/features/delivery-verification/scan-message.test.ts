@@ -5,16 +5,18 @@ import {
   type ScanMessageRow,
 } from "@/features/delivery-verification/scan-message"
 
-/** Baris B dari contoh lantai produksi: 7000 keping, MPQ 1500, jadi 5 box. */
+/**
+ * Kasus dari lantai produksi: Qty Delivery 2000 dengan MPQ 1500 adalah 2 box,
+ * dan keduanya membawa label yang sama berisi 2000.
+ */
 function row(overrides: Partial<ScanMessageRow> = {}): ScanMessageRow {
   return {
-    expected_boxes: 5,
-    full_box_qty: null,
-    last_box_qty: null,
+    expected_boxes: 2,
+    expected_qty: null,
     mpq_missing: false,
-    packing_qty: 1500,
-    part_no: "VS-B T0.3XW60 L=110MM",
-    product_size: "VS-B T0.3XW60 L=110MM",
+    packing_qty: 2000,
+    part_no: "VS-B T0.3XW60 L=225MM",
+    product_size: "VS-B T0.3XW60 L=225MM",
     result: "pass",
     row_done: false,
     size_complete: false,
@@ -26,95 +28,65 @@ function row(overrides: Partial<ScanMessageRow> = {}): ScanMessageRow {
 describe("scanMessage", () => {
   /**
    * Sisa box adalah satu-satunya angka yang tidak bisa dihitung operator
-   * sendiri sambil membongkar palet. Tanpa itu ia harus mengingat sudah berapa
-   * kali ukuran yang sama ditembak.
+   * sendiri. Semua box berlabel sama, jadi tanpa ini ia harus mengingat sudah
+   * berapa kali label yang sama ditembak -- dan kalimatnya menyuruh menembak
+   * label yang sama, bukan mencari label lain.
    */
-  it("says how many boxes are left after an accepted scan", () => {
+  it("says how many boxes are left and that the same label is scanned again", () => {
     expect(scanMessage(row())).toBe(
-      "PASS — VS-B T0.3XW60 L=110MM box 1/5, Qty 1500. Sisa 4 box.",
+      "PASS — VS-B T0.3XW60 L=225MM box 1/2. Sisa 1 box, tembak label yang sama.",
     )
   })
 
   it("announces the row as complete on its last box", () => {
-    expect(scanMessage(row({ row_done: true, verified_boxes: 5 }))).toBe(
-      "PASS — VS-B T0.3XW60 L=110MM lengkap 5/5 box.",
+    expect(scanMessage(row({ row_done: true, verified_boxes: 2 }))).toBe(
+      "PASS — VS-B T0.3XW60 L=225MM lengkap 2/2 box.",
     )
   })
 
   /**
-   * Qty yang seharusnya ikut disebut, termasuk Qty box terakhir yang berbeda.
-   * "NOT PASS" belaka membuat operator menembak ulang label yang sama alih-alih
-   * mengambil box yang benar.
+   * Qty yang dijadwalkan ikut disebut. Itu yang memisahkan dua kiriman
+   * berukuran sama dengan jumlah berbeda, dan operator perlu tahu ia sedang
+   * memegang label kiriman yang lain.
    */
-  it("names the Qty a box must carry when one is rejected", () => {
+  it("names the scheduled Qty when a label does not match it", () => {
     expect(
       scanMessage(
-        row({
-          full_box_qty: 1500,
-          last_box_qty: 1000,
-          packing_qty: 1200,
-          result: "not_pass",
-        }),
+        row({ expected_qty: 2000, packing_qty: 1500, result: "not_pass" }),
       ),
     ).toBe(
-      "NOT PASS — VS-B T0.3XW60 L=110MM butuh Qty 1500 per box (box terakhir 1000), QR ini 1200.",
-    )
-  })
-
-  it("leaves out the last box when the delivery divides evenly", () => {
-    expect(
-      scanMessage(
-        row({
-          expected_boxes: 4,
-          full_box_qty: 2000,
-          last_box_qty: null,
-          packing_qty: 999,
-          result: "not_pass",
-        }),
-      ),
-    ).toBe(
-      "NOT PASS — VS-B T0.3XW60 L=110MM butuh Qty 2000 per box, QR ini 999.",
+      "NOT PASS — VS-B T0.3XW60 L=225MM dijadwalkan Qty 2000, QR ini 1500.",
     )
   })
 
   /**
    * Box berlebih dibedakan dari Qty yang salah: yang pertama berarti kiriman
-   * sudah cukup dan operator mengambil satu box kelebihan, yang kedua berarti
-   * labelnya tidak sesuai isi box. Keduanya menuntut tindakan berbeda.
+   * sudah cukup, yang kedua berarti labelnya bukan milik baris ini. Keduanya
+   * menuntut tindakan berbeda.
    */
   it("separates an already-complete size from a wrong Qty", () => {
     expect(scanMessage(row({ result: "not_pass", size_complete: true }))).toBe(
-      "NOT PASS — VS-B T0.3XW60 L=110MM sudah lengkap 5 box.",
+      "NOT PASS — VS-B T0.3XW60 L=225MM sudah lengkap 2 box.",
     )
   })
 
   /**
    * Ukuran tanpa MPQ tidak bisa ditolong dengan menembak ulang: yang kurang
-   * data master, dan yang harus dikerjakan ada di halaman MPQ Sheet. Pesannya
-   * karena itu menyebut tindakan, bukan sekadar sebab.
+   * data master, dan yang harus dikerjakan ada di halaman MPQ Sheet.
    */
   it("points at MPQ Sheet when the size has no MPQ yet", () => {
     expect(
       scanMessage(
-        row({
-          expected_boxes: null,
-          mpq_missing: true,
-          packing_qty: 1500,
-          result: "not_pass",
-        }),
+        row({ expected_boxes: null, mpq_missing: true, result: "not_pass" }),
       ),
     ).toBe(
-      "NOT PASS — VS-B T0.3XW60 L=110MM belum ada di MPQ Sheet, jumlah box-nya tidak bisa dihitung. Tambahkan MPQ-nya dulu.",
+      "NOT PASS — VS-B T0.3XW60 L=225MM belum ada di MPQ Sheet, jumlah box-nya tidak bisa dihitung. Tambahkan MPQ-nya dulu.",
     )
   })
 
   it("says the size is not scheduled at all when no row carries it", () => {
-    expect(
-      scanMessage(
-        row({ expected_boxes: null, packing_qty: 2000, result: "not_pass" }),
-      ),
-    ).toBe(
-      "NOT PASS — tidak ada baris jadwal untuk VS-B T0.3XW60 L=110MM (Qty 2000).",
+    expect(scanMessage(row({ expected_boxes: null, result: "not_pass" }))).toBe(
+      "NOT PASS — tidak ada baris jadwal untuk VS-B T0.3XW60 L=225MM (Qty 2000).",
     )
   })
 

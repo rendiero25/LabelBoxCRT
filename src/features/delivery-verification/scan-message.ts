@@ -1,8 +1,7 @@
 /** Bentuk satu baris balikan verify_delivery_label yang dipakai pesannya. */
 export type ScanMessageRow = {
   expected_boxes: number | null
-  full_box_qty: number | null
-  last_box_qty: number | null
+  expected_qty: number | null
   mpq_missing: boolean | null
   packing_qty: number | null
   part_no: string | null
@@ -20,12 +19,12 @@ export type ScanMessageRow = {
  * server"` hanya boleh mengekspor fungsi async -- dan kalimat inilah satu-
  * satunya bagian verifikasi yang bisa diuji tanpa database.
  *
- * Isinya menyebut kenapa, bukan cuma PASS atau NOT PASS. Sejak satu baris
- * jadwal berisi beberapa box, yang paling dibutuhkan operator adalah sisa
- * box-nya: tanpa itu ia harus mengingat sendiri sudah berapa kali ukuran yang
- * sama ditembak. Dan penolakan menyebut Qty yang seharusnya -- operator yang
- * cuma diberi "NOT PASS" akan menembak ulang label yang sama alih-alih
- * mengambil box yang benar.
+ * Isinya menyebut kenapa, bukan cuma PASS atau NOT PASS. Semua box satu baris
+ * berlabel sama, jadi yang paling dibutuhkan operator adalah sisa box-nya:
+ * tanpa itu ia harus mengingat sendiri sudah berapa kali label yang sama
+ * ditembak. Dan penolakan menyebut Qty yang seharusnya -- operator yang cuma
+ * diberi "NOT PASS" akan menembak ulang label yang sama alih-alih mengambil box
+ * yang benar.
  */
 export function scanMessage(row: ScanMessageRow): string {
   if (row.result === "unknown_label") {
@@ -40,7 +39,7 @@ export function scanMessage(row: ScanMessageRow): string {
       return `PASS — ${row.product_size} lengkap ${expected}/${expected} box.`
     }
 
-    return `PASS — ${row.product_size} box ${verified}/${expected}, Qty ${row.packing_qty}. Sisa ${expected - verified} box.`
+    return `PASS — ${row.product_size} box ${verified}/${expected}. Sisa ${expected - verified} box, tembak label yang sama.`
   }
 
   // Yang kurang data master, bukan labelnya. Disebut lebih dulu dari sebab
@@ -50,18 +49,15 @@ export function scanMessage(row: ScanMessageRow): string {
     return `NOT PASS — ${row.part_no} belum ada di MPQ Sheet, jumlah box-nya tidak bisa dihitung. Tambahkan MPQ-nya dulu.`
   }
 
-  // Ukuran yang sudah cukup dibedakan dari ukuran yang salah Qty-nya: yang
-  // pertama berarti operator mengambil box berlebih, yang kedua berarti
-  // labelnya tidak sesuai isi box.
+  // Ukuran yang sudah cukup dibedakan dari Qty yang tidak cocok: yang pertama
+  // berarti operator mengambil box berlebih, yang kedua berarti labelnya bukan
+  // milik baris kiriman ini.
   if (row.size_complete) {
     return `NOT PASS — ${row.part_no} sudah lengkap ${expected} box.`
   }
 
-  if (row.full_box_qty) {
-    const lastBox = row.last_box_qty
-      ? ` (box terakhir ${row.last_box_qty})`
-      : ""
-    return `NOT PASS — ${row.part_no} butuh Qty ${row.full_box_qty} per box${lastBox}, QR ini ${row.packing_qty}.`
+  if (row.expected_qty) {
+    return `NOT PASS — ${row.part_no} dijadwalkan Qty ${row.expected_qty}, QR ini ${row.packing_qty}.`
   }
 
   return `NOT PASS — tidak ada baris jadwal untuk ${row.part_no} (Qty ${row.packing_qty}).`
