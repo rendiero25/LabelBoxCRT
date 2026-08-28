@@ -11,6 +11,7 @@ import {
   type ScheduleParseErrorCode,
   parseScheduleWorkbook,
 } from "@/features/delivery-verification/schedule-excel"
+import { scanMessage } from "@/features/delivery-verification/scan-message"
 import { createClient } from "@/lib/supabase/server"
 
 const uuidPattern =
@@ -26,6 +27,11 @@ const safeRpcMessages: Record<string, string> = {
     "Ada baris yang Part No atau Qty-nya tidak terbaca. Periksa isinya lalu unggah lagi.",
   DELIVERY_ROW_NOT_FOUND: "Baris jadwal tidak ditemukan.",
   DELIVERY_SCAN_EMPTY: "Hasil scan kosong.",
+  // Jumlah box diturunkan dari MPQ, jadi ukuran tanpa MPQ tidak bisa
+  // diverifikasi sama sekali. Ukurannya disebut supaya admin tahu apa yang
+  // harus ditambahkan, bukan disuruh menebak baris mana yang salah.
+  DELIVERY_MPQ_NOT_FOUND:
+    "Ada ukuran yang belum terdaftar di MPQ Sheet, jadi jumlah box-nya tidak bisa dihitung.",
   DELIVERY_SESSION_CLOSED:
     "Session ini sudah selesai, isinya tidak bisa diubah.",
   DELIVERY_SESSION_NOT_FOUND: "Session tidak ditemukan.",
@@ -49,6 +55,16 @@ const scheduleParseMessages: Record<ScheduleParseErrorCode, string> = {
 
 function rpcErrorMessage(code: string, fallback: string): string {
   return safeRpcMessages[code] ?? fallback
+}
+
+/**
+ * Sebagian RPC menitipkan keterangan pada `detail` -- daftar ukuran yang belum
+ * punya MPQ, misalnya. Isinya data kita sendiri, bukan pesan Postgres mentah,
+ * jadi aman ditempelkan ke pesan yang dibaca operator.
+ */
+function rpcErrorDetail(detail: string | null | undefined): string {
+  const text = detail?.trim()
+  return text ? ` (${text})` : ""
 }
 
 export async function createDeliverySessionAction(): Promise<CreateDeliverySessionState> {
@@ -124,10 +140,11 @@ export async function uploadScheduleFileAction(
 
   if (error || !data) {
     return {
-      error: rpcErrorMessage(
-        error?.message ?? "",
-        "Gagal menyimpan jadwal. Coba lagi atau hubungi admin.",
-      ),
+      error:
+        rpcErrorMessage(
+          error?.message ?? "",
+          "Gagal menyimpan jadwal. Coba lagi atau hubungi admin.",
+        ) + rpcErrorDetail(error?.details),
     }
   }
 
@@ -173,19 +190,7 @@ export async function verifyDeliveryLabelAction(input: {
 
   const row = data[0]
   const outcome = row.result as DeliveryScanResult["outcome"]
-
-  // Pesannya menyebut kenapa, bukan cuma PASS atau NOT PASS. Operator yang
-  // hanya diberi "NOT PASS" akan mengulang scan label yang sama alih-alih
-  // mencari box yang benar.
-  //
-  // "Qty per Box" adalah nama yang dipakai operator untuk angka ini -- baris
-  // Qty/Delivery pada label, bukan baris Qty/Box milik Master Item.
-  const message =
-    outcome === "pass"
-      ? `PASS — ${row.product_size}, Qty per Box ${row.qty} cocok.`
-      : outcome === "unknown_label"
-        ? "NOT PASS — QR tidak terbaca: ukuran atau Qty tidak ditemukan di dalamnya."
-        : `NOT PASS — tidak ada baris jadwal yang cocok dengan ${row.part_no} (Qty per Box ${row.packing_qty}).`
+  const message = scanMessage(row)
 
   revalidatePath("/verifikasi-pengiriman")
   return {

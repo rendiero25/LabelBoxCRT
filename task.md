@@ -494,8 +494,8 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 
 ## 7.2 Signing
 
-- [x] Dev certificate. *(self-signed generated 23 Juli 2026, `.env.local` diisi)*
-- [x] Production certificate/license decision. *(self-signed company root, D5)*
+- [x] Dev certificate. _(self-signed generated 23 Juli 2026, `.env.local` diisi)_
+- [x] Production certificate/license decision. _(self-signed company root, D5)_
 - [x] Public certificate endpoint.
 - [x] Authenticated signing endpoint.
 - [x] Private key server-only.
@@ -506,21 +506,21 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 
 ## 7.3 ZPL Template
 
-- [x] Confirm media dimensions. *(55×75 mm, gap 3 mm)*
-- [x] Confirm DPI. *(203)*
+- [x] Confirm media dimensions. _(55×75 mm, gap 3 mm)_
+- [x] Confirm DPI. _(203)_
 - [x] Build template v1.
 - [x] Escape dynamic text.
 - [x] Text overflow rules.
 - [x] Delivery Number.
-- [x] Optional barcode/QR. *(diputuskan skip di v1, spec D7)*
+- [x] Optional barcode/QR. _(diputuskan skip di v1, spec D7)_
 - [ ] Print 20 samples.
 - [ ] Verify readability.
 - [ ] Verify physical dimensions.
 
 ## 7.4 Browser Print Worker
 
-- [x] Claim only target job. *(desain baru: browser tab operator finalizing
-  meng-claim print job session miliknya via `claim_print_job` RPC)*
+- [x] Claim only target job. _(desain baru: browser tab operator finalizing
+      meng-claim print job session miliknya via `claim_print_job` RPC)_
 - [x] Set printing.
 - [x] Create print attempt.
 - [x] Send raw ZPL.
@@ -529,7 +529,7 @@ sama hanya alokasi satu sequence/satu print job, call kedua idempotent-return.
 - [x] Retry same job.
 - [x] No new sequence on retry.
 - [x] Prevent double-click duplicate.
-- [x] Optional operator confirmation. *(diputuskan auto-confirm, spec D3)*
+- [x] Optional operator confirmation. _(diputuskan auto-confirm, spec D3)_
 
 ## 7.5 Failure Tests
 
@@ -843,15 +843,19 @@ diisi dari file, tiap label box discan dan dicocokkan.
 
 ## Bagian 2 — Verifikasi Label
 
-- [x] Terjemahan ukuran produk ke Master Item lewat `master_item_products`
-      (`private.product_size_dimensions`, `private.master_item_for_product_size`).
-- [x] View `delivery_schedule_rows_resolved` supaya ukuran tak dikenal terlihat
-      sejak upload.
-- [x] `verify_delivery_label` — cocokkan Master Item dan Qty per Box, catat tiap
-      scan termasuk yang gagal, tutup session saat baris terakhir PASS.
-- [x] Scan lewat pendengar keyboard-wedge, toast PASS/NOT PASS/DELIVERY OK.
+- [x] `verify_delivery_label` membaca ukuran dan Qty dari string QR-nya sendiri;
+      `master_items`/`label_boxes` tidak dipakai sama sekali (`20260827094500`).
+      View `delivery_schedule_rows_resolved` ikut dibuang bersamanya.
+- [x] Pencocokan ukuran mengabaikan spasi di kedua sisi (`20260827103000`).
+- [x] Jumlah box per baris diturunkan dari MPQ Sheet: `ceil(Qty Delivery / MPQ)`,
+      Qty tiap box harus tepat MPQ atau tepat sisanya (`20260828025319`).
+- [x] Jadwal menolak ukuran yang belum ada di MPQ Sheet, dan menyebut ukurannya.
+- [x] Scan lewat kotak scan yang mengirim sendiri setelah ketikan diam 180 ms —
+      DS2208 tidak memakai sufiks apa pun (`af9e479`).
+- [x] Toast PASS/NOT PASS/DELIVERY OK menyebut sisa box dan Qty yang seharusnya.
 - [x] Indikasi scan aktif: cincin kartu, titik berdenyut, hasil terakhir
       bertahan di layar.
+- [x] DELIVERY OK bertahan di kartu session, bukan cuma lewat sebagai toast.
 
 ## Session
 
@@ -860,11 +864,11 @@ diisi dari file, tiap label box discan dan dicocokkan.
 
 ## Terbuka
 
-- [ ] Produk `VS-B T0.3XW…` di dokumen jadwal belum terdaftar di `products`,
-      jadi belum ada baris yang bisa PASS.
-- [ ] Aturan Part No Master Item menolak `=`, sehingga ukuran seperti
-      `L=120MM` belum bisa jadi Part No.
-- [ ] QA browser dengan scanner sungguhan.
+- [ ] Upload PDF — menunggu contoh dokumen asli.
+- [ ] Belum ada jadwal berbox-banyak yang diverifikasi di lantai produksi.
+      Seluruh baris yang ada sekarang dari sebelum `20260828025319`, jadi
+      semuanya satu box; aturan banyak box baru terbukti di pgTAP.
+- [ ] MPQ belum dipakai membatasi Qty per Box saat packing.
 - [ ] Migrasi belum jalan di production.
 
 **Gate Verifikasi Pengiriman:** satu kiriman nyata diperiksa dari upload jadwal

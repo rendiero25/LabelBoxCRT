@@ -222,8 +222,9 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
       <Empty className="border-none">
         <EmptyTitle>Belum ada jadwal</EmptyTitle>
         <EmptyDescription>
-          Unggah file Excel berisi kolom Part No dan Qty. File berikutnya
-          menambah baris di bawahnya.
+          Unggah file Excel berisi kolom Part No dan Qty. Tiap ukuran harus
+          sudah ada di MPQ Sheet — dari situ jumlah box-nya dihitung. File
+          berikutnya menambah baris di bawahnya.
         </EmptyDescription>
       </Empty>
     )
@@ -236,11 +237,17 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
           <TableRow>
             <TableHead className="w-12">#</TableHead>
             <TableHead>Part No</TableHead>
-            {/* "Qty per Box" adalah nama yang dipakai operator untuk angka
-                yang tercetak di baris Qty/Delivery label -- field ketiga QR
-                sejak 20260821083835. Bukan Qty/Box milik Master Item, yang
-                nilainya sama untuk setiap kiriman dan tidak pernah berubah. */}
-            <TableHead className="text-right">Qty per Box</TableHead>
+            {/* Qty Delivery adalah seluruh kiriman untuk ukuran ini, bukan isi
+                satu box. Sebelum 20260828025319 kolom ini bernama "Qty per
+                Box" dan satu baris lunas oleh satu label -- nama itu ikut
+                berganti supaya angkanya tidak terbaca sebagai isi box. */}
+            <TableHead className="text-right">Qty Delivery</TableHead>
+            <TableHead className="text-right">MPQ</TableHead>
+            {/* Berapa box yang sudah masuk dari yang dibutuhkan. Ini yang
+                dicari operator sambil membongkar palet; tanpa kolom ini ia
+                harus mengingat sendiri sudah berapa kali satu ukuran
+                ditembak. */}
+            <TableHead className="w-20 text-center">Box</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
             <TableHead className="w-12" />
@@ -252,7 +259,13 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
               <TableCell className="tabular-nums">{row.rowNo}</TableCell>
               <TableCell className="font-medium">{row.productSize}</TableCell>
               <TableCell className="text-right tabular-nums">
-                {row.qty}
+                {row.qtyDelivery}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-right tabular-nums">
+                {row.mpqQty}
+              </TableCell>
+              <TableCell className="text-center tabular-nums">
+                {row.verifiedBoxes}/{row.expectedBoxes}
               </TableCell>
               <TableCell className="text-muted-foreground text-xs">
                 {row.sourceFileName}
@@ -617,12 +630,23 @@ export function DeliverySessionWorkspace({
         </Empty>
       ) : (
         sessions.map((session) => {
-          const verified = session.rows.filter((row) => row.verifiedAt).length
+          // Yang dihitung box, bukan baris jadwal: satu baris 8000 keping
+          // dengan MPQ 2000 adalah empat box, dan "1/3 baris" tidak menjawab
+          // pertanyaan operator soal berapa box lagi yang harus ditembak.
+          const verifiedBoxes = session.rows.reduce(
+            (total, row) => total + row.verifiedBoxes,
+            0,
+          )
+          const expectedBoxes = session.rows.reduce(
+            (total, row) => total + row.expectedBoxes,
+            0,
+          )
           // Jadwal kosong bukan kiriman yang lunas. Tanpa syarat panjangnya,
           // session yang belum diisi file apa pun akan mengaku DELIVERY OK
           // sebelum satu pun kiriman diperiksa.
           const deliveryOk =
-            session.rows.length > 0 && verified === session.rows.length
+            session.rows.length > 0 &&
+            session.rows.every((row) => row.verifiedAt)
           const defaultExpanded =
             defaultExpandedById.get(session.id) ?? session.status === "open"
           const expanded = toggled.has(session.id)
@@ -677,7 +701,7 @@ export function DeliverySessionWorkspace({
                   </span>
                   {session.rows.length > 0 ? (
                     <span className="text-foreground text-xs tabular-nums">
-                      {verified}/{session.rows.length} terverifikasi
+                      {verifiedBoxes}/{expectedBoxes} box terverifikasi
                     </span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai

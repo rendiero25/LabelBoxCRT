@@ -26,22 +26,51 @@ berapa kali discan.
 
 ## Bagian 1 — Schedule Delivery
 
-Tabel dua kolom: **Part No** dan **Qty per Box**. Nilainya datang dari upload
-Excel atau PDF.
+Tabel: **Part No**, **Qty Delivery**, **MPQ**, dan **Box**. Nilainya datang dari
+upload Excel atau PDF.
 
 Kolom pertama adalah ukuran produk seperti tertulis di label —
 `VS-B T0.3XW100 L=120MM`. Nama kolom databasenya `product_size`.
 
-Kolom kedua tersimpan sebagai `qty` dan dicocokkan dengan Qty delivery yang
-tercetak di label. "Qty per Box" adalah nama yang dipakai operator untuk angka
-itu — baris QTY/DELIVERY pada label fisik, bukan baris Qty/Box yang nilainya
-sama untuk setiap kiriman Master Item itu.
+**Qty Delivery** (`qty_delivery`) adalah seluruh jumlah yang dikirim untuk
+ukuran itu, bukan isi satu box. Sampai migrasi `20260828025319` kolom ini
+bernama `qty` dan dibaca sebagai Qty per Box: satu baris lunas oleh satu label.
+Nama dan artinya berganti bersama-sama — membiarkannya bernama `qty` sementara
+artinya berubah total adalah cara termurah membuat pembaca berikutnya salah.
+
+**MPQ** (`mpq_qty`) disalin dari MPQ Sheet saat jadwal diunggah, bukan dibaca
+lewat join saat verifikasi: dokumen MPQ direvisi lewat migrasi, dan jadwal yang
+truknya sedang diperiksa tidak boleh berubah jumlah box-nya di tengah jalan.
+
+**Box** adalah `verified_boxes/expected_boxes`, keduanya kolom turunan:
+
+```
+expected_boxes = qty_delivery / mpq_qty + (qty_delivery % mpq_qty > 0)
+verified_boxes = verified_qty  / mpq_qty + (verified_qty  % mpq_qty > 0)
+```
+
+8000 keping dengan MPQ 2000 berarti 4 box. 7000 keping dengan MPQ 1500 berarti
+5 box: empat box penuh 1500 dan satu box sisa 1000 — sisa yang tidak penuh tetap
+minta satu box sendiri, jadi pembulatannya ke atas. Yang disimpan jumlah keping
+(`verified_qty`), bukan jumlah box: dari keping jumlah box bisa dihitung pasti,
+dari jumlah box komposisi penuh/sisa tidak bisa dipulihkan.
+
+**Ukuran yang tidak ada di MPQ Sheet menggagalkan seluruh file**, dan namanya
+disebut di pesan errornya. Diterima dengan menganggap satu box, kiriman 8000
+keping lunas oleh satu label; diterima lalu ditolak saat scan, kegagalannya
+pindah ke saat truk sudah datang. Yang kurang adalah data master, dan itu
+pekerjaan admin sebelum jadwalnya diunggah.
+
+Baris jadwal yang sudah ada sebelum migrasi ini diberi `mpq_qty = qty_delivery`,
+jadi jumlah box-nya tetap satu. Baris-baris itu diisi dan diperiksa di bawah
+aturan lama, dan menghitungnya ulang dengan aturan baru akan mengubah Session
+yang sudah DELIVERY OK menjadi kurang — yaitu memalsukan pemeriksaan yang
+benar-benar terjadi.
 
 Satu file boleh memuat satu baris maupun banyak; parser membaca semua yang ada
 lalu menambahkannya ke bawah tabel. Upload berikutnya menambah lagi, tidak
 menimpa. Ukuran yang sudah ada **jadi baris sendiri** — dua kiriman ukuran
-sama dengan Qty berbeda adalah dua baris, dan masing-masing perlu satu label
-yang cocok.
+sama adalah dua baris jadwal, masing-masing dengan jumlah box sendiri.
 
 Kontrak parser Excel: baris header dicari lebih dulu (kop dokumen dilewati),
 kolom ukuran dan Qty dikenali dari namanya — tidak peka besar-kecil huruf,
@@ -69,17 +98,38 @@ sendiri**, dipecah pada `|`:
 
 ```
 10015|VS-B T0.3XW100 L=120MM|2000|DBT-512 NI-2445-240826-B001|24-AUG-2026
-       ^ field 2: ukuran produk        ^ field 3: Qty delivery
+       ^ field 2: ukuran produk        ^ field 3: Qty box ini
 ```
 
-| Jadwal      | Payload |
-| ----------- | ------- |
-| Part No     | field 2 |
-| Qty per Box | field 3 |
+| Jadwal  | Payload |
+| ------- | ------- |
+| Part No | field 2 |
+| Qty box | field 3 |
 
-Baris PASS kalau kedua-duanya cocok. Field lain — kode supplier, lot, tanggal —
-tidak dibaca sama sekali: tidak ada yang meminta keduanya diperiksa, dan setiap
-field tambahan yang dibaca adalah satu cara baru sebuah scan gagal.
+Field lain — kode supplier, lot, tanggal — tidak dibaca sama sekali: tidak ada
+yang meminta keduanya diperiksa, dan setiap field tambahan yang dibaca adalah
+satu cara baru sebuah scan gagal.
+
+Sebuah scan diterima kalau ada baris jadwal berukuran sama yang masih kurang
+box, **dan** Qty-nya salah satu dari dua nilai yang sah untuk baris itu:
+
+- **MPQ**, selama box penuh masih kurang; atau
+- **sisanya** (`qty_delivery % mpq_qty`), selama box sisa belum pernah masuk.
+
+Qty ikut diperiksa, tidak sekadar dihitung banyaknya scan: menghitung scan saja
+akan meloloskan empat box @1500 sebagai kiriman 8000 keping, dan selisih 2000
+keping itu baru ketahuan di tempat pelanggan.
+
+Komposisi yang sudah masuk dibaca dari `verified_qty` saja. Sisa selalu lebih
+kecil dari MPQ, jadi `verified_qty % mpq_qty` menjawab pasti apakah box sisa
+sudah terambil — tidak perlu penghitung kedua yang bisa berselisih dengannya.
+
+**Urutan scan tidak diatur.** Box sisa boleh ditembak lebih dulu: yang dijaga
+komposisinya — sekian box penuh dan paling banyak satu box sisa — bukan giliran
+operator mengambil box dari palet.
+
+Baris lunas ketika `verified_qty = qty_delivery`, dan session selesai ketika
+seluruh barisnya lunas.
 
 Label sheet **tidak dibuat aplikasi ini** dan tidak perlu dibuat. Rancangan
 sebelumnya mencari `qr_payload` di `label_boxes` lalu naik ke batch-nya; itu
@@ -107,25 +157,38 @@ Yang tersimpan dan yang tampil di layar tidak ikut berubah: baris jadwal tetap
 memakai ejaan dokumennya sendiri, supaya isi tabel masih bisa ditelusuri kembali
 ke file asalnya. Yang dilonggarkan hanya perbandingannya.
 
-| Keadaan                                                    | `result`        | Toast                             | Tabel                      |
-| ---------------------------------------------------------- | --------------- | --------------------------------- | -------------------------- |
-| Cocok baris yang belum PASS                                | `pass`          | **PASS**                          | centang hijau di baris itu |
-| QR terbaca, tidak ada baris cocok                          | `not_pass`      | **NOT PASS**                      | tidak berubah              |
-| Kurang dari 3 field, atau Qty bukan bilangan bulat positif | `unknown_label` | **NOT PASS** — QR tidak terbaca   | tidak berubah              |
-| Baris terakhir baru saja PASS                              | `pass`          | **DELIVERY OK** menyusul PASS-nya | session jadi `done`        |
+| Keadaan                                                    | `result`        | Toast                                             | Tabel                      |
+| ---------------------------------------------------------- | --------------- | ------------------------------------------------- | -------------------------- |
+| Qty sah, baris masih kurang box                            | `pass`          | **PASS** — box 2/5, sisa 3 box                    | kolom Box bertambah        |
+| Qty sah, box terakhir baris itu                            | `pass`          | **PASS** — lengkap 5/5 box                        | centang hijau di baris itu |
+| Ukuran ada di jadwal, Qty bukan MPQ maupun sisanya         | `not_pass`      | **NOT PASS** — butuh Qty 1500 (box terakhir 1000) | tidak berubah              |
+| Ukuran ada di jadwal tetapi box-nya sudah lengkap          | `not_pass`      | **NOT PASS** — sudah lengkap 5 box                | tidak berubah              |
+| Ukuran tidak ada di jadwal sama sekali                     | `not_pass`      | **NOT PASS** — tidak ada baris jadwal             | tidak berubah              |
+| Kurang dari 3 field, atau Qty bukan bilangan bulat positif | `unknown_label` | **NOT PASS** — QR tidak terbaca                   | tidak berubah              |
+| Baris terakhir baru saja lunas                             | `pass`          | **DELIVERY OK** menyusul PASS-nya                 | session jadi `done`        |
 
 `unknown_label` dibedakan dari `not_pass` karena keduanya menuntut tindakan
 berbeda: yang satu berarti QR-nya tidak terbaca, yang lain berarti QR terbaca
 tetapi barangnya bukan yang dijadwalkan.
 
+Ketiga bentuk `not_pass` dibedakan di kalimatnya karena menuntut tindakan
+berbeda pula: mengambil box lain, berhenti karena kiriman sudah cukup, atau
+melapor bahwa ada ukuran yang tidak dijadwalkan. "NOT PASS" belaka membuat
+operator menembak ulang label yang sama. Kalimatnya dibangun
+`scan-message.ts`, terpisah dari `actions.ts` karena berkas `"use server"`
+hanya boleh mengekspor fungsi async — dan itu satu-satunya bagian verifikasi
+yang bisa diuji tanpa database.
+
 **Scan dobel tidak dicek.** `duplicate_label` bertumpu pada identitas label
 fisik di `label_boxes`, dan identitas itu sudah tidak ada; field keempat payload
 memang berbeda antar label, tetapi memakainya berarti memutuskan diam-diam
 bahwa penulisannya konsisten, dan itu belum diperiksa. Konsekuensinya diterima
-sadar: satu box yang discan dua kali melunasi dua baris berukuran sama, dan
-session bisa tutup dengan satu box kurang di truk. `delivery_verification_scans`
-tetap mencatat tiap scan beserta payload mentahnya, jadi kejadian itu masih bisa
-ditelusuri sesudahnya.
+sadar: satu box penuh yang ditembak dua kali dihitung sebagai dua box, dan
+session bisa tutup dengan satu box kurang di truk. Yang membatasinya cuma
+komposisi — box sisa tidak bisa masuk dua kali, dan jumlah box penuh tidak bisa
+melebihi `qty_delivery / mpq_qty`. `delivery_verification_scans` tetap mencatat
+tiap scan beserta payload mentahnya, jadi kejadian itu masih bisa ditelusuri
+sesudahnya.
 
 ## Bagaimana scan sampai ke halaman
 
@@ -170,8 +233,13 @@ delivery_verification_sessions
   id, session_no, status (open|done), created_by, created_at, closed_at
 
 delivery_schedule_rows
-  id, session_id, row_no, product_size, qty, source_file_name, created_at,
+  id, session_id, row_no, product_size, source_file_name, created_at,
+  qty_delivery, mpq_qty, verified_qty,
+  expected_boxes, verified_boxes            -- kolom turunan, bukan disimpan
   verified_at, verified_label_box_id        -- selalu null; label_boxes tak dipakai
+
+mpq_sheet_rows                              -- rujukan, hanya dibaca
+  id, row_no, product_size, product_size_key, mpq_qty, unit
 
 delivery_verification_scans
   id, session_id, scanned_at, scanned_by, qr_payload, label_box_id,
@@ -192,33 +260,40 @@ aktif, sama seperti tabel label box.
 ## Pengujian
 
 pgTAP: `030` (session + jadwal, termasuk Part No kembar dengan Qty berbeda),
-`031` (PASS tanpa satu pun label di database; ukuran dan Qty diambil dari field
-kedua dan ketiga payload; ejaan berspasi ganda dan huruf kecil di jadwal tetap
-cocok; jadwal berspasi (`L=55 MM`) cocok dengan label yang menulisnya rapat
-(`L=55MM`); payload yang sama melunasi baris kembar berikutnya; Qty sama dengan
-ukuran berbeda tidak cukup untuk PASS; payload kurang dari tiga field maupun
-Qty bukan bilangan bulat jatuh ke `unknown_label`; DELIVERY OK menutup session),
-`032` (hapus session, cascade, ringkasan audit).
+`031` (kedua contoh lantai produksi dikunci sebagai tes — 8000 keping/MPQ 2000
+jadi 4 box, 7000 keping/MPQ 1500 jadi 5 box dengan box sisa ditembak lebih
+dulu; Qty yang bukan MPQ maupun sisanya ditolak; box sisa kedua ditolak; box
+berlebih setelah baris lengkap dibedakan lewat `size_complete`; penolakan
+menyebut Qty yang seharusnya; jadwal berspasi cocok dengan label yang
+menulisnya rapat; ukuran tanpa MPQ menggagalkan seluruh file tanpa
+meninggalkan satu baris pun; `unknown_label`; DELIVERY OK menutup session),
+`032` (hapus session, cascade, ringkasan audit), `033` (MPQ Sheet hanya bisa
+dibaca dan isinya utuh).
 
 `031` sengaja tidak menyentuh `master_items`, `boxes`, `label_box_batches`,
 maupun `label_boxes` — kalau salah satunya diperlukan lagi, tesnya yang gagal
 lebih dulu.
+
+`030`, `031`, dan `032` menyisipkan barisnya sendiri ke `mpq_sheet_rows` lebih
+dulu: sejak jadwal menolak ukuran tanpa MPQ, ukuran uji pun perlu MPQ.
 
 Ketiganya mengembalikan `delivery_verification_session_seq` di akhir file:
 `nextval()` tidak ikut rollback, dan tanpa pengembalian itu nomor session nyata
 berikutnya melompat.
 
 Vitest: parser Excel (bentuk dokumen asli, variasi ejaan header, variasi
-penulisan Qty) dan komponen workspace (kartu tidak melipat diri saat scan
+penulisan Qty), `scan-message.ts` (ketujuh kalimat, termasuk sisa box dan Qty
+yang seharusnya), dan komponen workspace (kartu tidak melipat diri saat scan
 terakhirnya menutup session; kegagalan tak terduga tetap memunculkan toast;
 payload tanpa terminator terkirim sendiri setelah ketikan berhenti).
 
 ## Keadaan
 
-Bagian 1 dan Bagian 2 sudah jalan. Yang belum:
+Bagian 1 dan Bagian 2 sudah jalan, dan Session 5 sudah DELIVERY OK lewat scan
+sungguhan dengan DS2208. Yang belum:
 
 - **Upload PDF** — menunggu contoh dokumen asli.
-- **Belum ada satu pun baris PASS lewat scan sungguhan** — payloadnya sudah
-  ditangkap dari DS2208 dan cocok dengan baris 1 jadwal, dan kotak scan sudah
-  terpasang, tetapi tembakan yang benar-benar melunasi sebuah baris belum
-  dilakukan.
+- **Belum ada jadwal berbox-banyak yang diverifikasi sungguhan.** Seluruh baris
+  yang ada sekarang berasal dari sebelum migrasi `20260828025319`, jadi
+  semuanya satu box. Aturan banyak box terbukti di pgTAP, belum di lantai
+  produksi.

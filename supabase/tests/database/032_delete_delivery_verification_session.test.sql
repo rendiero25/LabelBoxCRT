@@ -25,6 +25,11 @@ insert into public.profiles (id, display_name, role, is_active) values (
   '91320000-0000-0000-0000-000000000001', 'Delete Session', 'user', true
 );
 
+-- Jadwal hanya menerima ukuran yang punya MPQ sejak 20260828025319.
+insert into public.mpq_sheet_rows (row_no, product_size, mpq_qty, unit) values
+  (9201, 'HAPUS-A T1XW2 L=3MM', 100, 'PCS/BOX'),
+  (9202, 'HAPUS-B T1XW2 L=4MM', 200, 'PCS/BOX');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claim.sub',

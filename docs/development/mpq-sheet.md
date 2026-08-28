@@ -10,4 +10,6 @@ Ukuran disimpan dua kali. `product_size` adalah ejaan seperti di dokumen dan itu
 
 Dokumen memuat 111 baris, 18 di antaranya mengulang ukuran yang sama dengan MPQ dan satuan yang sama persis; yang masuk 93 baris unik, dinomori ulang 1..93 mengikuti urutan dokumen. `scripts/build-mpq-seed.mjs` membangkitkan blok `VALUES` dari file `.xlsx` dan berhenti dengan galat kalau dua baris berbagi ukuran tetapi berbeda MPQ — tidak ada baris yang dipilih diam-diam. Satuan tetap disimpan sebagai kolom meski sekarang hanya satu nilai; angka MPQ tidak berarti tanpa satuannya, dan dokumen CRT yang lebih luas memang memuat `PCS/LAKBAN`.
 
-Halaman belum terhubung ke mana-mana. Angka MPQ belum dipakai memvalidasi Qty per Box saat packing maupun saat Verifikasi Pengiriman — itu keputusan tersendiri, bukan kelalaian, dan perlu migrasi baru bila diinginkan.
+Sejak `20260828025319_delivery_boxes_from_mpq`, MPQ menentukan berapa box yang harus discan di Verifikasi Pengiriman: jadwal menyimpan Qty Delivery, dan jumlah box-nya `ceil(Qty Delivery / MPQ)`. Konsekuensinya jadwal hanya menerima ukuran yang sudah terdaftar di sini — file yang memuat ukuran tanpa MPQ ditolak seluruhnya dan ukurannya disebut. Rinciannya di `docs/superpowers/specs/2026-08-21-verifikasi-pengiriman-design.md`.
+
+Yang masih belum: MPQ tidak dipakai membatasi Qty per Box saat packing. Itu keputusan tersendiri dan perlu migrasi baru bila diinginkan.

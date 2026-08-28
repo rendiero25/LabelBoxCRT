@@ -39,12 +39,16 @@ function sessionFixture(
     id: "8e2a0000-0000-0000-0000-000000000001",
     rows: [
       {
+        expectedBoxes: 2,
         id: "8e2b0000-0000-0000-0000-000000000001",
+        mpqQty: 3000,
         productSize: "VDX T0.3XW100 L=120MM",
-        qty: 5000,
+        // 5000 keping dengan MPQ 3000: dua box, yang kedua berisi sisa 2000.
+        qtyDelivery: 5000,
         rowNo: 1,
         sourceFileName: "jadwal.xlsx",
         verifiedAt: null,
+        verifiedBoxes: 0,
       },
     ],
     sessionNo: 1,
@@ -109,6 +113,7 @@ describe("DeliverySessionWorkspace", () => {
           {
             ...sessionFixture().rows[0],
             verifiedAt: "2026-08-24T10:05:00.000Z",
+            verifiedBoxes: 2,
           },
         ],
         status: "done",
@@ -125,6 +130,7 @@ describe("DeliverySessionWorkspace", () => {
           {
             ...sessionFixture().rows[0],
             verifiedAt: "2026-08-24T10:05:00.000Z",
+            verifiedBoxes: 2,
           },
         ],
         status: "done",
@@ -150,6 +156,7 @@ describe("DeliverySessionWorkspace", () => {
           {
             ...sessionFixture().rows[0],
             verifiedAt: "2026-08-24T10:05:00.000Z",
+            verifiedBoxes: 2,
           },
         ],
         status: "done",

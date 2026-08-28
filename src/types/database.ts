@@ -234,36 +234,48 @@ export type Database = {
       delivery_schedule_rows: {
         Row: {
           created_at: string
+          expected_boxes: number | null
           id: string
+          mpq_qty: number
           product_size: string
-          qty: number
+          qty_delivery: number
           row_no: number
           session_id: string
           source_file_name: string
           verified_at: string | null
+          verified_boxes: number | null
           verified_label_box_id: string | null
+          verified_qty: number
         }
         Insert: {
           created_at?: string
+          expected_boxes?: number | null
           id?: string
+          mpq_qty: number
           product_size: string
-          qty: number
+          qty_delivery: number
           row_no: number
           session_id: string
           source_file_name: string
           verified_at?: string | null
+          verified_boxes?: number | null
           verified_label_box_id?: string | null
+          verified_qty?: number
         }
         Update: {
           created_at?: string
+          expected_boxes?: number | null
           id?: string
+          mpq_qty?: number
           product_size?: string
-          qty?: number
+          qty_delivery?: number
           row_no?: number
           session_id?: string
           source_file_name?: string
           verified_at?: string | null
+          verified_boxes?: number | null
           verified_label_box_id?: string | null
+          verified_qty?: number
         }
         Relationships: [
           {
@@ -1280,9 +1292,11 @@ export type Database = {
         Args: { p_rows: Json; p_session_id: string; p_source_file_name: string }
         Returns: {
           created_at: string
+          expected_boxes: number
           id: string
+          mpq_qty: number
           product_size: string
-          qty: number
+          qty_delivery: number
           row_no: number
           source_file_name: string
         }[]
@@ -1710,14 +1724,21 @@ export type Database = {
         Args: { p_qr_payload: string; p_session_id: string }
         Returns: {
           delivery_ok: boolean
+          expected_boxes: number
+          full_box_qty: number
+          last_box_qty: number
           matched_row_id: string
           matched_row_no: number
+          mpq_qty: number
           packing_qty: number
           part_no: string
           product_size: string
-          qty: number
+          qty_delivery: number
           result: Database["public"]["Enums"]["delivery_scan_result"]
+          row_done: boolean
+          size_complete: boolean
           total_count: number
+          verified_boxes: number
           verified_count: number
         }[]
       }

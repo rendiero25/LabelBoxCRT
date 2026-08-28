@@ -26,6 +26,14 @@ insert into public.profiles (id, display_name, role, is_active) values
   ('91300000-0000-0000-0000-000000000001', 'Delivery Verifier', 'user', true),
   ('91300000-0000-0000-0000-000000000002', 'Delivery Nonaktif', 'user', false);
 
+-- Sejak 20260828025319 jadwal hanya menerima ukuran yang punya MPQ: jumlah box
+-- yang harus discan diturunkan dari sana. Ukuran uji di file ini karena itu
+-- perlu barisnya sendiri di MPQ Sheet.
+insert into public.mpq_sheet_rows (row_no, product_size, mpq_qty, unit) values
+  (9101, 'QRPQ-PART', 5000, 'PCS/BOX'),
+  (9102, 'LAIN-PART', 300, 'PCS/BOX'),
+  (9103, 'ADA', 10, 'PCS/BOX');
+
 select has_table(
   'public', 'delivery_verification_sessions',
   'delivery_verification_sessions table exists'
@@ -110,7 +118,7 @@ select is(
 -- ditimpa: masing-masing perlu satu label yang cocok.
 select is(
   (
-    select string_agg(qty::text, ',' order by row_no)
+    select string_agg(qty_delivery::text, ',' order by row_no)
     from public.delivery_schedule_rows
     where session_id = (select id from verif_session)
       and product_size = 'QRPQ-PART'

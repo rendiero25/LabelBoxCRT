@@ -6,7 +6,16 @@ export type DeliveryScheduleRow = {
    * string QR saat discan.
    */
   productSize: string
-  qty: number
+  /**
+   * Seluruh jumlah yang dikirim untuk ukuran ini, bukan isi satu box. Berapa
+   * box yang menampungnya ditentukan mpqQty.
+   */
+  qtyDelivery: number
+  /** MPQ ukuran ini, disalin dari MPQ Sheet saat jadwal diunggah. */
+  mpqQty: number
+  /** Dibulatkan ke atas: sisa yang tidak penuh tetap minta satu box sendiri. */
+  expectedBoxes: number
+  verifiedBoxes: number
   rowNo: number
   sourceFileName: string
   verifiedAt: string | null
@@ -40,6 +49,7 @@ export type DeliveryScanResult = {
   deliveryOk: boolean
   message: string
   outcome: DeliveryScanOutcome | "error"
+  /** Box, bukan baris jadwal: itu yang dihitung operator sambil membongkar. */
   verifiedCount: number
   totalCount: number
 }
