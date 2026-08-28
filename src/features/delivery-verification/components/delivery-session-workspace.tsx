@@ -291,7 +291,10 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
           {session.rows.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="tabular-nums">{row.rowNo}</TableCell>
-              <TableCell className="text-muted-foreground text-xs">
+              {/* Seluruh isi tabel memakai warna teks penuh, bukan abu-abu
+                  peredup: ini dibaca dari jarak pandang lantai produksi sambil
+                  operator memegang scanner, bukan dari depan meja. */}
+              <TableCell className="text-foreground text-xs">
                 {row.customer ?? "—"}
               </TableCell>
               <TableCell className="font-medium">{row.productSize}</TableCell>
@@ -302,7 +305,7 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
                   dibiarkan bergaris kosong: barisnya tidak bisa discan sampai
                   admin menambahkan MPQ-nya, dan itu satu-satunya penjelasan
                   kenapa session ini tidak kunjung DELIVERY OK. */}
-              <TableCell className="text-muted-foreground text-right tabular-nums">
+              <TableCell className="text-foreground text-right tabular-nums">
                 {row.mpqQty ?? <Badge variant="outline">MPQ belum ada</Badge>}
               </TableCell>
               <TableCell className="text-center tabular-nums">
@@ -310,7 +313,7 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
                   ? "—"
                   : `${row.verifiedBoxes ?? 0}/${row.expectedBoxes}`}
               </TableCell>
-              <TableCell className="text-muted-foreground text-xs">
+              <TableCell className="text-foreground text-xs">
                 {row.sourceFileName}
               </TableCell>
               <TableCell className="text-center">
