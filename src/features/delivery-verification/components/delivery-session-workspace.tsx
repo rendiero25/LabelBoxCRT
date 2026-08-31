@@ -840,9 +840,8 @@ export function DeliverySessionWorkspace({
                           {verifiedQty}/{totalQty} pcs terverifikasi
                         </span>
                       ) : null}
-                      <span className="text-foreground text-right text-xs">
-                        {formatDate(session.createdAt)}
-                        <br />
+                      <span className="text-foreground text-xs">
+                        {formatDate(session.createdAt)}{" "}
                         {formatTime(session.createdAt)}
                       </span>
                     </div>
