@@ -10,11 +10,16 @@ Tombol **Tambah Session** langsung membuat session tanpa isian: nomor urut dan
 tanggal buat. Sisanya diturunkan dari baris jadwalnya, supaya operator tahu ini
 session apa tanpa membukanya.
 
-Kepala kartu dibagi dua sisi. **Kiri, soal kirimannya:** nomor session, status,
-DO Date, Customer, dan penanda DELIVERY OK. **Kanan, soal sessionnya:** kemajuan
-dalam keping, tanggal dan jam session dibuat, lalu tombol hapus.
+Kepala kartu memuat yang menerangkan kirimannya: nomor session, status, DO Date,
+Customer, penanda DELIVERY OK, lalu tombol Upload, Mulai scan, dan hapus.
 
-DO Date dan Customer datang dari dokumennya sendiri, bukan dari aplikasi —
+Kemajuan dalam keping serta tanggal dan jam session dibuat berdiri sebaris
+dengan judul **Schedule Delivery** di atas tabelnya — keduanya menerangkan isi
+tabel itu, bukan kirimannya. Konsekuensinya: kartu yang terlipat tidak
+menyebutkan kemajuannya, dan angka itu baru terlihat setelah dibuka.
+
+DO Date dan Customer ditulis tebal berwarna hitam penuh. Keduanya datang dari
+dokumennya sendiri, bukan dari aplikasi —
 itulah yang menjawab "kiriman mana ini". Satu DO Report boleh memuat beberapa
 tanggal dan beberapa customer sekaligus, jadi keduanya diringkas: sampai dua
 nilai ditulis lengkap, lebih dari itu jadi "yang pertama +n lagi". Menampilkan

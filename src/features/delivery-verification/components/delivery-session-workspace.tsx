@@ -776,12 +776,14 @@ export function DeliverySessionWorkspace({
                       membuka tabelnya. Satu file boleh memuat beberapa, jadi
                       keduanya diringkas. */}
                   {doDates ? (
-                    <span className="text-foreground text-xs">
+                    <span className="text-foreground text-xs font-bold">
                       DO {doDates}
                     </span>
                   ) : null}
                   {customers ? (
-                    <span className="text-foreground text-xs">{customers}</span>
+                    <span className="text-foreground text-xs font-bold">
+                      {customers}
+                    </span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai
                       toast pada scan terakhir. Toast itu hilang dalam hitungan
@@ -821,26 +823,30 @@ export function DeliverySessionWorkspace({
                       ) : null}
                     </>
                   ) : null}
-                  {/* Kapan session dibuat dan sejauh mana kemajuannya: keduanya
-                      soal session, bukan soal kirimannya, jadi berdiri di sisi
-                      yang sama dengan tombol hapus. */}
-                  {session.rows.length > 0 ? (
-                    <span className="text-foreground text-xs tabular-nums">
-                      {verifiedQty}/{totalQty} pcs terverifikasi
-                    </span>
-                  ) : null}
-                  <span className="text-foreground text-right text-xs">
-                    {formatDate(session.createdAt)}
-                    <br />
-                    {formatTime(session.createdAt)}
-                  </span>
                   <DeleteSessionButton session={session} />
                 </div>
               </div>
 
               {expanded ? (
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-sm font-medium">Schedule Delivery</h3>
+                  {/* Kemajuan dan waktu session dibuat berdiri sebaris dengan
+                      judul tabelnya: keduanya menerangkan isi tabel di
+                      bawahnya, bukan kiriman yang disebut di kepala kartu. */}
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <h3 className="text-sm font-medium">Schedule Delivery</h3>
+                    <div className="flex flex-wrap items-end gap-3">
+                      {session.rows.length > 0 ? (
+                        <span className="text-foreground text-xs tabular-nums">
+                          {verifiedQty}/{totalQty} pcs terverifikasi
+                        </span>
+                      ) : null}
+                      <span className="text-foreground text-right text-xs">
+                        {formatDate(session.createdAt)}
+                        <br />
+                        {formatTime(session.createdAt)}
+                      </span>
+                    </div>
+                  </div>
                   <ScheduleTable session={session} />
                 </div>
               ) : null}

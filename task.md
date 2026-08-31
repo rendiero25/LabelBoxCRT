@@ -841,10 +841,11 @@ diisi dari file, tiap label box discan dan dicocokkan.
 - [x] Bentuk DO Report: baca kolom DO Date, Customer, Item No, dan Qty; hanya
       baris berdivisi sheet; baris ber-Qty nol dilewati (`20260828035015`,
       `20260831082847`).
-- [x] Kepala kartu terbagi dua sisi: kiri soal kiriman (nomor, status, DO Date,
-      Customer, DELIVERY OK), kanan soal session (kemajuan, tanggal dan jam
-      dibuat, tombol hapus). Status tiga warna: merah belum berjalan, kuning
-      berjalan, biru selesai.
+- [x] Kepala kartu menerangkan kirimannya: nomor, status, DO Date, Customer,
+      DELIVERY OK. Kemajuan serta tanggal dan jam session dibuat berdiri
+      sebaris dengan judul Schedule Delivery. Status tiga warna: merah belum
+      berjalan, kuning berjalan, biru selesai. DO Date dan Customer tebal
+      hitam.
 - [x] Upload menambah baris, tidak menimpa; nomor baris berlanjut lintas file.
 - [ ] Upload PDF — menunggu contoh dokumen asli.
 
