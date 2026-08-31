@@ -9,6 +9,8 @@ import ExcelJS from "exceljs"
 export type ScheduleRowDraft = {
   /** Null kalau dokumennya tidak berkolom Customer. */
   customer: string | null
+  /** `YYYY-MM-DD`, atau null kalau kolomnya tidak ada / tidak terbaca. */
+  doDate: string | null
   productSize: string
   qty: string
 }
@@ -69,6 +71,25 @@ function isDivisionHeader(key: string): boolean {
   return key.startsWith("divisi") || key.startsWith("division")
 }
 
+function isDoDateHeader(key: string): boolean {
+  return key === "dodate" || key === "tanggaldo" || key === "tgldo"
+}
+
+/**
+ * Tanggal DO, dinormalkan ke `YYYY-MM-DD`.
+ *
+ * Excel memberi sel tanggal sebagai `Date`; sisanya diterima kalau sudah
+ * berbentuk ISO. Bentuk lain dikembalikan null alih-alih ditebak: tanggal ini
+ * cuma keterangan di kartu session, dan salah menebak `03/04` sebagai 3 April
+ * atau 4 Maret lebih buruk daripada mengosongkannya.
+ */
+function isoDate(value: ExcelJS.CellValue): string | null {
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+
+  const text = cellText(value)
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : null
+}
+
 /**
  * Teks satu sel. ExcelJS memberi rumus sebagai objek berisi hasil hitungnya,
  * dan rich text sebagai potongan bergaya; keduanya harus diratakan dulu atau
@@ -126,6 +147,7 @@ function qtyDigits(raw: string): string | null {
 type HeaderPosition = {
   customerColumn: number
   divisionColumn: number
+  doDateColumn: number
   headerRow: number
   productSizeColumn: number
   qtyColumn: number
@@ -138,6 +160,7 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
     const row = sheet.getRow(rowNumber)
     let customerColumn = 0
     let divisionColumn = 0
+    let doDateColumn = 0
     let productSizeColumn = 0
     let qtyColumn = 0
 
@@ -151,12 +174,14 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
         customerColumn = columnNumber
       if (divisionColumn === 0 && isDivisionHeader(key))
         divisionColumn = columnNumber
+      if (doDateColumn === 0 && isDoDateHeader(key)) doDateColumn = columnNumber
     })
 
     if (productSizeColumn > 0 && qtyColumn > 0) {
       return {
         customerColumn,
         divisionColumn,
+        doDateColumn,
         headerRow: rowNumber,
         productSizeColumn,
         qtyColumn,
@@ -245,7 +270,17 @@ export async function parseScheduleWorkbook(
             .trim()
         : ""
 
-    rows.push({ customer: customer === "" ? null : customer, productSize, qty })
+    const doDate =
+      header.doDateColumn > 0
+        ? isoDate(row.getCell(header.doDateColumn).value)
+        : null
+
+    rows.push({
+      customer: customer === "" ? null : customer,
+      doDate,
+      productSize,
+      qty,
+    })
   }
 
   if (rows.length === 0) {

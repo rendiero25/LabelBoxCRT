@@ -64,14 +64,69 @@ import { useScannerListener } from "@/features/scan/use-scanner-listener"
 /** Jarak antar tombol scanner beberapa milidetik; 180 ms sudah jauh di atasnya. */
 const AUTO_SUBMIT_IDLE_MS = 180
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("id-ID", {
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", {
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
     month: "short",
     year: "numeric",
   })
+}
+
+/**
+ * DO Date datang sebagai `YYYY-MM-DD` tanpa zona waktu. Ia dibaca sebagai
+ * tanggal setempat, bukan lewat `new Date(...)` yang menganggapnya UTC dan
+ * memundurkannya sehari di zona timur.
+ */
+function formatDoDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+/**
+ * Nilai kolom dokumen yang diringkas untuk kepala kartu. Satu DO Report boleh
+ * memuat beberapa tanggal dan beberapa customer sekaligus; menampilkan
+ * semuanya membuat barisnya melebar tak keruan, sementara menampilkan yang
+ * pertama saja diam-diam menyembunyikan bahwa ada yang lain.
+ */
+function summarise(values: (string | null)[]): string | null {
+  const unique = [
+    ...new Set(values.filter((value): value is string => !!value)),
+  ]
+  if (unique.length === 0) return null
+  if (unique.length <= 2) return unique.join(", ")
+  return `${unique[0]} +${unique.length - 1} lagi`
+}
+
+type SessionProgress = "belum" | "berjalan" | "selesai"
+
+/**
+ * Warnanya diminta tegas, bukan halus: kartu ini dibaca sekilas dari jarak
+ * lantai produksi, dan yang perlu langsung terbaca adalah mana yang belum
+ * disentuh sama sekali.
+ */
+function StatusBadge({ status }: { status: SessionProgress }) {
+  const style = {
+    belum: { className: "bg-red-600 text-white", label: "Belum berjalan" },
+    berjalan: { className: "bg-yellow-400 text-black", label: "Berjalan" },
+    selesai: { className: "bg-blue-600 text-white", label: "Selesai" },
+  }[status]
+
+  return (
+    <Badge className={cn("border-transparent", style.className)}>
+      {style.label}
+    </Badge>
+  )
 }
 
 /**
@@ -173,8 +228,12 @@ function DeleteSessionButton({ session }: { session: DeliverySession }) {
   return (
     <AlertDialog onOpenChange={setOpen} open={open}>
       <AlertDialogTrigger asChild>
+        {/* Bulat hitam berikon putih. Ia berdiri di sisi kanan bersama tanggal
+            session, jauh dari tombol yang dipakai sehari-hari, dan bentuknya
+            sendiri yang membedakannya dari keduanya. */}
         <Button
           aria-label={`Hapus Session ${session.sessionNo}`}
+          className="size-9 rounded-full bg-black text-white hover:bg-black/80"
           size="icon"
           variant="ghost"
         >
@@ -657,6 +716,21 @@ export function DeliverySessionWorkspace({
           const deliveryOk =
             session.rows.length > 0 &&
             session.rows.every((row) => row.verifiedAt)
+          const doDates = summarise(
+            session.rows.map((row) =>
+              row.doDate ? formatDoDate(row.doDate) : null,
+            ),
+          )
+          const customers = summarise(session.rows.map((row) => row.customer))
+          // Tiga keadaan, bukan dua. "Berjalan" untuk session yang sudah
+          // menerima scan; yang belum disentuh sama sekali berdiri sendiri,
+          // sebab itulah yang menunggu dikerjakan.
+          const progress: SessionProgress =
+            session.status === "done"
+              ? "selesai"
+              : verifiedQty > 0
+                ? "berjalan"
+                : "belum"
           const defaultExpanded =
             defaultExpandedById.get(session.id) ?? session.status === "open"
           const expanded = toggled.has(session.id)
@@ -696,23 +770,18 @@ export function DeliverySessionWorkspace({
                       Session {session.sessionNo}
                     </h2>
                   </button>
-                  <Badge
-                    variant={
-                      session.status === "done" ? "default" : "secondary"
-                    }
-                  >
-                    {session.status === "done" ? "Selesai" : "Berjalan"}
-                  </Badge>
-                  {/* Tanggal dan hitungan terverifikasi dibaca dari jarak
-                      pandang lantai produksi, bukan dari depan meja: keduanya
-                      memakai warna teks penuh, bukan abu-abu peredup. */}
-                  <span className="text-foreground text-xs">
-                    {formatDateTime(session.createdAt)}
-                  </span>
-                  {session.rows.length > 0 ? (
-                    <span className="text-foreground text-xs tabular-nums">
-                      {verifiedQty}/{totalQty} pcs terverifikasi
+                  <StatusBadge status={progress} />
+                  {/* Tanggal DO dan customer datang dari dokumennya, bukan dari
+                      aplikasi: itu yang menjawab "kiriman mana ini" tanpa
+                      membuka tabelnya. Satu file boleh memuat beberapa, jadi
+                      keduanya diringkas. */}
+                  {doDates ? (
+                    <span className="text-foreground text-xs">
+                      DO {doDates}
                     </span>
+                  ) : null}
+                  {customers ? (
+                    <span className="text-foreground text-xs">{customers}</span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai
                       toast pada scan terakhir. Toast itu hilang dalam hitungan
@@ -732,7 +801,7 @@ export function DeliverySessionWorkspace({
                     </span>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   {/* Upload dan scan ikut tersembunyi saat ditutup. Tombol yang
                       mengubah isi session tidak boleh bisa ditekan sementara
                       isinya tidak kelihatan. */}
@@ -752,6 +821,19 @@ export function DeliverySessionWorkspace({
                       ) : null}
                     </>
                   ) : null}
+                  {/* Kapan session dibuat dan sejauh mana kemajuannya: keduanya
+                      soal session, bukan soal kirimannya, jadi berdiri di sisi
+                      yang sama dengan tombol hapus. */}
+                  {session.rows.length > 0 ? (
+                    <span className="text-foreground text-xs tabular-nums">
+                      {verifiedQty}/{totalQty} pcs terverifikasi
+                    </span>
+                  ) : null}
+                  <span className="text-foreground text-right text-xs">
+                    {formatDate(session.createdAt)}
+                    <br />
+                    {formatTime(session.createdAt)}
+                  </span>
                   <DeleteSessionButton session={session} />
                 </div>
               </div>

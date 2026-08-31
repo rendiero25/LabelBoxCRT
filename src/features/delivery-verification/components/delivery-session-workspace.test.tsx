@@ -40,6 +40,7 @@ function sessionFixture(
     rows: [
       {
         customer: "PT. CIPTA MANDIRI WIRASAKTI",
+        doDate: "2026-08-24",
         id: "8e2b0000-0000-0000-0000-000000000001",
         productSize: "VDX T0.3XW100 L=120MM",
         qtyDelivery: 5000,

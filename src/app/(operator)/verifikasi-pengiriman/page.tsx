@@ -9,6 +9,7 @@ type ScheduleRowRecord = {
   id: string
   row_no: number
   customer: string | null
+  do_date: string | null
   product_size: string
   qty_delivery: number
   verified_qty: number
@@ -40,7 +41,7 @@ export default async function VerifikasiPengirimanPage() {
     supabase
       .from("delivery_schedule_rows")
       .select(
-        "id, session_id, row_no, customer, product_size, qty_delivery, verified_qty, verified_boxes, source_file_name, verified_at",
+        "id, session_id, row_no, customer, do_date, product_size, qty_delivery, verified_qty, verified_boxes, source_file_name, verified_at",
       )
       .order("row_no"),
   ])
@@ -61,6 +62,7 @@ export default async function VerifikasiPengirimanPage() {
     id: session.id,
     rows: (rowsBySession.get(session.id) ?? []).map((row) => ({
       customer: row.customer,
+      doDate: row.do_date,
       id: row.id,
       productSize: row.product_size,
       qtyDelivery: row.qty_delivery,

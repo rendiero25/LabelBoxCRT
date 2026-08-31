@@ -18,9 +18,14 @@ async function workbookBuffer(
   return buffer as ArrayBuffer
 }
 
-/** Dokumen tanpa kolom Customer menghasilkan baris tanpa customer. */
-function row(productSize: string, qty: string, customer: string | null = null) {
-  return { customer, productSize, qty }
+/** Dokumen tanpa kolom Customer atau DO Date menghasilkan baris tanpa keduanya. */
+function row(
+  productSize: string,
+  qty: string,
+  customer: string | null = null,
+  doDate: string | null = null,
+) {
+  return { customer, doDate, productSize, qty }
 }
 
 describe("parseScheduleWorkbook", () => {
@@ -94,8 +99,8 @@ describe("parseScheduleWorkbook", () => {
 
   /**
    * Bentuk DO Report yang dipakai seterusnya: satu file memuat seluruh divisi
-   * dan seluruh customer untuk rentang tanggalnya. Yang diambil kolom Customer,
-   * Item No, dan Qty; yang lain lewat.
+   * dan seluruh customer untuk rentang tanggalnya. Yang diambil kolom DO Date,
+   * Customer, Item No, dan Qty; yang lain lewat.
    */
   describe("DO Report", () => {
     const HEADER = [
@@ -133,7 +138,7 @@ describe("parseScheduleWorkbook", () => {
       ]
     }
 
-    it("takes Customer, Item No and Qty from the fixed layout", async () => {
+    it("takes DO Date, Customer, Item No and Qty from the fixed layout", async () => {
       const result = await parseScheduleWorkbook(
         await workbookBuffer([
           HEADER,
@@ -147,8 +152,41 @@ describe("parseScheduleWorkbook", () => {
       )
 
       expect(result.ok && result.rows).toEqual([
-        row("VS-B T0.3XW100 L=185MM", "3000", "PT. CIPTA MANDIRI WIRASAKTI"),
+        row(
+          "VS-B T0.3XW100 L=185MM",
+          "3000",
+          "PT. CIPTA MANDIRI WIRASAKTI",
+          "2026-08-21",
+        ),
       ])
+    })
+
+    /**
+     * Tanggal yang tidak berbentuk ISO dikosongkan, bukan ditebak: `03/04`
+     * bisa 3 April atau 4 Maret, dan menebaknya lebih buruk daripada
+     * membiarkan kartunya tidak menyebut tanggal.
+     */
+    it("leaves an unparseable DO Date empty instead of guessing", async () => {
+      const result = await parseScheduleWorkbook(
+        await workbookBuffer([
+          HEADER,
+          [
+            "21/08/2026",
+            "CRT-DOS26-00327",
+            "PO-1",
+            "CUST-00018",
+            "PT. CIPTA MANDIRI WIRASAKTI",
+            null,
+            "VS-B T0.3XW100 L=185MM",
+            "VINYL SHEET",
+            3000,
+            1173,
+            "DEVISI SHEET",
+          ],
+        ]),
+      )
+
+      expect(result.ok && result.rows[0].doDate).toBeNull()
     })
 
     /**
@@ -200,7 +238,12 @@ describe("parseScheduleWorkbook", () => {
       )
 
       expect(result.ok && result.rows).toEqual([
-        row("VS-B T0.3XW60 L=255MM", "7500", "PT. CIPTA MANDIRI WIRASAKTI"),
+        row(
+          "VS-B T0.3XW60 L=255MM",
+          "7500",
+          "PT. CIPTA MANDIRI WIRASAKTI",
+          "2026-08-21",
+        ),
       ])
     })
 
@@ -259,7 +302,12 @@ describe("parseScheduleWorkbook", () => {
       )
 
       expect(result.ok && result.rows).toEqual([
-        row("VS-B T0.3XW80 L=245MM", "1500", "PT. CIPTA MANDIRI WIRASAKTI"),
+        row(
+          "VS-B T0.3XW80 L=245MM",
+          "1500",
+          "PT. CIPTA MANDIRI WIRASAKTI",
+          "2026-08-21",
+        ),
       ])
     })
 

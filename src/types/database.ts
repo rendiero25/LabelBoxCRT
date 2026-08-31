@@ -235,6 +235,7 @@ export type Database = {
         Row: {
           created_at: string
           customer: string | null
+          do_date: string | null
           id: string
           product_size: string
           qty_delivery: number
@@ -249,6 +250,7 @@ export type Database = {
         Insert: {
           created_at?: string
           customer?: string | null
+          do_date?: string | null
           id?: string
           product_size: string
           qty_delivery: number
@@ -263,6 +265,7 @@ export type Database = {
         Update: {
           created_at?: string
           customer?: string | null
+          do_date?: string | null
           id?: string
           product_size?: string
           qty_delivery?: number
@@ -1293,6 +1296,7 @@ export type Database = {
         Returns: {
           created_at: string
           customer: string
+          do_date: string
           id: string
           product_size: string
           qty_delivery: number

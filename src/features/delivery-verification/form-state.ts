@@ -2,6 +2,8 @@ export type DeliveryScheduleRow = {
   id: string
   /** Kolom Customer dokumen; null untuk jadwal lama yang belum memuatnya. */
   customer: string | null
+  /** Kolom DO Date dokumen, `YYYY-MM-DD`; null kalau tidak ada atau tak terbaca. */
+  doDate: string | null
   /**
    * Kolom "Item No" DO Report: ukuran produk seperti tertulis di label --
    * misal "VS-B T0.3XW100 L=120MM". Dibandingkan dengan field kedua string QR

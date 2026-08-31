@@ -7,9 +7,35 @@ QR. Session selesai ketika seluruh baris jadwal sudah tercocokkan.
 ## Session
 
 Tombol **Tambah Session** langsung membuat session tanpa isian: nomor urut dan
-tanggal buat. Sisanya diturunkan dari baris jadwalnya — jumlah baris, berapa
-yang sudah PASS, berapa ukuran yang tak dikenal — supaya operator tahu ini
+tanggal buat. Sisanya diturunkan dari baris jadwalnya, supaya operator tahu ini
 session apa tanpa membukanya.
+
+Kepala kartu dibagi dua sisi. **Kiri, soal kirimannya:** nomor session, status,
+DO Date, Customer, dan penanda DELIVERY OK. **Kanan, soal sessionnya:** kemajuan
+dalam keping, tanggal dan jam session dibuat, lalu tombol hapus.
+
+DO Date dan Customer datang dari dokumennya sendiri, bukan dari aplikasi —
+itulah yang menjawab "kiriman mana ini". Satu DO Report boleh memuat beberapa
+tanggal dan beberapa customer sekaligus, jadi keduanya diringkas: sampai dua
+nilai ditulis lengkap, lebih dari itu jadi "yang pertama +n lagi". Menampilkan
+semuanya melebarkan barisnya tak keruan; menampilkan yang pertama saja diam-diam
+menyembunyikan bahwa ada yang lain.
+
+Statusnya tiga, bukan dua:
+
+| Status         | Kapan                          | Warna              |
+| -------------- | ------------------------------ | ------------------ |
+| Belum berjalan | terbuka, belum satu pun scan   | merah, teks putih  |
+| Berjalan       | terbuka, sudah ada yang discan | kuning, teks hitam |
+| Selesai        | `done`                         | biru, teks putih   |
+
+Yang belum disentuh sama sekali berdiri sendiri karena itulah yang menunggu
+dikerjakan; menyatukannya dengan yang sudah setengah jalan menyembunyikan
+pekerjaan yang belum dimulai.
+
+Tombol hapus bulat hitam berikon putih, berdiri di ujung kanan bersama tanggal
+session — jauh dari Upload dan Mulai scan yang dipakai sehari-hari, dan
+bentuknya sendiri yang membedakannya.
 
 Kartu session bisa dilipat. Yang sudah `done` terlipat sendiri, yang masih
 `open` terbuka. Bawaan itu dipatok sekali saat sessionnya pertama terlihat,
@@ -40,8 +66,15 @@ DO Date | DONo | Customer PONo | Customer No | Customer | DNNo |
 Item No | Description | Qty | Unit Price | Divisi
 ```
 
-Yang dibaca tiga kolom: **Customer**, **Item No** (ukuran sheet), dan **Qty**
-(Qty Delivery). Sisanya lewat.
+Yang dibaca empat kolom: **DO Date**, **Customer**, **Item No** (ukuran sheet),
+dan **Qty** (Qty Delivery). Sisanya lewat.
+
+DO Date disimpan per baris (`do_date`, `20260831082847`) dan cuma dipakai di
+kepala kartu. Ia boleh kosong: dokumen jadwal lama tidak punya kolomnya, dan
+tanggal yang tidak berbentuk ISO dikosongkan alih-alih ditebak — `03/04` bisa
+3 April atau 4 Maret, dan menebaknya lebih buruk daripada tidak menyebut
+tanggal. Satu dokumen berformat tanggal aneh tidak boleh menahan seluruh
+pemeriksaan kiriman.
 
 Kolom Customer dicocokkan **persis**, bukan lewat `includes`. "Customer PONo"
 dan "Customer No" berdiri lebih dulu di baris header, dan pencocokan longgar
@@ -299,7 +332,7 @@ delivery_verification_sessions
 
 delivery_schedule_rows
   id, session_id, row_no, customer, product_size, source_file_name, created_at,
-  qty_delivery,
+  qty_delivery, do_date,                    -- do_date cuma keterangan di kartu
   verified_qty,                             -- keping yang sudah masuk; lunas = qty_delivery
   verified_boxes,                           -- keterangan, naik satu tiap scan
   verified_at, verified_label_box_id        -- selalu null; label_boxes tak dipakai
@@ -345,7 +378,8 @@ Ketiganya mengembalikan `delivery_verification_session_seq` di akhir file:
 `nextval()` tidak ikut rollback, dan tanpa pengembalian itu nomor session nyata
 berikutnya melompat.
 
-Vitest: parser Excel (bentuk DO Report — Customer/Item No/Qty diambil, "Customer
+Vitest: parser Excel (bentuk DO Report — DO Date/Customer/Item No/Qty diambil,
+tanggal yang tidak berbentuk ISO dikosongkan bukan ditebak, "Customer
 PONo" tidak tertukar jadi customer, hanya divisi sheet yang lewat, Qty tak
 terbaca di divisi yang dilewati tidak menggagalkan file, baris ber-Qty nol
 dilewati, file tube-saja dibedakan dari file rusak; ditambah bentuk dokumen

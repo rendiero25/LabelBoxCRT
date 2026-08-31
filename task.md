@@ -838,8 +838,13 @@ diisi dari file, tiap label box discan dan dicocokkan.
 - [x] Halaman `/verifikasi-pengiriman` dengan tombol Tambah Session.
 - [x] Parser Excel (`exceljs`) — cari header, toleran variasi ejaan dan
       penulisan Qty, dicocokkan ke dokumen asli.
-- [x] Bentuk DO Report: baca kolom Customer, Item No, dan Qty; hanya baris
-      berdivisi sheet; baris ber-Qty nol dilewati (`20260828035015`).
+- [x] Bentuk DO Report: baca kolom DO Date, Customer, Item No, dan Qty; hanya
+      baris berdivisi sheet; baris ber-Qty nol dilewati (`20260828035015`,
+      `20260831082847`).
+- [x] Kepala kartu terbagi dua sisi: kiri soal kiriman (nomor, status, DO Date,
+      Customer, DELIVERY OK), kanan soal session (kemajuan, tanggal dan jam
+      dibuat, tombol hapus). Status tiga warna: merah belum berjalan, kuning
+      berjalan, biru selesai.
 - [x] Upload menambah baris, tidak menimpa; nomor baris berlanjut lintas file.
 - [ ] Upload PDF — menunggu contoh dokumen asli.
 

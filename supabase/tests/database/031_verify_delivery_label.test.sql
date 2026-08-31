@@ -14,7 +14,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(23);
+select plan(25);
 
 create temporary table verify_seq_before as
 select last_value, is_called from public.delivery_verification_session_seq;
@@ -47,12 +47,32 @@ grant select on vd_session to public;
 select public.add_delivery_schedule_rows(
   (select id from vd_session),
   'jadwal-vd.xlsx',
-  '[{"customer": "PT. UJI SEJAHTERA",
+  '[{"customer": "PT. UJI SEJAHTERA", "doDate": "2026-08-21",
      "productSize": "UJI-A T1XW1 L=10MM", "qty": "5000"},
-    {"customer": "PT. UJI SEJAHTERA",
+    {"customer": "PT. UJI SEJAHTERA", "doDate": "2026-08-21",
      "productSize": "UJI-B T1XW1 L=20MM", "qty": "2000"},
-    {"customer": "PT. UJI LAINNYA",
+    {"customer": "PT. UJI LAINNYA", "doDate": "bukan tanggal",
      "productSize": "  uji-c   T1XW1 L=30MM ", "qty": "500"}]'::jsonb
+);
+
+select is(
+  (
+    select do_date::text from public.delivery_schedule_rows
+    where session_id = (select id from vd_session) and row_no = 1
+  ),
+  '2026-08-21',
+  'DO Date tersimpan dari dokumen'
+);
+
+-- Tanggal yang tidak terbaca disimpan kosong, bukan menggagalkan filenya: ia
+-- cuma keterangan di kartu session.
+select is(
+  (
+    select do_date from public.delivery_schedule_rows
+    where session_id = (select id from vd_session) and row_no = 3
+  ),
+  null::date,
+  'tanggal yang tidak berbentuk YYYY-MM-DD disimpan kosong'
 );
 
 select is(
