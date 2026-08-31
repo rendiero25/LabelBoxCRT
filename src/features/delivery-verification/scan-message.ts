@@ -28,12 +28,16 @@ export function scanMessage(row: ScanMessageRow): string {
     return "NOT PASS — QR tidak terbaca: ukuran atau Qty tidak ditemukan di dalamnya."
   }
 
+  // "PASS" hanya untuk baris yang totalnya sudah lengkap. Scan yang diterima
+  // tetapi belum menutup kirimannya cuma melaporkan kemajuan: menyebutnya PASS
+  // membuat operator mengira ukuran itu sudah beres padahal box-nya masih ada
+  // di palet.
   if (row.result === "pass") {
     if (row.row_done) {
       return `PASS — ${row.product_size} lengkap ${row.qty_delivery} pcs dalam ${row.verified_boxes} box.`
     }
 
-    return `PASS — ${row.product_size} ${row.verified_qty}/${row.qty_delivery} pcs, ${row.verified_boxes} box. Sisa ${row.remaining_qty} pcs.`
+    return `${row.product_size} ${row.verified_qty}/${row.qty_delivery} pcs, ${row.verified_boxes} box. Sisa ${row.remaining_qty} pcs.`
   }
 
   // Ukuran yang sudah cukup dibedakan dari Qty yang kebesaran: yang pertama

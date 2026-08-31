@@ -27,14 +27,18 @@ describe("scanMessage", () => {
    * Sisa keping adalah satu-satunya angka yang tidak bisa dihitung operator
    * sendiri: berapa box yang dipakai tidak diatur, jadi ia tidak punya cara
    * tahu kapan berhenti selain diberi tahu.
+   *
+   * Kata "PASS" sengaja tidak muncul di sini. Box diterima, tetapi kirimannya
+   * belum lengkap, dan menyebutnya PASS membuat operator mengira ukuran itu
+   * sudah beres padahal box-nya masih ada di palet.
    */
-  it("says how many pieces are left after an accepted box", () => {
+  it("reports progress without calling a partial scan PASS", () => {
     expect(scanMessage(row())).toBe(
-      "PASS — VS-B T0.3XW60 L=225MM 2000/5000 pcs, 1 box. Sisa 3000 pcs.",
+      "VS-B T0.3XW60 L=225MM 2000/5000 pcs, 1 box. Sisa 3000 pcs.",
     )
   })
 
-  it("announces the row as complete with the box count it took", () => {
+  it("says PASS only once the total is complete", () => {
     expect(
       scanMessage(
         row({

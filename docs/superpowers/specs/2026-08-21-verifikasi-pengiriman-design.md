@@ -220,15 +220,19 @@ Yang tersimpan dan yang tampil di layar tidak ikut berubah: baris jadwal tetap
 memakai ejaan dokumennya sendiri, supaya isi tabel masih bisa ditelusuri kembali
 ke file asalnya. Yang dilonggarkan hanya perbandingannya.
 
-| Keadaan                                                    | `result`        | Toast                                          | Tabel                      |
-| ---------------------------------------------------------- | --------------- | ---------------------------------------------- | -------------------------- |
-| Qty muat pada sisa, baris belum lunas                      | `pass`          | **PASS** — 2000/5000 pcs, 1 box. Sisa 3000 pcs | Terscan dan Box bertambah  |
-| Qty menutup sisanya                                        | `pass`          | **PASS** — lengkap 5000 pcs dalam 3 box        | centang hijau di baris itu |
-| Ukuran ada di jadwal, Qty melebihi sisa                    | `not_pass`      | **NOT PASS** — sisa 3000 pcs, QR ini 4000 pcs  | tidak berubah              |
-| Ukuran ada di jadwal tetapi sudah lengkap                  | `not_pass`      | **NOT PASS** — sudah lengkap 5000 pcs          | tidak berubah              |
-| Ukuran tidak ada di jadwal sama sekali                     | `not_pass`      | **NOT PASS** — tidak ada baris jadwal          | tidak berubah              |
-| Kurang dari 3 field, atau Qty bukan bilangan bulat positif | `unknown_label` | **NOT PASS** — QR tidak terbaca                | tidak berubah              |
-| Baris terakhir baru saja lunas                             | `pass`          | **DELIVERY OK** menyusul PASS-nya              | session jadi `done`        |
+| Keadaan                                                    | `result`        | Toast                                         | Tabel                      |
+| ---------------------------------------------------------- | --------------- | --------------------------------------------- | -------------------------- |
+| Qty muat pada sisa, baris belum lunas                      | `pass`          | 2000/5000 pcs, 1 box. Sisa 3000 pcs           | Terscan dan Box bertambah  |
+| Qty menutup sisanya                                        | `pass`          | **PASS** — lengkap 5000 pcs dalam 3 box       | centang hijau di baris itu |
+| Ukuran ada di jadwal, Qty melebihi sisa                    | `not_pass`      | **NOT PASS** — sisa 3000 pcs, QR ini 4000 pcs | tidak berubah              |
+| Ukuran ada di jadwal tetapi sudah lengkap                  | `not_pass`      | **NOT PASS** — sudah lengkap 5000 pcs         | tidak berubah              |
+| Ukuran tidak ada di jadwal sama sekali                     | `not_pass`      | **NOT PASS** — tidak ada baris jadwal         | tidak berubah              |
+| Kurang dari 3 field, atau Qty bukan bilangan bulat positif | `unknown_label` | **NOT PASS** — QR tidak terbaca               | tidak berubah              |
+| Baris terakhir baru saja lunas                             | `pass`          | **DELIVERY OK** menyusul PASS-nya             | session jadi `done`        |
+
+**Kata "PASS" hanya muncul saat barisnya lengkap.** Scan yang diterima tetapi
+belum menutup kirimannya cuma melaporkan kemajuan: menyebutnya PASS membuat
+operator mengira ukuran itu sudah beres padahal box-nya masih ada di palet.
 
 `unknown_label` dibedakan dari `not_pass` karena keduanya menuntut tindakan
 berbeda: yang satu berarti QR-nya tidak terbaca, yang lain berarti QR terbaca
