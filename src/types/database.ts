@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -235,7 +235,6 @@ export type Database = {
         Row: {
           created_at: string
           customer: string | null
-          expected_boxes: number | null
           id: string
           product_size: string
           qty_delivery: number
@@ -245,11 +244,11 @@ export type Database = {
           verified_at: string | null
           verified_boxes: number
           verified_label_box_id: string | null
+          verified_qty: number
         }
         Insert: {
           created_at?: string
           customer?: string | null
-          expected_boxes?: number | null
           id?: string
           product_size: string
           qty_delivery: number
@@ -259,11 +258,11 @@ export type Database = {
           verified_at?: string | null
           verified_boxes?: number
           verified_label_box_id?: string | null
+          verified_qty?: number
         }
         Update: {
           created_at?: string
           customer?: string | null
-          expected_boxes?: number | null
           id?: string
           product_size?: string
           qty_delivery?: number
@@ -273,6 +272,7 @@ export type Database = {
           verified_at?: string | null
           verified_boxes?: number
           verified_label_box_id?: string | null
+          verified_qty?: number
         }
         Relationships: [
           {
@@ -1293,7 +1293,6 @@ export type Database = {
         Returns: {
           created_at: string
           customer: string
-          expected_boxes: number
           id: string
           product_size: string
           qty_delivery: number
@@ -1613,16 +1612,6 @@ export type Database = {
         Args: { p_box_layer_id: string; p_requirements: Json }
         Returns: undefined
       }
-      set_delivery_schedule_row_boxes: {
-        Args: { p_expected_boxes: number; p_row_id: string }
-        Returns: {
-          expected_boxes: number
-          id: string
-          row_no: number
-          verified_at: string
-          verified_boxes: number
-        }[]
-      }
       set_master_item_active: {
         Args: { p_is_active: boolean; p_master_item_id: string }
         Returns: undefined
@@ -1778,22 +1767,21 @@ export type Database = {
       verify_delivery_label: {
         Args: { p_qr_payload: string; p_session_id: string }
         Returns: {
-          boxes_unset: boolean
           delivery_ok: boolean
-          expected_boxes: number
-          expected_qty: number
           matched_row_id: string
           matched_row_no: number
           packing_qty: number
           part_no: string
           product_size: string
           qty_delivery: number
+          remaining_qty: number
           result: Database["public"]["Enums"]["delivery_scan_result"]
           row_done: boolean
           size_complete: boolean
           total_count: number
           verified_boxes: number
           verified_count: number
+          verified_qty: number
         }[]
       }
     }

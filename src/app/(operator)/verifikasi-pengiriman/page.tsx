@@ -11,9 +11,7 @@ type ScheduleRowRecord = {
   customer: string | null
   product_size: string
   qty_delivery: number
-  // Null berarti jumlah box-nya belum diisi operator -- bukan nol, yang akan
-  // terbaca sebagai baris yang lunas tanpa satu pun scan.
-  expected_boxes: number | null
+  verified_qty: number
   verified_boxes: number
   source_file_name: string
   verified_at: string | null
@@ -42,7 +40,7 @@ export default async function VerifikasiPengirimanPage() {
     supabase
       .from("delivery_schedule_rows")
       .select(
-        "id, session_id, row_no, customer, product_size, qty_delivery, expected_boxes, verified_boxes, source_file_name, verified_at",
+        "id, session_id, row_no, customer, product_size, qty_delivery, verified_qty, verified_boxes, source_file_name, verified_at",
       )
       .order("row_no"),
   ])
@@ -63,7 +61,6 @@ export default async function VerifikasiPengirimanPage() {
     id: session.id,
     rows: (rowsBySession.get(session.id) ?? []).map((row) => ({
       customer: row.customer,
-      expectedBoxes: row.expected_boxes,
       id: row.id,
       productSize: row.product_size,
       qtyDelivery: row.qty_delivery,
@@ -71,6 +68,7 @@ export default async function VerifikasiPengirimanPage() {
       sourceFileName: row.source_file_name,
       verifiedAt: row.verified_at,
       verifiedBoxes: row.verified_boxes,
+      verifiedQty: row.verified_qty,
     })),
     sessionNo: session.session_no,
     status: session.status,

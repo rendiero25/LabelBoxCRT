@@ -849,13 +849,12 @@ diisi dari file, tiap label box discan dan dicocokkan.
       `master_items`/`label_boxes` tidak dipakai sama sekali (`20260827094500`).
       View `delivery_schedule_rows_resolved` ikut dibuang bersamanya.
 - [x] Pencocokan ukuran mengabaikan spasi di kedua sisi (`20260827103000`).
-- [x] Semua box satu baris berlabel sama; yang dicocokkan Qty Delivery, dan
-      label yang sama ditembak sebanyak jumlah box-nya (`20260828075811`).
-      Aturan sebelumnya menuntut Qty per box dan menolak label yang benar.
-- [x] Jumlah box diisi operator di kolom Box, tidak diturunkan dari MPQ
-      (`20260828091159`). Baris yang belum diisi tidak bisa discan dan menahan
-      session tetap terbuka; angkanya tidak boleh turun di bawah box yang sudah
-      discan.
+- [x] Field ketiga QR adalah Qty box yang dipegang. Angkanya dijumlahkan sampai
+      mencapai Qty Delivery; jumlah box tidak diatur dan hanya ditampilkan
+      (`20260831050400`). Qty yang melebihi sisa ditolak.
+      Dua aturan sebelumnya menebak arti field itu dan dua-duanya salah:
+      `20260828025319` (Qty MPQ per box) dan `20260828075811` (Qty Delivery di
+      tiap box); `20260828091159` sempat meminta jumlah box diketik operator.
 - [x] MPQ Sheet bisa disunting admin dari `/admin/mpq-sheet` — tambah, edit,
       nonaktifkan, hapus — lewat RPC teraudit (`20260828063230`). Daftarnya
       berdiri sendiri; verifikasi pengiriman tidak lagi membacanya.
@@ -874,13 +873,13 @@ diisi dari file, tiap label box discan dan dicocokkan.
 ## Terbuka
 
 - [ ] Upload PDF — menunggu contoh dokumen asli.
-- [ ] Jumlah box yang diisi tidak diperiksa terhadap apa pun. Itu maksudnya —
-      MPQ dilepas justru karena ia menebak — tetapi salah ketik tidak akan
-      tertangkap sistem.
-- [ ] Dua box satu baris tidak bisa dibedakan lewat QR-nya — labelnya sama
-      persis — jadi satu box yang ditembak dua kali terhitung dua box. Yang
-      menjaganya tinggal ketelitian operator dan catatan di
-      `delivery_verification_scans`.
+- [ ] Aturan penjumlahan Qty belum diuji di lantai produksi; terbukti di pgTAP
+      saja.
+- [ ] Dua box ber-Qty sama tidak bisa dibedakan dari satu box yang ditembak dua
+      kali — QR tidak membawa identitas box. Yang membatasinya total Qty
+      Delivery dan catatan di `delivery_verification_scans`.
+- [ ] Session 15 dan 18 memegang `verified_boxes` dari aturan lama: itu jumlah
+      tembakan atas satu label, bukan box sungguhan.
 - [ ] MPQ Sheet belum dipakai fitur mana pun; ia daftar rujukan yang berdiri
       sendiri.
 - [ ] Migrasi belum jalan di production.

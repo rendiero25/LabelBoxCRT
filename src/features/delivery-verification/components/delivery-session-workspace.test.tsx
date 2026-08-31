@@ -40,8 +40,6 @@ function sessionFixture(
     rows: [
       {
         customer: "PT. CIPTA MANDIRI WIRASAKTI",
-        // Jumlah box diisi operator; dua di sini.
-        expectedBoxes: 2,
         id: "8e2b0000-0000-0000-0000-000000000001",
         productSize: "VDX T0.3XW100 L=120MM",
         qtyDelivery: 5000,
@@ -49,6 +47,7 @@ function sessionFixture(
         sourceFileName: "jadwal.xlsx",
         verifiedAt: null,
         verifiedBoxes: 0,
+        verifiedQty: 0,
       },
     ],
     sessionNo: 1,

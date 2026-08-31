@@ -13,12 +13,9 @@ export type DeliveryScheduleRow = {
    * box yang menampungnya diisi operator di kolom Box.
    */
   qtyDelivery: number
-  /**
-   * Berapa box yang berangkat untuk baris ini, diisi operator. Null berarti
-   * belum diisi: barisnya terlihat tetapi belum bisa discan, dan menahan
-   * session tetap terbuka.
-   */
-  expectedBoxes: number | null
+  /** Jumlah keping yang sudah discan. Barisnya lunas saat sama dengan qtyDelivery. */
+  verifiedQty: number
+  /** Berapa kali label ukuran ini diterima. Keterangan; tidak menentukan lunas. */
   verifiedBoxes: number
   rowNo: number
   sourceFileName: string
@@ -53,7 +50,7 @@ export type DeliveryScanResult = {
   deliveryOk: boolean
   message: string
   outcome: DeliveryScanOutcome | "error"
-  /** Box, bukan baris jadwal: itu yang dihitung operator sambil membongkar. */
+  /** Keping, bukan box: berapa box yang dipakai tidak diatur. */
   verifiedCount: number
   totalCount: number
 }

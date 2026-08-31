@@ -51,7 +51,6 @@ import {
   createDeliverySessionAction,
   deleteDeliverySessionAction,
   deleteScheduleRowAction,
-  setScheduleRowBoxesAction,
   uploadScheduleFileAction,
   verifyDeliveryLabelAction,
 } from "@/features/delivery-verification/actions"
@@ -131,75 +130,6 @@ function ScheduleUpload({ sessionId }: { sessionId: string }) {
         </label>
       </Button>
     </form>
-  )
-}
-
-/**
- * Kolom Box yang bisa diketik. Dokumen jadwal tidak menyebut berapa box yang
- * berangkat, jadi operator mengisinya sendiri sebelum barisnya bisa discan.
- *
- * Disimpan saat Enter atau saat fokus berpindah, bukan lewat tombol Simpan
- * tersendiri: satu baris hanya punya satu angka, dan tombol per baris di tabel
- * sepanjang ini lebih banyak menghalangi daripada menolong. Angka yang sedang
- * diketik dikembalikan ke nilai tersimpan kalau ditinggalkan kosong, supaya
- * kolomnya tidak pernah menampilkan sesuatu yang tidak ada di database.
- */
-function BoxCountCell({
-  expectedBoxes,
-  rowId,
-  verifiedBoxes,
-}: {
-  expectedBoxes: number | null
-  rowId: string
-  verifiedBoxes: number
-}) {
-  const [isPending, startTransition] = useTransition()
-  const [state, setState] = useState(initialUploadScheduleState)
-  const [draft, setDraft] = useState(
-    expectedBoxes === null ? "" : String(expectedBoxes),
-  )
-  useActionStateToast(state)
-
-  const saved = expectedBoxes === null ? "" : String(expectedBoxes)
-
-  function commit() {
-    const value = draft.trim()
-    if (value === saved) return
-    if (value === "") {
-      setDraft(saved)
-      return
-    }
-
-    startTransition(async () => {
-      const result = await setScheduleRowBoxesAction({ boxes: value, rowId })
-      setState(result)
-      // Ditolak berarti yang tersimpan tetap yang lama, jadi kolomnya
-      // dikembalikan ke sana daripada memajang angka yang tidak berlaku.
-      if (result.error) setDraft(saved)
-    })
-  }
-
-  return (
-    <div className="flex items-center justify-center gap-1.5">
-      <span className="text-foreground tabular-nums">{verifiedBoxes}</span>
-      <span className="text-muted-foreground">/</span>
-      <Input
-        aria-label="Jumlah box"
-        className="h-8 w-14 px-2 text-center tabular-nums"
-        disabled={isPending}
-        inputMode="numeric"
-        onBlur={commit}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter") return
-          event.preventDefault()
-          event.currentTarget.blur()
-        }}
-        placeholder="—"
-        value={draft}
-      />
-      {isPending ? <Spinner className="size-3.5" /> : null}
-    </div>
   )
 }
 
@@ -315,10 +245,13 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
                 Box" dan satu baris lunas oleh satu label -- nama itu ikut
                 berganti supaya angkanya tidak terbaca sebagai isi box. */}
             <TableHead className="text-right">Qty Delivery</TableHead>
-            {/* Berapa box yang sudah masuk dari yang diisi operator. Angka
-                kanannya diketik di sini — dokumen jadwal tidak menyebutnya —
-                dan yang kiri dihitung dari scan. */}
-            <TableHead className="w-28 text-center">Box</TableHead>
+            {/* Keping yang sudah masuk dari yang dijadwalkan. Ini yang
+                menentukan lunas, dan satu-satunya angka yang tidak bisa
+                dihitung operator sendiri sambil membongkar palet. */}
+            <TableHead className="text-right">Terscan</TableHead>
+            {/* Keterangan belaka: berapa box yang dipakai tidak diatur, jadi
+                angka ini tidak punya target untuk dibandingkan. */}
+            <TableHead className="w-16 text-center">Box</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
             <TableHead className="w-12" />
@@ -338,18 +271,11 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
               <TableCell className="text-right tabular-nums">
                 {row.qtyDelivery}
               </TableCell>
-              {/* Session yang sudah selesai tidak bisa diubah jumlah box-nya,
-                  jadi kolomnya berhenti jadi isian dan tinggal angka. */}
+              <TableCell className="text-right tabular-nums">
+                {row.verifiedQty}
+              </TableCell>
               <TableCell className="text-center tabular-nums">
-                {session.status === "open" ? (
-                  <BoxCountCell
-                    expectedBoxes={row.expectedBoxes}
-                    rowId={row.id}
-                    verifiedBoxes={row.verifiedBoxes}
-                  />
-                ) : (
-                  `${row.verifiedBoxes}/${row.expectedBoxes ?? "—"}`
-                )}
+                {row.verifiedBoxes}
               </TableCell>
               <TableCell className="text-foreground text-xs">
                 {row.sourceFileName}
@@ -714,23 +640,17 @@ export function DeliverySessionWorkspace({
         </Empty>
       ) : (
         sessions.map((session) => {
-          // Yang dihitung box, bukan baris jadwal: satu baris yang dipecah
-          // empat box adalah empat scan, dan "1/3 baris" tidak menjawab
-          // pertanyaan operator soal berapa box lagi yang harus ditembak.
-          const verifiedBoxes = session.rows.reduce(
-            (total, row) => total + row.verifiedBoxes,
+          // Yang dihitung keping, bukan baris maupun box: berapa box yang
+          // dipakai tidak diatur, jadi "8/12 box" tidak menjawab apa pun
+          // tentang kemajuan kiriman.
+          const verifiedQty = session.rows.reduce(
+            (total, row) => total + row.verifiedQty,
             0,
           )
-          const expectedBoxes = session.rows.reduce(
-            (total, row) => total + (row.expectedBoxes ?? 0),
+          const totalQty = session.rows.reduce(
+            (total, row) => total + row.qtyDelivery,
             0,
           )
-          // Baris yang Box-nya belum diisi tidak muncul di hitungan itu sama
-          // sekali. Tanpa penyebutan tersendiri, "8/8 box" akan terbaca lunas
-          // padahal masih ada kiriman yang belum diperiksa.
-          const rowsWithoutBoxes = session.rows.filter(
-            (row) => row.expectedBoxes === null,
-          ).length
           // Jadwal kosong bukan kiriman yang lunas. Tanpa syarat panjangnya,
           // session yang belum diisi file apa pun akan mengaku DELIVERY OK
           // sebelum satu pun kiriman diperiksa.
@@ -791,13 +711,7 @@ export function DeliverySessionWorkspace({
                   </span>
                   {session.rows.length > 0 ? (
                     <span className="text-foreground text-xs tabular-nums">
-                      {verifiedBoxes}/{expectedBoxes} box terverifikasi
-                    </span>
-                  ) : null}
-                  {rowsWithoutBoxes > 0 ? (
-                    <span className="text-destructive flex items-center gap-1.5 text-xs font-medium">
-                      <TriangleAlertIcon className="size-3.5 shrink-0" />
-                      {rowsWithoutBoxes} baris belum diisi jumlah box-nya
+                      {verifiedQty}/{totalQty} pcs terverifikasi
                     </span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai

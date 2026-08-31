@@ -25,9 +25,6 @@ const safeRpcMessages: Record<string, string> = {
   DELIVERY_ROWS_EMPTY: "File ini tidak berisi satu pun baris jadwal.",
   DELIVERY_ROWS_INVALID:
     "Ada baris yang Part No atau Qty-nya tidak terbaca. Periksa isinya lalu unggah lagi.",
-  DELIVERY_BOXES_BELOW_SCANNED:
-    "Jumlah box tidak boleh lebih kecil dari box yang sudah discan. Untuk mengoreksi ke bawah, hapus barisnya lalu unggah ulang jadwalnya.",
-  DELIVERY_BOXES_INVALID: "Jumlah box harus bilangan bulat, minimal 1.",
   DELIVERY_ROW_NOT_FOUND: "Baris jadwal tidak ditemukan.",
   DELIVERY_SCAN_EMPTY: "Hasil scan kosong.",
   DELIVERY_SESSION_CLOSED:
@@ -231,49 +228,6 @@ export async function deleteDeliverySessionAction(
 
   revalidatePath("/verifikasi-pengiriman")
   return { success: "Session dihapus." }
-}
-
-/**
- * Mengisi jumlah box satu baris jadwal.
- *
- * Dokumen jadwal tidak menyebut berapa box yang berangkat -- yang tahu adalah
- * orang yang mengemasnya -- jadi angkanya diketik di layar sebelum barisnya
- * bisa discan.
- */
-export async function setScheduleRowBoxesAction(input: {
-  boxes: string
-  rowId: string
-}): Promise<UploadScheduleState> {
-  if (!uuidPattern.test(input.rowId)) {
-    return { error: "Baris jadwal tidak valid." }
-  }
-
-  const raw = input.boxes.trim()
-  if (!/^\d+$/.test(raw)) {
-    return { error: "Jumlah box harus bilangan bulat." }
-  }
-
-  const boxes = Number(raw)
-  if (boxes < 1) return { error: "Jumlah box minimal 1." }
-  if (boxes > 9999) return { error: "Jumlah box terlalu besar." }
-
-  const supabase = await createClient()
-  const { error } = await supabase.rpc("set_delivery_schedule_row_boxes", {
-    p_expected_boxes: boxes,
-    p_row_id: input.rowId,
-  })
-
-  if (error) {
-    return {
-      error: rpcErrorMessage(
-        error.message,
-        "Gagal menyimpan jumlah box. Coba lagi atau hubungi admin.",
-      ),
-    }
-  }
-
-  revalidatePath("/verifikasi-pengiriman")
-  return { success: `Jumlah box diisi ${boxes}.` }
 }
 
 export async function deleteScheduleRowAction(
