@@ -175,9 +175,9 @@ describe("parseScheduleWorkbook", () => {
     })
 
     /**
-     * Tube dan kabel tidak diverifikasi di halaman ini dan tidak akan pernah
-     * punya MPQ. Membiarkannya masuk berarti tiap session macet dengan baris
-     * yang tidak mungkin discan.
+     * Tube dan kabel tidak diverifikasi di halaman ini. Membiarkannya masuk
+     * berarti tiap session menyeret ratusan baris yang tidak akan pernah discan
+     * siapa pun.
      */
     it("keeps only the sheet division", async () => {
       const result = await parseScheduleWorkbook(

@@ -11,11 +11,10 @@ type ScheduleRowRecord = {
   customer: string | null
   product_size: string
   qty_delivery: number
-  // Null berarti ukurannya belum ada di MPQ Sheet; jumlah box-nya karena itu
-  // ikut tidak diketahui, dan itu ditulis null pula -- bukan 0 maupun 1.
-  mpq_qty: number | null
+  // Null berarti jumlah box-nya belum diisi operator -- bukan nol, yang akan
+  // terbaca sebagai baris yang lunas tanpa satu pun scan.
   expected_boxes: number | null
-  verified_boxes: number | null
+  verified_boxes: number
   source_file_name: string
   verified_at: string | null
 }
@@ -43,7 +42,7 @@ export default async function VerifikasiPengirimanPage() {
     supabase
       .from("delivery_schedule_rows")
       .select(
-        "id, session_id, row_no, customer, product_size, qty_delivery, mpq_qty, expected_boxes, verified_boxes, source_file_name, verified_at",
+        "id, session_id, row_no, customer, product_size, qty_delivery, expected_boxes, verified_boxes, source_file_name, verified_at",
       )
       .order("row_no"),
   ])
@@ -66,7 +65,6 @@ export default async function VerifikasiPengirimanPage() {
       customer: row.customer,
       expectedBoxes: row.expected_boxes,
       id: row.id,
-      mpqQty: row.mpq_qty,
       productSize: row.product_size,
       qtyDelivery: row.qty_delivery,
       rowNo: row.row_no,

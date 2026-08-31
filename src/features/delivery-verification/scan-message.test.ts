@@ -6,14 +6,14 @@ import {
 } from "@/features/delivery-verification/scan-message"
 
 /**
- * Kasus dari lantai produksi: Qty Delivery 2000 dengan MPQ 1500 adalah 2 box,
+ * Kasus dari lantai produksi: baris ber-Qty Delivery 2000 yang Box-nya diisi 2,
  * dan keduanya membawa label yang sama berisi 2000.
  */
 function row(overrides: Partial<ScanMessageRow> = {}): ScanMessageRow {
   return {
+    boxes_unset: false,
     expected_boxes: 2,
     expected_qty: null,
-    mpq_missing: false,
     packing_qty: 2000,
     part_no: "VS-B T0.3XW60 L=225MM",
     product_size: "VS-B T0.3XW60 L=225MM",
@@ -71,16 +71,16 @@ describe("scanMessage", () => {
   })
 
   /**
-   * Ukuran tanpa MPQ tidak bisa ditolong dengan menembak ulang: yang kurang
-   * data master, dan yang harus dikerjakan ada di halaman MPQ Sheet.
+   * Baris yang jumlah box-nya belum diisi tidak bisa ditolong dengan menembak
+   * ulang: yang kurang isian di layar, dan tempatnya kolom Box baris itu.
    */
-  it("points at MPQ Sheet when the size has no MPQ yet", () => {
+  it("points at the Box column when the count has not been filled in", () => {
     expect(
       scanMessage(
-        row({ expected_boxes: null, mpq_missing: true, result: "not_pass" }),
+        row({ boxes_unset: true, expected_boxes: null, result: "not_pass" }),
       ),
     ).toBe(
-      "NOT PASS — VS-B T0.3XW60 L=225MM belum ada di MPQ Sheet, jumlah box-nya tidak bisa dihitung. Tambahkan MPQ-nya dulu.",
+      "NOT PASS — VS-B T0.3XW60 L=225MM belum diisi jumlah box-nya. Isi kolom Box dulu.",
     )
   })
 

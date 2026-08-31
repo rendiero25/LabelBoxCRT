@@ -1,8 +1,8 @@
 /** Bentuk satu baris balikan verify_delivery_label yang dipakai pesannya. */
 export type ScanMessageRow = {
+  boxes_unset: boolean | null
   expected_boxes: number | null
   expected_qty: number | null
-  mpq_missing: boolean | null
   packing_qty: number | null
   part_no: string | null
   product_size: string | null
@@ -42,11 +42,11 @@ export function scanMessage(row: ScanMessageRow): string {
     return `PASS — ${row.product_size} box ${verified}/${expected}. Sisa ${expected - verified} box, tembak label yang sama.`
   }
 
-  // Yang kurang data master, bukan labelnya. Disebut lebih dulu dari sebab
+  // Yang kurang isian di layar, bukan labelnya. Disebut lebih dulu dari sebab
   // lain karena tindakannya paling berbeda: menembak ulang tidak akan menolong,
-  // dan yang harus dikerjakan justru di halaman MPQ Sheet.
-  if (row.mpq_missing) {
-    return `NOT PASS — ${row.part_no} belum ada di MPQ Sheet, jumlah box-nya tidak bisa dihitung. Tambahkan MPQ-nya dulu.`
+  // dan yang harus dikerjakan ada di kolom Box baris itu sendiri.
+  if (row.boxes_unset) {
+    return `NOT PASS — ${row.part_no} belum diisi jumlah box-nya. Isi kolom Box dulu.`
   }
 
   // Ukuran yang sudah cukup dibedakan dari Qty yang tidak cocok: yang pertama

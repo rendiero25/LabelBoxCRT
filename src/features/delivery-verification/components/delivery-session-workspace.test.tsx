@@ -40,11 +40,10 @@ function sessionFixture(
     rows: [
       {
         customer: "PT. CIPTA MANDIRI WIRASAKTI",
+        // Jumlah box diisi operator; dua di sini.
         expectedBoxes: 2,
         id: "8e2b0000-0000-0000-0000-000000000001",
-        mpqQty: 3000,
         productSize: "VDX T0.3XW100 L=120MM",
-        // 5000 keping dengan MPQ 3000: dua box, yang kedua berisi sisa 2000.
         qtyDelivery: 5000,
         rowNo: 1,
         sourceFileName: "jadwal.xlsx",

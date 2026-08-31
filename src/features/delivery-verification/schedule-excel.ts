@@ -173,9 +173,9 @@ function findHeader(sheet: ExcelJS.Worksheet): HeaderPosition | null {
  * Dokumen yang dipakai seterusnya adalah DO Report: satu file memuat seluruh
  * divisi dan seluruh customer untuk rentang tanggalnya. Kalau ada kolom Divisi,
  * **hanya baris divisi sheet yang diambil** -- tube dan kabel bukan urusan
- * halaman ini dan tidak akan pernah punya MPQ, jadi membiarkannya masuk berarti
- * tiap session macet dengan baris yang tidak mungkin discan. Dokumen tanpa
- * kolom Divisi dibaca seluruhnya, seperti dulu.
+ * halaman ini, jadi membiarkannya masuk berarti tiap session menyeret ratusan
+ * baris yang tidak akan pernah discan siapa pun. Dokumen tanpa kolom Divisi
+ * dibaca seluruhnya, seperti dulu.
  *
  * Baris tanpa ukuran dilewati diam-diam: dokumen jadwal kerap menyisakan baris
  * kosong pemisah, baris subtotal, dan catatan kaki, dan tidak satu pun dari itu

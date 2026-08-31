@@ -15,7 +15,6 @@ import {
   ChevronDownIcon,
   CircleDashedIcon,
   PlusIcon,
-  RefreshCwIcon,
   ScanLineIcon,
   Trash2Icon,
   TriangleAlertIcon,
@@ -52,7 +51,7 @@ import {
   createDeliverySessionAction,
   deleteDeliverySessionAction,
   deleteScheduleRowAction,
-  refreshScheduleMpqAction,
+  setScheduleRowBoxesAction,
   uploadScheduleFileAction,
   verifyDeliveryLabelAction,
 } from "@/features/delivery-verification/actions"
@@ -136,31 +135,71 @@ function ScheduleUpload({ sessionId }: { sessionId: string }) {
 }
 
 /**
- * Muncul hanya kalau ada baris yang MPQ-nya kosong. Jadwal menyalin MPQ saat
- * diunggah, jadi ukuran yang baru ditambahkan ke MPQ Sheet sesudahnya tidak
- * ikut terisi sendiri — dan tanpa tombol ini satu angka yang terlambat berarti
- * seluruh file harus diunggah ulang ke session baru.
+ * Kolom Box yang bisa diketik. Dokumen jadwal tidak menyebut berapa box yang
+ * berangkat, jadi operator mengisinya sendiri sebelum barisnya bisa discan.
+ *
+ * Disimpan saat Enter atau saat fokus berpindah, bukan lewat tombol Simpan
+ * tersendiri: satu baris hanya punya satu angka, dan tombol per baris di tabel
+ * sepanjang ini lebih banyak menghalangi daripada menolong. Angka yang sedang
+ * diketik dikembalikan ke nilai tersimpan kalau ditinggalkan kosong, supaya
+ * kolomnya tidak pernah menampilkan sesuatu yang tidak ada di database.
  */
-function RefreshMpqButton({ sessionId }: { sessionId: string }) {
+function BoxCountCell({
+  expectedBoxes,
+  rowId,
+  verifiedBoxes,
+}: {
+  expectedBoxes: number | null
+  rowId: string
+  verifiedBoxes: number
+}) {
   const [isPending, startTransition] = useTransition()
   const [state, setState] = useState(initialUploadScheduleState)
+  const [draft, setDraft] = useState(
+    expectedBoxes === null ? "" : String(expectedBoxes),
+  )
   useActionStateToast(state)
 
+  const saved = expectedBoxes === null ? "" : String(expectedBoxes)
+
+  function commit() {
+    const value = draft.trim()
+    if (value === saved) return
+    if (value === "") {
+      setDraft(saved)
+      return
+    }
+
+    startTransition(async () => {
+      const result = await setScheduleRowBoxesAction({ boxes: value, rowId })
+      setState(result)
+      // Ditolak berarti yang tersimpan tetap yang lama, jadi kolomnya
+      // dikembalikan ke sana daripada memajang angka yang tidak berlaku.
+      if (result.error) setDraft(saved)
+    })
+  }
+
   return (
-    <Button
-      disabled={isPending}
-      onClick={() =>
-        startTransition(async () => {
-          setState(await refreshScheduleMpqAction(sessionId))
-        })
-      }
-      size="sm"
-      type="button"
-      variant="secondary"
-    >
-      {isPending ? <Spinner /> : <RefreshCwIcon data-icon="inline-start" />}
-      Ambil MPQ
-    </Button>
+    <div className="flex items-center justify-center gap-1.5">
+      <span className="text-foreground tabular-nums">{verifiedBoxes}</span>
+      <span className="text-muted-foreground">/</span>
+      <Input
+        aria-label="Jumlah box"
+        className="h-8 w-14 px-2 text-center tabular-nums"
+        disabled={isPending}
+        inputMode="numeric"
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return
+          event.preventDefault()
+          event.currentTarget.blur()
+        }}
+        placeholder="—"
+        value={draft}
+      />
+      {isPending ? <Spinner className="size-3.5" /> : null}
+    </div>
   )
 }
 
@@ -276,12 +315,10 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
                 Box" dan satu baris lunas oleh satu label -- nama itu ikut
                 berganti supaya angkanya tidak terbaca sebagai isi box. */}
             <TableHead className="text-right">Qty Delivery</TableHead>
-            <TableHead className="text-right">MPQ</TableHead>
-            {/* Berapa box yang sudah masuk dari yang dibutuhkan. Ini yang
-                dicari operator sambil membongkar palet; tanpa kolom ini ia
-                harus mengingat sendiri sudah berapa kali satu ukuran
-                ditembak. */}
-            <TableHead className="w-20 text-center">Box</TableHead>
+            {/* Berapa box yang sudah masuk dari yang diisi operator. Angka
+                kanannya diketik di sini — dokumen jadwal tidak menyebutnya —
+                dan yang kiri dihitung dari scan. */}
+            <TableHead className="w-28 text-center">Box</TableHead>
             <TableHead>Asal file</TableHead>
             <TableHead className="w-24 text-center">Verifikasi</TableHead>
             <TableHead className="w-12" />
@@ -301,17 +338,18 @@ function ScheduleTable({ session }: { session: DeliverySession }) {
               <TableCell className="text-right tabular-nums">
                 {row.qtyDelivery}
               </TableCell>
-              {/* Ukuran yang belum ada di MPQ Sheet dikatakan apa adanya, bukan
-                  dibiarkan bergaris kosong: barisnya tidak bisa discan sampai
-                  admin menambahkan MPQ-nya, dan itu satu-satunya penjelasan
-                  kenapa session ini tidak kunjung DELIVERY OK. */}
-              <TableCell className="text-foreground text-right tabular-nums">
-                {row.mpqQty ?? <Badge variant="outline">MPQ belum ada</Badge>}
-              </TableCell>
+              {/* Session yang sudah selesai tidak bisa diubah jumlah box-nya,
+                  jadi kolomnya berhenti jadi isian dan tinggal angka. */}
               <TableCell className="text-center tabular-nums">
-                {row.expectedBoxes === null
-                  ? "—"
-                  : `${row.verifiedBoxes ?? 0}/${row.expectedBoxes}`}
+                {session.status === "open" ? (
+                  <BoxCountCell
+                    expectedBoxes={row.expectedBoxes}
+                    rowId={row.id}
+                    verifiedBoxes={row.verifiedBoxes}
+                  />
+                ) : (
+                  `${row.verifiedBoxes}/${row.expectedBoxes ?? "—"}`
+                )}
               </TableCell>
               <TableCell className="text-foreground text-xs">
                 {row.sourceFileName}
@@ -676,22 +714,22 @@ export function DeliverySessionWorkspace({
         </Empty>
       ) : (
         sessions.map((session) => {
-          // Yang dihitung box, bukan baris jadwal: satu baris 8000 keping
-          // dengan MPQ 2000 adalah empat box, dan "1/3 baris" tidak menjawab
+          // Yang dihitung box, bukan baris jadwal: satu baris yang dipecah
+          // empat box adalah empat scan, dan "1/3 baris" tidak menjawab
           // pertanyaan operator soal berapa box lagi yang harus ditembak.
           const verifiedBoxes = session.rows.reduce(
-            (total, row) => total + (row.verifiedBoxes ?? 0),
+            (total, row) => total + row.verifiedBoxes,
             0,
           )
           const expectedBoxes = session.rows.reduce(
             (total, row) => total + (row.expectedBoxes ?? 0),
             0,
           )
-          // Baris tanpa MPQ tidak punya jumlah box, jadi ia tidak muncul di
-          // hitungan itu sama sekali. Tanpa penyebutan tersendiri, "8/8 box"
-          // akan terbaca lunas padahal masih ada kiriman yang belum diperiksa.
-          const rowsWithoutMpq = session.rows.filter(
-            (row) => row.mpqQty === null,
+          // Baris yang Box-nya belum diisi tidak muncul di hitungan itu sama
+          // sekali. Tanpa penyebutan tersendiri, "8/8 box" akan terbaca lunas
+          // padahal masih ada kiriman yang belum diperiksa.
+          const rowsWithoutBoxes = session.rows.filter(
+            (row) => row.expectedBoxes === null,
           ).length
           // Jadwal kosong bukan kiriman yang lunas. Tanpa syarat panjangnya,
           // session yang belum diisi file apa pun akan mengaku DELIVERY OK
@@ -756,11 +794,10 @@ export function DeliverySessionWorkspace({
                       {verifiedBoxes}/{expectedBoxes} box terverifikasi
                     </span>
                   ) : null}
-                  {rowsWithoutMpq > 0 ? (
+                  {rowsWithoutBoxes > 0 ? (
                     <span className="text-destructive flex items-center gap-1.5 text-xs font-medium">
                       <TriangleAlertIcon className="size-3.5 shrink-0" />
-                      {rowsWithoutMpq} ukuran belum ada MPQ-nya — tambahkan di
-                      MPQ Sheet, lalu tekan Ambil MPQ
+                      {rowsWithoutBoxes} baris belum diisi jumlah box-nya
                     </span>
                   ) : null}
                   {/* DELIVERY OK bertahan di kartu, bukan cuma lewat sebagai
@@ -788,9 +825,6 @@ export function DeliverySessionWorkspace({
                   {expanded && session.status === "open" ? (
                     <>
                       <ScheduleUpload sessionId={session.id} />
-                      {rowsWithoutMpq > 0 ? (
-                        <RefreshMpqButton sessionId={session.id} />
-                      ) : null}
                       {session.rows.length > 0 ? (
                         <VerificationPanel
                           active={scanningSessionId === session.id}

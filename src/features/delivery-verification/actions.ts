@@ -25,6 +25,9 @@ const safeRpcMessages: Record<string, string> = {
   DELIVERY_ROWS_EMPTY: "File ini tidak berisi satu pun baris jadwal.",
   DELIVERY_ROWS_INVALID:
     "Ada baris yang Part No atau Qty-nya tidak terbaca. Periksa isinya lalu unggah lagi.",
+  DELIVERY_BOXES_BELOW_SCANNED:
+    "Jumlah box tidak boleh lebih kecil dari box yang sudah discan. Untuk mengoreksi ke bawah, hapus barisnya lalu unggah ulang jadwalnya.",
+  DELIVERY_BOXES_INVALID: "Jumlah box harus bilangan bulat, minimal 1.",
   DELIVERY_ROW_NOT_FOUND: "Baris jadwal tidak ditemukan.",
   DELIVERY_SCAN_EMPTY: "Hasil scan kosong.",
   DELIVERY_SESSION_CLOSED:
@@ -55,8 +58,8 @@ function rpcErrorMessage(code: string, fallback: string): string {
 }
 
 /**
- * Sebagian RPC menitipkan keterangan pada `detail` -- daftar ukuran yang belum
- * punya MPQ, misalnya. Isinya data kita sendiri, bukan pesan Postgres mentah,
+ * Sebagian RPC menitipkan keterangan pada `detail` -- daftar baris yang
+ * bermasalah, misalnya. Isinya data kita sendiri, bukan pesan Postgres mentah,
  * jadi aman ditempelkan ke pesan yang dibaca operator.
  */
 function rpcErrorDetail(detail: string | null | undefined): string {
@@ -231,46 +234,46 @@ export async function deleteDeliverySessionAction(
 }
 
 /**
- * Mengisi MPQ yang kosong pada jadwal yang sudah diunggah.
+ * Mengisi jumlah box satu baris jadwal.
  *
- * Jadwal menyalin MPQ saat diunggah, jadi ukuran yang MPQ-nya baru ditambahkan
- * sesudahnya tetap kosong selamanya. Tanpa tombol ini jalan keluarnya
- * mengunggah ulang seluruh file ke session baru, padahal yang kurang satu
- * angka. Baris yang sudah punya MPQ tidak ikut disentuh.
+ * Dokumen jadwal tidak menyebut berapa box yang berangkat -- yang tahu adalah
+ * orang yang mengemasnya -- jadi angkanya diketik di layar sebelum barisnya
+ * bisa discan.
  */
-export async function refreshScheduleMpqAction(
-  sessionId: string,
-): Promise<UploadScheduleState> {
-  if (!uuidPattern.test(sessionId)) {
-    return { error: "Session tidak valid." }
+export async function setScheduleRowBoxesAction(input: {
+  boxes: string
+  rowId: string
+}): Promise<UploadScheduleState> {
+  if (!uuidPattern.test(input.rowId)) {
+    return { error: "Baris jadwal tidak valid." }
   }
 
+  const raw = input.boxes.trim()
+  if (!/^\d+$/.test(raw)) {
+    return { error: "Jumlah box harus bilangan bulat." }
+  }
+
+  const boxes = Number(raw)
+  if (boxes < 1) return { error: "Jumlah box minimal 1." }
+  if (boxes > 9999) return { error: "Jumlah box terlalu besar." }
+
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc("refresh_delivery_schedule_mpq", {
-    p_session_id: sessionId,
+  const { error } = await supabase.rpc("set_delivery_schedule_row_boxes", {
+    p_expected_boxes: boxes,
+    p_row_id: input.rowId,
   })
 
   if (error) {
     return {
       error: rpcErrorMessage(
         error.message,
-        "Gagal mengambil MPQ. Coba lagi atau hubungi admin.",
+        "Gagal menyimpan jumlah box. Coba lagi atau hubungi admin.",
       ),
     }
   }
 
   revalidatePath("/verifikasi-pengiriman")
-
-  // Nol dikatakan apa adanya, bukan disamarkan jadi "berhasil": kalau tidak ada
-  // yang terisi, yang kurang ada di MPQ Sheet, dan operator perlu tahu itu
-  // supaya tidak menekan tombolnya berulang kali.
-  const filled = data ?? 0
-  return filled > 0
-    ? { success: `${filled} baris terisi MPQ-nya.` }
-    : {
-        error:
-          "Tidak ada yang terisi. Ukurannya belum ada di MPQ Sheet, atau MPQ-nya nonaktif.",
-      }
+  return { success: `Jumlah box diisi ${boxes}.` }
 }
 
 export async function deleteScheduleRowAction(

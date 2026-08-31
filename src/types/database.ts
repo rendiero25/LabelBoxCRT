@@ -237,7 +237,6 @@ export type Database = {
           customer: string | null
           expected_boxes: number | null
           id: string
-          mpq_qty: number | null
           product_size: string
           qty_delivery: number
           row_no: number
@@ -252,7 +251,6 @@ export type Database = {
           customer?: string | null
           expected_boxes?: number | null
           id?: string
-          mpq_qty?: number | null
           product_size: string
           qty_delivery: number
           row_no: number
@@ -267,7 +265,6 @@ export type Database = {
           customer?: string | null
           expected_boxes?: number | null
           id?: string
-          mpq_qty?: number | null
           product_size?: string
           qty_delivery?: number
           row_no?: number
@@ -1298,7 +1295,6 @@ export type Database = {
           customer: string
           expected_boxes: number
           id: string
-          mpq_qty: number
           product_size: string
           qty_delivery: number
           row_no: number
@@ -1613,13 +1609,19 @@ export type Database = {
           supplier_code: string
         }[]
       }
-      refresh_delivery_schedule_mpq: {
-        Args: { p_session_id: string }
-        Returns: number
-      }
       save_box_layer_requirements: {
         Args: { p_box_layer_id: string; p_requirements: Json }
         Returns: undefined
+      }
+      set_delivery_schedule_row_boxes: {
+        Args: { p_expected_boxes: number; p_row_id: string }
+        Returns: {
+          expected_boxes: number
+          id: string
+          row_no: number
+          verified_at: string
+          verified_boxes: number
+        }[]
       }
       set_master_item_active: {
         Args: { p_is_active: boolean; p_master_item_id: string }
@@ -1776,13 +1778,12 @@ export type Database = {
       verify_delivery_label: {
         Args: { p_qr_payload: string; p_session_id: string }
         Returns: {
+          boxes_unset: boolean
           delivery_ok: boolean
           expected_boxes: number
           expected_qty: number
           matched_row_id: string
           matched_row_no: number
-          mpq_missing: boolean
-          mpq_qty: number
           packing_qty: number
           part_no: string
           product_size: string

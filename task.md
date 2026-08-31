@@ -849,19 +849,16 @@ diisi dari file, tiap label box discan dan dicocokkan.
       `master_items`/`label_boxes` tidak dipakai sama sekali (`20260827094500`).
       View `delivery_schedule_rows_resolved` ikut dibuang bersamanya.
 - [x] Pencocokan ukuran mengabaikan spasi di kedua sisi (`20260827103000`).
-- [x] Jumlah box per baris diturunkan dari MPQ Sheet: `ceil(Qty Delivery / MPQ)`
-      (`20260828025319`).
 - [x] Semua box satu baris berlabel sama; yang dicocokkan Qty Delivery, dan
       label yang sama ditembak sebanyak jumlah box-nya (`20260828075811`).
       Aturan sebelumnya menuntut Qty per box dan menolak label yang benar.
-- [x] Ukuran tanpa MPQ tetap masuk jadwal, bertanda "MPQ belum ada", tidak bisa
-      discan, dan menahan session tetap terbuka (`20260828035015`).
+- [x] Jumlah box diisi operator di kolom Box, tidak diturunkan dari MPQ
+      (`20260828091159`). Baris yang belum diisi tidak bisa discan dan menahan
+      session tetap terbuka; angkanya tidak boleh turun di bawah box yang sudah
+      discan.
 - [x] MPQ Sheet bisa disunting admin dari `/admin/mpq-sheet` — tambah, edit,
-      nonaktifkan, hapus — lewat RPC teraudit; ukuran nonaktif diperlakukan
-      jadwal baru seperti belum ada MPQ (`20260828063230`).
-- [x] Tombol "Ambil MPQ" mengisi baris jadwal yang MPQ-nya kosong tanpa
-      mengunggah ulang filenya; yang sudah punya MPQ tidak ditimpa
-      (`20260828070519`).
+      nonaktifkan, hapus — lewat RPC teraudit (`20260828063230`). Daftarnya
+      berdiri sendiri; verifikasi pengiriman tidak lagi membacanya.
 - [x] Scan lewat kotak scan yang mengirim sendiri setelah ketikan diam 180 ms —
       DS2208 tidak memakai sufiks apa pun (`af9e479`).
 - [x] Toast PASS/NOT PASS/DELIVERY OK menyebut sisa box dan Qty yang seharusnya.
@@ -877,16 +874,15 @@ diisi dari file, tiap label box discan dan dicocokkan.
 ## Terbuka
 
 - [ ] Upload PDF — menunggu contoh dokumen asli.
-- [ ] Delapan ukuran sheet pada DO Report 21 Agustus 2026 belum ada di MPQ
-      Sheet: empat VS-B milik CIPTA MANDIRI (`L=230MM`, `L=195MM`, `L=250MM`,
-      `L=255MM`) dan empat VS-A milik INDOPRIMA. Selama itu jadwal yang
-      memuatnya tidak bisa DELIVERY OK. Ditambahkan admin dari
-      `/admin/mpq-sheet`; yang ditunggu angka MPQ-nya, bukan kodenya.
+- [ ] Jumlah box yang diisi tidak diperiksa terhadap apa pun. Itu maksudnya —
+      MPQ dilepas justru karena ia menebak — tetapi salah ketik tidak akan
+      tertangkap sistem.
 - [ ] Dua box satu baris tidak bisa dibedakan lewat QR-nya — labelnya sama
       persis — jadi satu box yang ditembak dua kali terhitung dua box. Yang
       menjaganya tinggal ketelitian operator dan catatan di
       `delivery_verification_scans`.
-- [ ] MPQ belum dipakai membatasi Qty per Box saat packing.
+- [ ] MPQ Sheet belum dipakai fitur mana pun; ia daftar rujukan yang berdiri
+      sendiri.
 - [ ] Migrasi belum jalan di production.
 
 **Gate Verifikasi Pengiriman:** satu kiriman nyata diperiksa dari upload jadwal

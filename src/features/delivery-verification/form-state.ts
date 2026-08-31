@@ -10,18 +10,16 @@ export type DeliveryScheduleRow = {
   productSize: string
   /**
    * Seluruh jumlah yang dikirim untuk ukuran ini, bukan isi satu box. Berapa
-   * box yang menampungnya ditentukan mpqQty.
+   * box yang menampungnya diisi operator di kolom Box.
    */
   qtyDelivery: number
   /**
-   * MPQ ukuran ini, disalin dari MPQ Sheet saat jadwal diunggah. Null berarti
-   * ukurannya belum terdaftar di MPQ Sheet: barisnya terlihat tetapi belum bisa
-   * discan, dan menahan session tetap terbuka.
+   * Berapa box yang berangkat untuk baris ini, diisi operator. Null berarti
+   * belum diisi: barisnya terlihat tetapi belum bisa discan, dan menahan
+   * session tetap terbuka.
    */
-  mpqQty: number | null
-  /** Dibulatkan ke atas: sisa yang tidak penuh tetap minta satu box sendiri. */
   expectedBoxes: number | null
-  verifiedBoxes: number | null
+  verifiedBoxes: number
   rowNo: number
   sourceFileName: string
   verifiedAt: string | null
