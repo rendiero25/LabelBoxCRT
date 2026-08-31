@@ -440,7 +440,7 @@ function VerificationPanel({
         // DELIVERY OK berdiri sendiri sesudah PASS-nya, bukan menggantikannya:
         // yang terakhir tetap perlu tahu labelnya diterima.
         if (result.deliveryOk) {
-          toast.success(`DELIVERY OK â€” Session ${session.sessionNo} selesai.`)
+          toast.success(`DELIVERY OK. SESSION ${session.sessionNo} SELESAI`)
         }
       } else {
         toast.error(result.message)
@@ -595,7 +595,7 @@ function VerificationPanel({
           ) : (
             <p className="text-destructive flex items-center gap-1.5 text-xs">
               <TriangleAlertIcon className="size-3.5 shrink-0" />
-              Halaman tidak fokus â€” scanner mengetik ke jendela yang sedang
+              Halaman tidak fokus — scanner mengetik ke jendela yang sedang
               fokus. Klik halaman ini dulu.
             </p>
           )}
