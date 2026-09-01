@@ -122,11 +122,11 @@ function StatusBadge({ status }: { status: SessionProgress }) {
     selesai: { className: "bg-blue-600 text-white", label: "Selesai" },
   }[status]
 
-  // Sebesar judul sessionnya: keempat keterangan di baris itu -- status, DO
-  // Date, Customer, DELIVERY OK -- sama pentingnya dengan nomor sessionnya, dan
-  // semuanya dibaca dari jarak lantai produksi.
+  // Lebih kecil dari tetangganya. Warnanya sudah menyampaikan statusnya dari
+  // jauh; huruf sebesar DO Date dan Customer membuatnya bersaing dengan dua
+  // keterangan yang justru perlu dibaca.
   return (
-    <Badge className={cn("border-transparent text-lg", style.className)}>
+    <Badge className={cn("border-transparent text-sm", style.className)}>
       {style.label}
     </Badge>
   )
