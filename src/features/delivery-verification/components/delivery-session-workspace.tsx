@@ -122,8 +122,11 @@ function StatusBadge({ status }: { status: SessionProgress }) {
     selesai: { className: "bg-blue-600 text-white", label: "Selesai" },
   }[status]
 
+  // Sebesar judul sessionnya: keempat keterangan di baris itu -- status, DO
+  // Date, Customer, DELIVERY OK -- sama pentingnya dengan nomor sessionnya, dan
+  // semuanya dibaca dari jarak lantai produksi.
   return (
-    <Badge className={cn("border-transparent", style.className)}>
+    <Badge className={cn("border-transparent text-lg", style.className)}>
       {style.label}
     </Badge>
   )
@@ -776,12 +779,12 @@ export function DeliverySessionWorkspace({
                       membuka tabelnya. Satu file boleh memuat beberapa, jadi
                       keduanya diringkas. */}
                   {doDates ? (
-                    <span className="text-foreground text-xs font-bold">
+                    <span className="text-foreground text-lg font-bold">
                       DO {doDates}
                     </span>
                   ) : null}
                   {customers ? (
-                    <span className="text-foreground text-xs font-bold">
+                    <span className="text-foreground text-lg font-bold">
                       {customers}
                     </span>
                   ) : null}
@@ -797,8 +800,8 @@ export function DeliverySessionWorkspace({
                       refresh, sedangkan yang ditanya operator adalah apa yang
                       ia lihat di tabel. */}
                   {deliveryOk ? (
-                    <span className="text-success flex items-center gap-1.5 text-xs font-semibold">
-                      <CheckCircle2Icon className="size-4 shrink-0" />
+                    <span className="text-success flex items-center gap-1.5 text-lg font-semibold">
+                      <CheckCircle2Icon className="size-5 shrink-0" />
                       DELIVERY OK
                     </span>
                   ) : null}
