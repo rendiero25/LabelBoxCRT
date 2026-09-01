@@ -81,6 +81,19 @@ tanggal yang tidak berbentuk ISO dikosongkan alih-alih ditebak — `03/04` bisa
 tanggal. Satu dokumen berformat tanggal aneh tidak boleh menahan seluruh
 pemeriksaan kiriman.
 
+Jadwal yang terlanjur diunggah sebelum kolomnya ada diisi lewat
+`20260901063029`. Tanggalnya dibaca dari dokumen aslinya, bukan ditebak dari
+nama file: dua DO Report yang masih tersimpan masing-masing berisi satu tanggal
+untuk seluruh baris sheet-nya. Dua session yang barisnya bernama file
+`INDOPRIMA.xlsx` dan `CMW.xlsx` adalah dokumen 21 Agustus yang dipecah per
+customer — 4 baris + 9 baris, pasangan ukuran/Qty-nya cocok 13 dari 13 dengan
+isi file itu, jadi asalnya pasti dari kesamaan isi, bukan kemiripan nama.
+Jadwal berformat `DELIVERY *.xlsx` dibiarkan kosong: dokumennya memang tidak
+pernah punya kolom DO Date.
+
+Mengunggah ulang bukan jalan keluar untuk kasus semacam ini — barisnya bertambah,
+bukan terganti, dan hasil scan ikut hilang kalau sessionnya dihapus lebih dulu.
+
 Kolom Customer dicocokkan **persis**, bukan lewat `includes`. "Customer PONo"
 dan "Customer No" berdiri lebih dulu di baris header, dan pencocokan longgar
 akan mengambil nomor PO sebagai nama customer — salah yang tidak kelihatan
