@@ -398,8 +398,10 @@ function MasterItemDetailDialog({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-medium">{box.boxName}</h4>
-                  {box.isUsed ? (
-                    <Badge variant="secondary">Terpakai</Badge>
+                  {box.hasOngoingWork ? (
+                    <Badge variant="secondary">Sedang dipakai</Badge>
+                  ) : box.hasHistory ? (
+                    <Badge variant="outline">Pernah dipakai</Badge>
                   ) : null}
                 </div>
                 {box.layers.length === 0 ? (

@@ -22,7 +22,7 @@ Data produksi saat spec ini ditulis: keenam Box milik `GG 3210A-K1Z-NA01-DL` dan
 Kalimat pertama sudah dipakai migrasi `20260819140000` untuk Master Item.
 Kalimat kedua adalah koreksi yang ditemukan saat menelusuri kode: sebuah session
 hanya menjadi `confirmed` ketika print job-nya selesai, dan
-`close_label_box_batch` justru *membuat* session berstatus `scanning` untuk box
+`close_label_box_batch` justru _membuat_ session berstatus `scanning` untuk box
 yang tidak pernah discan. Menutup batch karena itu tidak menyudahi session-nya.
 Tanpa koreksi ini, satu cetak yang gagal akan mengunci Box selamanya tanpa jalan
 keluar dari layar mana pun.
@@ -36,7 +36,7 @@ Satu migrasi.
 `private.box_has_ongoing_work(p_box_id uuid) returns boolean` — true bila:
 
 - ada `label_box_batches` milik Master Item pemilik Box dengan `closed_at is
-  null`; **atau**
+null`; **atau**
 - ada `packing_sessions` pada Box itu yang statusnya bukan
   `confirmed`/`cancelled`/`expired` **dan** tidak terhubung ke batch yang sudah
   ditutup lewat `label_boxes.packing_session_id`.
@@ -79,10 +79,10 @@ mengikuti `master_items`:
   `label_boxes` mana pun) diarsipkan, Box bersih dihapus betulan seperti
   sekarang.
 - `boxes_master_item_box_no_key` menjadi indeks unik parsial `where deleted_at
-  is null`, supaya slot Box 1 bisa dipakai lagi setelah Box 1 lama diarsipkan.
+is null`, supaya slot Box 1 bisa dipakai lagi setelah Box 1 lama diarsipkan.
   `box_code` tidak perlu diubah karena nilainya dari sequence.
 - Pemilih slot di `create_master_item_box`, hitungan box dan `cross join
-  public.boxes` di `create_label_box_batch`, serta policy select `boxes`
+public.boxes` di `create_label_box_batch`, serta policy select `boxes`
   menambah `deleted_at is null`. Pembaca riwayat lewat `session.box_id` sengaja
   tidak disaring — justru itu gunanya baris jangkar.
 
@@ -93,7 +93,7 @@ mengikuti `master_items`:
   dan batch. Ditaruh terpisah supaya bisa diuji tanpa database, sejalan dengan
   `box-layer-requirements.ts`.
 - `src/app/admin/master-items/page.tsx`: query menarik `packing_sessions(id,
-  status)` dan `label_boxes(batch_id)` selain batch terbuka per Master Item,
+status)` dan `label_boxes(batch_id)` selain batch terbuka per Master Item,
   menyaring Box `deleted_at is null`, lalu mengirim kedua nilai turunan itu
   menggantikan `isUsed`.
 - `master-item-box-layer-editor.tsx`: `disabled={box.isUsed}` menjadi

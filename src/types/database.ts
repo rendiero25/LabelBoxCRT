@@ -144,6 +144,8 @@ export type Database = {
           box_name: string
           box_no: number
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           master_item_id: string
           updated_at: string
@@ -153,6 +155,8 @@ export type Database = {
           box_name: string
           box_no: number
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           master_item_id: string
           updated_at?: string
@@ -162,6 +166,8 @@ export type Database = {
           box_name?: string
           box_no?: number
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           master_item_id?: string
           updated_at?: string

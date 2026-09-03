@@ -74,6 +74,18 @@ describe("parseLayerRequirementsPayload", () => {
     })
   })
 
+  it("keeps a layer whose products were all unchecked", () => {
+    const formData = new FormData()
+    formData.set(
+      "layerRequirements",
+      JSON.stringify([{ boxLayerId: "layer-1", productIds: [] }]),
+    )
+
+    expect(parseLayerRequirementsPayload(formData)).toEqual({
+      data: [{ boxLayerId: "layer-1", requirements: [] }],
+    })
+  })
+
   it("rejects a payload that is not a list", () => {
     const formData = new FormData()
     formData.set("layerRequirements", '{"boxLayerId":"layer-1"}')
@@ -87,7 +99,7 @@ describe("parseLayerRequirementsPayload", () => {
 describe("masterItemBoxRpcErrorMessage", () => {
   it("names the locked box in Indonesian", () => {
     expect(masterItemBoxRpcErrorMessage("MASTER_ITEM_BOX_IN_USE")).toBe(
-      "Box sudah dipakai packing session dan terkunci.",
+      "Box sedang dipakai kiriman yang belum selesai. Tutup batch-nya dulu.",
     )
   })
 

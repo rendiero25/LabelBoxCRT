@@ -50,8 +50,9 @@ export function parseLayerRequirementsPayload(
         ),
       ),
     )
-    if (normalizedProductIds.length === 0) continue
-
+    // Daftar kosong ikut dikirim: mencabut centang produk terakhir adalah
+    // perubahan yang sah, dan membuangnya di sini membuat perubahan itu gagal
+    // diam-diam.
     entries.push({
       boxLayerId: normalizedBoxLayerId,
       requirements: normalizedProductIds.map((productId) => ({
@@ -107,7 +108,8 @@ export function masterItemBoxRpcErrorMessage(message: string): string {
       "Master Item tidak aktif atau tidak ditemukan.",
     MASTER_ITEM_BOX_LIMIT_REACHED: "Maksimal 3 Box per Master Item.",
     MASTER_ITEM_BOX_NOT_FOUND: "Box tidak ditemukan.",
-    MASTER_ITEM_BOX_IN_USE: "Box sudah dipakai packing session dan terkunci.",
+    MASTER_ITEM_BOX_IN_USE:
+      "Box sedang dipakai kiriman yang belum selesai. Tutup batch-nya dulu.",
     MASTER_ITEM_BOX_INPUT_INVALID: "Data kebutuhan produk tidak valid.",
     MASTER_ITEM_BOX_PRODUCT_NOT_ALLOWED:
       "Produk requirement tidak diizinkan untuk Master Item ini.",

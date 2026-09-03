@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, pg_catalog;
 
-select plan(73);
+select plan(74);
 
 select has_type('public', 'user_role', 'user_role enum exists');
 select enum_has_labels(
@@ -155,17 +155,32 @@ select has_table('public', 'boxes', 'boxes exists');
 select columns_are(
   'public',
   'boxes',
-  array['id', 'master_item_id', 'box_no', 'box_code', 'box_name', 'created_at', 'updated_at'],
+  array[
+    'id', 'master_item_id', 'box_no', 'box_code', 'box_name', 'created_at',
+    'updated_at', 'deleted_at', 'deleted_by'
+  ],
   'boxes columns stay locked'
 );
 select has_index('public', 'boxes', 'boxes_box_code_key', 'box code is globally unique');
 select has_column('public', 'boxes', 'master_item_id', 'boxes has master_item_id');
 select has_column('public', 'boxes', 'box_no', 'boxes has box_no');
+-- Parsial `where deleted_at is null`: Box yang diarsipkan melepaskan slotnya,
+-- kalau tidak Master Item itu tidak pernah bisa punya Box 1 lagi.
 select has_index(
   'public',
   'boxes',
   'boxes_master_item_box_no_key',
   'box slot number is unique per master item'
+);
+
+select is(
+  (
+    select pg_catalog.pg_get_expr(index.indpred, index.indrelid)
+    from pg_catalog.pg_index index
+    where index.indexrelid = 'public.boxes_master_item_box_no_key'::regclass
+  ),
+  '(deleted_at IS NULL)',
+  'the box slot is only claimed by boxes that are not archived'
 );
 
 select has_table('public', 'box_layers', 'box_layers exists');

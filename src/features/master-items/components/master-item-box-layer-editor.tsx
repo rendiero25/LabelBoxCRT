@@ -62,7 +62,10 @@ export type MasterItemBox = {
   boxNo: number
   boxCode: string
   boxName: string
-  isUsed: boolean
+  /** Mengunci penyuntingan: masih ada kiriman yang belum selesai. */
+  hasOngoingWork: boolean
+  /** Pernah dipakai kiriman yang sudah selesai; hanya keterangan. */
+  hasHistory: boolean
   layers: BoxLayer[]
 }
 
@@ -204,8 +207,12 @@ function BoxCard({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-medium">{box.boxName}</h3>
         <div className="flex items-center gap-2">
-          {box.isUsed ? <Badge variant="secondary">Terpakai</Badge> : null}
-          {!box.isUsed ? (
+          {box.hasOngoingWork ? (
+            <Badge variant="secondary">Sedang dipakai</Badge>
+          ) : box.hasHistory ? (
+            <Badge variant="outline">Pernah dipakai</Badge>
+          ) : null}
+          {!box.hasOngoingWork ? (
             <form action={deleteBoxAction}>
               <input name="boxId" type="hidden" value={box.id} />
               <Button
@@ -247,7 +254,7 @@ function BoxCard({
         ))}
       </div>
 
-      {!box.isUsed ? (
+      {!box.hasOngoingWork ? (
         <form action={createLayerAction}>
           <input name="boxId" type="hidden" value={box.id} />
           <Button
@@ -296,7 +303,7 @@ function LayerCard({
   )
   useActionStateToast(deleteLayerState)
 
-  const canDeleteLayer = !box.isUsed && layer.layerNo === highestLayerNo
+  const canDeleteLayer = !box.hasOngoingWork && layer.layerNo === highestLayerNo
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const selectedProducts = products.filter((product) =>
     selectedProductIds.includes(product.id),
@@ -378,7 +385,7 @@ function LayerCard({
             >
               <input
                 checked={selectedProductIds.includes(product.id)}
-                disabled={box.isUsed}
+                disabled={box.hasOngoingWork}
                 onChange={() => onToggleProduct(layer.id, product.id)}
                 type="checkbox"
               />

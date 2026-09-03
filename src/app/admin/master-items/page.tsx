@@ -1,6 +1,7 @@
 import { PackageSearchIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { boxWorkState } from "@/features/master-items/box-lock"
 import { MasterItemDirectory } from "@/features/master-items/components/master-item-directory"
 import { requireAdmin } from "@/features/auth/server"
 import { createClient } from "@/lib/supabase/server"
@@ -13,6 +14,7 @@ export default async function MasterItemsPage() {
     rowNumbersResult,
     productsResult,
     boxesResult,
+    batchesResult,
     suppliersResult,
   ] = await Promise.all([
     supabase
@@ -38,9 +40,16 @@ export default async function MasterItemsPage() {
     supabase
       .from("boxes")
       .select(
-        "id, master_item_id, box_no, box_code, box_name, box_layers(id, layer_no, layer_name, box_layer_requirements(product_id, expected_qty)), packing_sessions(id)",
+        "id, master_item_id, box_no, box_code, box_name, box_layers(id, layer_no, layer_name, box_layer_requirements(product_id, expected_qty)), packing_sessions(id, status), label_boxes(batch_id, packing_session_id)",
       )
+      // Box yang diarsipkan tetap ada sebagai jangkar label lama, tapi tidak
+      // boleh muncul lagi di layar mana pun.
+      .is("deleted_at", null)
       .order("box_no"),
+    // Batch dipakai untuk memutuskan Box mana yang masih terkunci: yang
+    // menyudahi pekerjaan sebuah Box adalah batch-nya yang ditutup, bukan
+    // status sesinya.
+    supabase.from("label_box_batches").select("id, master_item_id, closed_at"),
     supabase
       .from("suppliers")
       .select("id, supplier_code, supplier_name")
@@ -52,6 +61,7 @@ export default async function MasterItemsPage() {
     rowNumbersResult.error ??
     productsResult.error ??
     boxesResult.error ??
+    batchesResult.error ??
     suppliersResult.error
   const rowNumbers = new Map(
     (rowNumbersResult.data ?? []).map((row) => [
@@ -73,13 +83,32 @@ export default async function MasterItemsPage() {
     length: product.length,
     normalizedDimensions: product.normalized_dimensions,
   }))
+  const batches = batchesResult.data ?? []
+  const closedBatchIds = new Set(
+    batches
+      .filter((batch) => batch.closed_at !== null)
+      .map((batch) => batch.id),
+  )
+  const masterItemsWithOpenBatch = new Set(
+    batches
+      .filter((batch) => batch.closed_at === null)
+      .map((batch) => batch.master_item_id),
+  )
   const boxes = (boxesResult.data ?? []).map((box) => ({
     id: box.id,
     masterItemId: box.master_item_id,
     boxNo: box.box_no,
     boxCode: box.box_code,
     boxName: box.box_name,
-    isUsed: box.packing_sessions.length > 0,
+    ...boxWorkState({
+      sessions: box.packing_sessions,
+      labelBoxes: box.label_boxes.map((labelBox) => ({
+        batchId: labelBox.batch_id,
+        packingSessionId: labelBox.packing_session_id,
+      })),
+      hasOpenBatch: masterItemsWithOpenBatch.has(box.master_item_id),
+      closedBatchIds,
+    }),
     layers: box.box_layers
       .map((layer) => ({
         id: layer.id,
